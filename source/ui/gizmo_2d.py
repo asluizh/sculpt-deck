@@ -2,6 +2,8 @@ import bpy
 from mathutils import Matrix, Vector
 
 from ..utils.blender import *
+from ..utils.constants import (action_toggles, multires_actions, pie_actions,
+                               popup_actions, voxel_actions)
 from .gizmo_config import gizmo_colors, toggle_colors
 
 ##
@@ -37,9 +39,6 @@ class GizmoSet:
         self.skip_draw = False
         self.__updatevisible()
 
-        if self.binding["name"] == "float_menu":
-            self.primary.hide = not prefs.show_float_menu
-            self.primary.use_grab_cursor = False
         if self.binding["name"] in {"menu_controller"}:
             self.primary.hide = "float" not in prefs.menu_style or not prefs.show_menu
             self.primary.use_grab_cursor = False
@@ -188,3 +187,91 @@ class GizmoSetEnum(GizmoSet):
 
     def setup(self, group: bpy.types.GizmoGroup, config):
         pass
+
+
+def resolve_context_path(context, path: str):
+    value = context
+    for name in path.split("."):
+        value = getattr(value, name, None)
+        if value is None:
+            return None
+    return value
+
+
+def action_icon(context, idname: str) -> str:
+    toggle = action_toggles.get(idname)
+    if toggle is not None:
+        path, on_icon, off_icon = toggle
+        state = resolve_context_path(context, path)
+        is_on = len(state) > 0 if isinstance(state, bpy.types.bpy_prop_collection) else bool(state)
+        return on_icon if is_on else off_icon
+    if idname in pie_actions:
+        return pie_actions[idname][1]
+    return "COLLAPSEMENU" if "_MT_" in idname else "SCRIPT"
+
+
+def action_available(context, idname: str) -> bool:
+    if idname not in voxel_actions and idname not in multires_actions:
+        return True
+    obj = context.active_object
+    if obj is None or obj.type != "MESH":
+        return False
+    has_multires = any(mod.type == "MULTIRES" for mod in obj.modifiers)
+    return has_multires if idname in multires_actions else not has_multires
+
+
+def operator_exists(idname: str) -> bool:
+    try:
+        category, name = idname.split(".")
+        getattr(getattr(bpy.ops, category), name).get_rna_type()
+    except (ValueError, AttributeError, KeyError):
+        return False
+    return True
+
+
+class ActionGizmo:
+    """A widget button running one of the shared pie/widget actions"""
+
+    # undo/redo and multires up/down stay next to each other in the radial menu
+    pairs = {"ed.undo": "ed.redo", "touchview.increment_multires": "touchview.decrement_multires"}
+
+    def __init__(self, group: bpy.types.GizmoGroup, context, idname: str):
+        self.idname = idname
+        self.visible = True
+        self.skip_draw = False
+        self.has_dependent = False
+        self.primary = group.gizmos.new("GIZMO_GT_button_2d")
+        self.set_target(idname)
+        gizmo = self.primary
+        gizmo.icon = action_icon(context, idname)  # type: ignore
+        gizmo.use_tooltip = True  # show the action's description on hover
+        gizmo.use_event_handle_all = True  # don't pass events e.g. shift+a to add
+        gizmo.use_grab_cursor = False
+        gizmo.show_drag = False  # show default cursor
+        gizmo.line_width = 5.0
+        gizmo.use_draw_modal = True  # show gizmo while dragging
+        gizmo.draw_options = {"BACKDROP", "OUTLINE"}  # type: ignore
+        gizmo.color = gizmo_colors["active"]["color"]
+        gizmo.color_highlight = gizmo_colors["active"]["color_highlight"]
+        gizmo.alpha = gizmo_colors["active"]["alpha"]
+        gizmo.alpha_highlight = gizmo_colors["active"]["alpha_highlight"]
+
+    def set_target(self, idname: str):
+        if "_AST_" in idname or "_MT_" in idname or idname in popup_actions:
+            self.primary.target_set_operator("touchview.widget_menu").name = idname
+        elif operator_exists(idname):
+            self.primary.target_set_operator(idname)
+
+    def draw_prepare(self, context):
+        prefs = preferences()
+        self.skip_draw = False
+        self.visible = (
+            prefs.show_menu
+            and (prefs.menu_style == "fixed.bar" or prefs.show_gizmos)
+            and action_available(context, self.idname)
+        )
+        self.primary.hide = not self.visible
+        self.primary.scale_basis = 18 * prefs.gizmo_scale
+
+    def move(self, position: Vector):
+        self.primary.matrix_basis = Matrix.Translation(position)

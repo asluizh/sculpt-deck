@@ -1,11 +1,13 @@
 import math
 
 import bpy
+from bpy.props import EnumProperty, FloatProperty, IntProperty
 from bpy.types import Operator
 
 from ..utils.blender import preferences
-from ..utils.constants import (CANCEL, FINISHED, paint_settings_name,
-                               pivot_items)
+from ..utils.constants import (CANCEL, FINISHED, object_modes,
+                               paint_settings_name, pivot_items,
+                               primitive_items)
 
 
 class TOUCHVIEW_OT_flip_tools(Operator):
@@ -84,18 +86,6 @@ class TOUCHVIEW_OT_toggle_npanel(Operator):
         if not isinstance(context.space_data, bpy.types.SpaceView3D):
             return CANCEL
         context.space_data.show_region_ui ^= True
-        return FINISHED
-
-
-class TOUCHVIEW_OT_toggle_floating_menu(Operator):
-    """Toggle Floating Menu"""
-
-    bl_label = "Toggle Floating Menu"
-    bl_idname = "touchview.toggle_floating_menu"
-
-    def execute(self, context):
-        prefs = preferences()
-        prefs.show_float_menu = not prefs.show_float_menu
         return FINISHED
 
 
@@ -273,6 +263,7 @@ class TOUCHVIEW_OT_density_up(Operator):
 
     bl_label = "Increase voxel density and remesh"
     bl_idname = "touchview.density_up"
+    bl_options = {"REGISTER", "UNDO"}
 
     def execute(self, context):
         if not context.active_object or context.active_object.type != "MESH":
@@ -291,6 +282,7 @@ class TOUCHVIEW_OT_density_down(Operator):
 
     bl_label = "Decrease voxel density and remesh"
     bl_idname = "touchview.density_down"
+    bl_options = {"REGISTER", "UNDO"}
 
     def execute(self, context):
         if not context.active_object or context.active_object.type != "MESH":
@@ -304,7 +296,124 @@ class TOUCHVIEW_OT_density_down(Operator):
         return FINISHED
 
 
+class TOUCHVIEW_OT_add_primitive(Operator):
+    """Add a mesh at the 3D cursor and keep working on it in the current mode"""
+
+    bl_label = "Add Mesh"
+    bl_idname = "touchview.add_primitive"
+    bl_options = {"REGISTER", "UNDO"}
+
+    primitive: EnumProperty(name="Shape", items=primitive_items)  # type: ignore
+    resolution: IntProperty(  # type: ignore
+        name="Resolution",
+        description="Sculpt mode: voxels across the longest side, for an even, sculptable mesh",
+        default=80,
+        min=8,
+        soft_max=300,
+    )
+
+    @classmethod
+    def poll(cls, context):
+        return context.mode in object_modes
+
+    def execute(self, context):
+        mode = object_modes[context.mode]
+        if mode != "OBJECT":
+            bpy.ops.object.mode_set(mode="OBJECT")
+        bpy.ops.object.select_all(action="DESELECT")
+        sculpt = mode == "SCULPT"
+        self.add_mesh(sculpt)
+
+        obj = context.view_layer.objects.active
+        # voxel remesh needs a closed shape; the sculpt plane is a dense grid instead
+        if sculpt and self.primitive != "PLANE":
+            context.view_layer.update()
+            obj.data.remesh_voxel_size = max(obj.dimensions) / self.resolution
+            bpy.ops.object.voxel_remesh()
+        if mode != "OBJECT":
+            bpy.ops.object.mode_set(mode=mode)
+        return FINISHED
+
+    def add_mesh(self, sculpt: bool):
+        mesh = bpy.ops.mesh
+        if self.primitive == "SPHERE":
+            mesh.primitive_uv_sphere_add()
+        elif self.primitive == "CUBE":
+            mesh.primitive_cube_add()
+        elif self.primitive == "CYLINDER":
+            mesh.primitive_cylinder_add()
+        elif self.primitive == "CONE":
+            mesh.primitive_cone_add()
+        elif self.primitive == "TORUS":
+            mesh.primitive_torus_add()
+        elif self.primitive == "PLANE":
+            if sculpt:
+                mesh.primitive_grid_add(x_subdivisions=self.resolution, y_subdivisions=self.resolution, size=2)
+            else:
+                mesh.primitive_plane_add()
+        elif self.primitive == "MONKEY":
+            mesh.primitive_monkey_add()
+
+
+class SelectedMeshes:
+    """Shared by Join and Fuse: run in Object Mode, then return to the user's mode"""
+
+    @classmethod
+    def poll(cls, context):
+        meshes = [obj for obj in context.selected_objects if obj.type == "MESH"]
+        active = context.view_layer.objects.active
+        return context.mode in object_modes and len(meshes) > 1 and active in meshes
+
+    def execute(self, context):
+        mode = object_modes[context.mode]
+        if mode != "OBJECT":
+            bpy.ops.object.mode_set(mode="OBJECT")
+        for obj in context.selected_objects:
+            if obj.type != "MESH":
+                obj.select_set(False)
+        bpy.ops.object.join()
+        self.after_join(context, context.view_layer.objects.active)
+        if mode != "OBJECT":
+            bpy.ops.object.mode_set(mode=mode)
+        return FINISHED
+
+    def after_join(self, context, obj):
+        pass
+
+
+class TOUCHVIEW_OT_join_selected(SelectedMeshes, Operator):
+    """Join the selected meshes into the active one, staying in the current mode"""
+
+    bl_label = "Join Selected"
+    bl_idname = "touchview.join_selected"
+    bl_options = {"REGISTER", "UNDO"}
+
+
+class TOUCHVIEW_OT_fuse_selected(SelectedMeshes, Operator):
+    """Join the selected meshes and voxel remesh them into one surface, staying in the current mode"""
+
+    bl_label = "Fuse Selected"
+    bl_idname = "touchview.fuse_selected"
+    bl_options = {"REGISTER", "UNDO"}
+
+    voxel_size: FloatProperty(  # type: ignore
+        name="Voxel Size",
+        description="Size of the remesh voxels, 0 keeps the active object's voxel size",
+        default=0.0,
+        min=0.0,
+        subtype="DISTANCE",
+    )
+
+    def after_join(self, context, obj):
+        if self.voxel_size > 0:
+            obj.data.remesh_voxel_size = self.voxel_size
+        bpy.ops.object.voxel_remesh()
+
+
 classes = (
+    TOUCHVIEW_OT_add_primitive,
+    TOUCHVIEW_OT_fuse_selected,
+    TOUCHVIEW_OT_join_selected,
     TOUCHVIEW_OT_brush_resize,
     TOUCHVIEW_OT_brush_strength,
     TOUCHVIEW_OT_decrease_multires,
@@ -313,7 +422,6 @@ classes = (
     TOUCHVIEW_OT_flip_tools,
     TOUCHVIEW_OT_increase_multires,
     TOUCHVIEW_OT_next_pivot_mode,
-    TOUCHVIEW_OT_toggle_floating_menu,
     TOUCHVIEW_OT_toggle_npanel,
     TOUCHVIEW_OT_toggle_touch_controls,
     TOUCHVIEW_OT_viewport_lock,
