@@ -6,10 +6,14 @@ import bpy
 from bpy.props import *
 from bpy.types import AddonPreferences, PropertyGroup, UILayout
 
+from .source.ui.panel import draw_pen_buttons
 from .source.utils.constants import (double_click_items, edit_modes,
                                      gizmo_sets, menu_defaults,
                                      menu_orientation_items, menu_style_items,
-                                     pivot_items, position_items)
+                                     pen_action_items, pen_brush_action_items,
+                                     pen_brush_modes, pen_buttons,
+                                     pen_gestures, pen_mode_items, pivot_items,
+                                     position_items)
 
 
 def NODE_HT_nendo_header(s, c):
@@ -77,6 +81,69 @@ class TOUCHVIEW_PG_MenuModeGroup(PropertyGroup):
         self.menu_slot_6 = data.get("menu_slot_6", "")
         self.menu_slot_7 = data.get("menu_slot_7", "")
         self.menu_slot_8 = data.get("menu_slot_8", "")
+
+
+##
+# Pen Button Settings
+##
+def pen_actions(binding, _):
+    if binding.mode in pen_brush_modes:
+        return pen_action_items + pen_brush_action_items
+    return pen_action_items
+
+
+class TOUCHVIEW_PG_PenBinding(PropertyGroup):
+    mode: StringProperty(name="mode", default="OBJECT")
+    action: EnumProperty(name="Action", items=pen_actions)
+    operator: StringProperty(name="Operator", description="Operator to run, e.g. object.shade_smooth")
+    brush_library_type: StringProperty()
+    brush_library: StringProperty()
+    brush_asset: StringProperty()
+
+    def brushRef(self) -> tuple | None:
+        if not self.brush_asset:
+            return None
+        return (self.brush_library_type, self.brush_library, self.brush_asset)
+
+    def setBrushRef(self, ref: tuple):
+        self.brush_library_type, self.brush_library, self.brush_asset = ref
+
+    def to_dict(self):
+        return {
+            "action": self.action,
+            "operator": self.operator,
+            "brush": list(self.brushRef() or ()),
+        }
+
+    def from_dict(self, data: dict):
+        try:
+            self.action = data.get("action", "DEFAULT")
+        except TypeError:
+            self.action = "DEFAULT"
+        self.operator = data.get("operator", "")
+        brush = data.get("brush", [])
+        if len(brush) == 3:
+            self.setBrushRef(tuple(brush))
+
+
+class TOUCHVIEW_PG_PenModeSet(PropertyGroup):
+    mode: StringProperty(name="mode", default="OBJECT")
+    upper_click: PointerProperty(type=TOUCHVIEW_PG_PenBinding)
+    upper_hold: PointerProperty(type=TOUCHVIEW_PG_PenBinding)
+    lower_click: PointerProperty(type=TOUCHVIEW_PG_PenBinding)
+    lower_hold: PointerProperty(type=TOUCHVIEW_PG_PenBinding)
+
+    def bindings(self):
+        for button in pen_buttons.values():
+            for gesture in pen_gestures:
+                yield button + "_" + gesture, getattr(self, button + "_" + gesture)
+
+    def to_dict(self):
+        return {"mode": self.mode, **{slot: binding.to_dict() for slot, binding in self.bindings()}}
+
+    def from_dict(self, data: dict):
+        for slot, binding in self.bindings():
+            binding.from_dict(data.get(slot, {}))
 
 
 class TOUCHVIEW_AP_OverlaySettings(AddonPreferences):
@@ -175,9 +242,8 @@ class TOUCHVIEW_AP_OverlaySettings(AddonPreferences):
     right_click_source: EnumProperty(
         name="Right Click Source",
         items=[
-            ("MOUSE", "Mouse", "Mouse/Touch right click"),
-            ("PEN", "Pen", "Pen right click"),
-            ("NONE", "None", "Disabled"),
+            ("MOUSE", "Mouse/Touch", "Mouse/Touch right click (pen buttons are set in Pen Buttons)"),
+            ("NONE", "Off", "Disabled"),
         ],
         default="MOUSE",
     )
@@ -407,6 +473,18 @@ class TOUCHVIEW_AP_OverlaySettings(AddonPreferences):
     )
 
     ##
+    # Pen Button Options
+    ##
+
+    pen_sets: CollectionProperty(type=TOUCHVIEW_PG_PenModeSet)
+
+    pen_mode_tab: EnumProperty(
+        name="Pen Mode",
+        items=pen_mode_items,
+        default="SCULPT",
+    )
+
+    ##
     # UI Panel Controls
     ##
 
@@ -420,6 +498,7 @@ class TOUCHVIEW_AP_OverlaySettings(AddonPreferences):
         items=[
             ("GIZMO", "Gizmo", "", 0),
             ("ACTIONS", "Action", "", 1),
+            ("PEN", "Pen Buttons", "", 2),
         ],
         default="GIZMO",
     )
@@ -474,6 +553,7 @@ class TOUCHVIEW_AP_OverlaySettings(AddonPreferences):
             "active_menu": self.active_menu,
             "gizmo_tabs": self.gizmo_tabs,
             "menu_sets": [m.to_dict() for m in self.menu_sets],
+            "pen_sets": [p.to_dict() for p in self.pen_sets],
         }
 
     def from_dict(self, data: dict):
@@ -489,7 +569,8 @@ class TOUCHVIEW_AP_OverlaySettings(AddonPreferences):
         self.double_click_mode = data.get("double_click_mode", "screen.screen_full_area")
         self.enable_right_click = data.get("enable_right_click", True)
         self.right_click_mode = data.get("right_click_mode", "wm.window_fullscreen_toggle")
-        self.right_click_source = data.get("right_click_source", "MOUSE")
+        # "PEN" is gone, pen right clicks are pen button bindings now
+        self.right_click_source = "NONE" if data.get("right_click_source", "MOUSE") != "MOUSE" else "MOUSE"
         self.swap_panrotate = data.get("swap_panrotate", False)
         self.width = data.get("width", 40.0)
         self.radius = data.get("radius", 35.0)
@@ -525,9 +606,23 @@ class TOUCHVIEW_AP_OverlaySettings(AddonPreferences):
         self.double_click_mode = data.get("double_click_mode", "wm.window_fullscreen_toggle")
         self.active_menu = data.get("active_menu", "VIEW3D")
         self.gizmo_tabs = data.get("gizmo_tabs", "GIZMO")
-        self.menu_sets = [TOUCHVIEW_PG_MenuModeGroup().from_dict(m) for m in data.get("menu_sets", [])]
+        self.menu_sets.clear()
+        for menu in data.get("menu_sets", []):
+            self.menu_sets.add().from_dict(menu)
+
+        self.ensurePenSets()
+        for saved in data.get("pen_sets", []):
+            pen_set = self.getPenSet(saved.get("mode"))
+            if pen_set is not None:
+                pen_set.from_dict(saved)
+        # the old "pen" right click source becomes an upper pen button binding
+        if data.get("right_click_source") == "PEN" and "pen_sets" not in data:
+            for pen_set in self.pen_sets:
+                pen_set.upper_click.action = "OPERATOR"
+                pen_set.upper_click.operator = self.right_click_mode
 
     def load(self):
+        self.ensurePenSets()
         filename = path.abspath(path.dirname(__file__) + "/preferences.json")
         if not path.exists(filename):
             return None
@@ -612,7 +707,7 @@ class TOUCHVIEW_AP_OverlaySettings(AddonPreferences):
             box.label(text="Right Click Actions")
             col = box.column()
             row = col.row()
-            row.prop(self, "right_click_source", text="Source", expand=True)
+            row.prop(self, "right_click_source", text="Mouse/Touch", expand=True)
             col.prop(self, "right_click_mode", text="Mode", expand=True)
 
             box = main_box.box()
@@ -624,6 +719,9 @@ class TOUCHVIEW_AP_OverlaySettings(AddonPreferences):
             col = main_box.column()
             col.label(text="Tool Settings")
             col.prop(self, "subdivision_limit", slider=True)
+
+        if self.gizmo_tabs == "PEN":
+            draw_pen_buttons(col, self)
 
         if self.gizmo_tabs == "ACTIONS":
             if not self.show_float_menu:
@@ -654,6 +752,20 @@ class TOUCHVIEW_AP_OverlaySettings(AddonPreferences):
                 setattr(m, "menu_slot_" + str(i + 1), o)
         return m
 
+    def getPenSet(self, mode: str):
+        for pen_set in self.pen_sets:
+            if pen_set.mode == mode:
+                return pen_set
+        return None
+
+    def ensurePenSets(self):
+        for mode, _, _ in pen_mode_items:
+            if self.getPenSet(mode) is None:
+                pen_set = self.pen_sets.add()
+                pen_set.mode = mode
+                for _, binding in pen_set.bindings():
+                    binding.mode = mode
+
     def getGizmoSet(self, mode: str | int):
         available = list(gizmo_sets["ALL"])
 
@@ -673,6 +785,8 @@ class TOUCHVIEW_AP_OverlaySettings(AddonPreferences):
 
 classes = (
     TOUCHVIEW_PG_MenuModeGroup,
+    TOUCHVIEW_PG_PenBinding,
+    TOUCHVIEW_PG_PenModeSet,
     TOUCHVIEW_AP_OverlaySettings,
 )
 

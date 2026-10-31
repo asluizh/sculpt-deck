@@ -125,6 +125,17 @@ This feature allows you to quickly access the UI for brush resizing and strength
 
 This button allows you to assign up to 8 commands, unique to each edit mode (object, sculpt, texture paint, weight paint, etc) and reposition it where ever you want, to best fit your workspace. If you don't need it, simply disable it in the prefs menu.
 
+## Pen Buttons
+
+Give your pen's side buttons their own actions in Object and Sculpt mode, separately for a click and for a hold/drag. Only the pen is affected; mouse and touch keep their usual behavior.
+
+- **Blender Default** / **Nothing**
+- **Previous Brush** (Sculpt): a click switches to the brush you used before; a hold uses it only until you release the button
+- **Specific Brush** (Sculpt): pick a brush the usual way, then press the eyedropper next to the binding; a click switches to it, a hold uses it only until you release (e.g. hold for Smooth)
+- **Touchview Action Pie**, **Quick Favorites** or any **Custom Operator**
+
+A press becomes a hold after a moment, once the pen moves, or when the tip touches down while the button is held. Set them up in the sidebar under _Touchview > Pen Buttons_ or in the add-on preferences.
+
 # Feature Roadmap
 
 If you have a suggestion for more features, please check if it's on this list before submitting a request on Github.

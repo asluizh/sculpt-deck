@@ -180,3 +180,49 @@ gizmo_sets = {
     "SCULPT_GPENCIL": {"brush_dynamics"},
     "PAINT_GPENCIL": {"brush_dynamics"},
 }
+
+# PEN BUTTONS
+# pen side buttons arrive as mouse buttons with event.is_tablet set
+pen_buttons = {
+    "RIGHTMOUSE": "upper",
+    "MIDDLEMOUSE": "lower",
+}
+
+pen_gestures = ("click", "hold")
+
+# modes that can have pen button bindings
+pen_mode_items = [
+    ("OBJECT", "Object", "Object Mode bindings"),
+    ("SCULPT", "Sculpt", "Sculpt Mode bindings"),
+]
+
+# modes whose bindings may switch brushes
+pen_brush_modes = {"SCULPT"}
+
+pen_action_items = [
+    ("DEFAULT", "Blender Default", "Do what Blender normally does for this button", "BLENDER", 0),
+    ("NONE", "Nothing", "Ignore this button", "CANCEL", 1),
+    ("PIE", "Touchview Action Pie", "Open the Touchview action pie menu", "SETTINGS", 2),
+    ("QUICK_FAVORITES", "Quick Favorites", "Open Blender's Quick Favorites menu", "SOLO_ON", 3),
+    ("OPERATOR", "Custom Operator", "Run an operator by its name, e.g. object.shade_smooth", "SCRIPT", 4),
+]
+
+pen_brush_action_items = [
+    (
+        "BRUSH_PREVIOUS",
+        "Previous Brush",
+        "Click switches to the previously used brush, hold uses it until released",
+        "LOOP_BACK",
+        5,
+    ),
+    ("BRUSH", "Specific Brush", "Click switches to the chosen brush, hold uses it until released", "BRUSH_DATA", 6),
+]
+
+pen_brush_actions = {"BRUSH_PREVIOUS", "BRUSH"}
+
+# what Blender does for each button by default, used when only one gesture is
+# bound and the other should keep Blender's behavior
+pen_default_context_menus = {
+    "OBJECT": ("wm.call_menu", "VIEW3D_MT_object_context_menu"),
+    "SCULPT": ("wm.call_panel", "VIEW3D_PT_sculpt_context_menu"),
+}

@@ -3,6 +3,35 @@ import bpy
 from bpy.types import Menu, Panel, UILayout
 
 from ..utils.blender import preferences
+from ..utils.brush import brush_name
+
+
+# shared by the sidebar panel and the add-on preferences
+def draw_pen_buttons(layout: UILayout, prefs):
+    layout.row().prop(prefs, "pen_mode_tab", expand=True)
+    pen_set = prefs.getPenSet(prefs.pen_mode_tab)
+    if pen_set is None:
+        return
+    layout.label(text="Mouse and touch are not affected", icon="INFO")
+    for button, label in (("upper", "Upper Button"), ("lower", "Lower Button")):
+        box = layout.box()
+        box.label(text=label, icon="STYLUS_PRESSURE")
+        col = box.column()
+        col.use_property_split = True
+        for gesture, gesture_label in (("click", "Click"), ("hold", "Hold / Drag")):
+            slot = button + "_" + gesture
+            binding = getattr(pen_set, slot)
+            col.prop(binding, "action", text=gesture_label)
+            if binding.action == "OPERATOR":
+                col.prop(binding, "operator", text="Operator")
+            elif binding.action == "BRUSH":
+                split = col.split(factor=0.4)
+                split.label(text="")
+                row = split.row(align=True)
+                row.label(text=brush_name(binding.brushRef()) or "No brush set", icon="BRUSH_DATA")
+                op = row.operator("touchview.pen_use_active_brush", text="", icon="EYEDROPPER")
+                op.mode = pen_set.mode
+                op.slot = slot
 
 
 class TouchView:
@@ -113,7 +142,7 @@ class TOUCHVIEW_PT_right_click(TouchView, Panel):
         layout.use_property_split = True
 
         col = layout.column()
-        col.prop(prefs, "right_click_source", text="Source", expand=True)
+        col.prop(prefs, "right_click_source", text="Mouse/Touch", expand=True)
         col.prop(prefs, "right_click_mode", text="Mode", expand=True)
 
 
@@ -132,6 +161,17 @@ class TOUCHVIEW_PT_double_click(TouchView, Panel):
         col = layout.column()
         col.prop(prefs, "enable_double_click")
         col.prop(prefs, "double_click_mode", text="Mode", expand=True)
+
+
+class TOUCHVIEW_PT_pen_buttons(TouchView, Panel):
+    bl_label = "Pen Buttons"
+    bl_parent_id = "TOUCHVIEW_PT_view_3d_panel"
+    bl_options = {"DEFAULT_CLOSED"}
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_decorate = False
+        draw_pen_buttons(layout, preferences())
 
 
 class TOUCHVIEW_PT_tool_settings(TouchView, Panel):
@@ -293,6 +333,7 @@ classes = (
     TOUCHVIEW_PT_gizmo_bar,
     TOUCHVIEW_PT_right_click,
     TOUCHVIEW_PT_double_click,
+    TOUCHVIEW_PT_pen_buttons,
     TOUCHVIEW_PT_tool_settings,
     TOUCHVIEW_PT_viewport_options,
     TOUCHVIEW_PT_image_editor_panel,

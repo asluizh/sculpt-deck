@@ -1,6 +1,6 @@
 import bpy
 
-from .constants import (DCLICK, LMOUSE, PRESS, RMOUSE, flat_modes,
+from .constants import (DCLICK, LMOUSE, PRESS, RMOUSE, flat_modes, pen_buttons,
                         top_level_names)
 
 default_keymaps = []
@@ -24,6 +24,14 @@ def assign_keymaps():
     km = wm.keyconfigs.addon.keymaps.new(name="3D View", space_type="VIEW_3D")
     kmi = km.keymap_items.new("touchview.toggle_touch", type="T", value=PRESS, alt=True)
     modified_keymaps.append((km, kmi))
+
+    # pen buttons, in the mode keymaps so they run before Blender's own
+    # mode actions (e.g. the sculpt context menu)
+    for name in ("Object Mode", "Sculpt"):
+        km = wm.keyconfigs.addon.keymaps.new(name=name, space_type="EMPTY")
+        for button in pen_buttons:
+            kmi = km.keymap_items.new("touchview.pen_button", button, PRESS)
+            modified_keymaps.append((km, kmi))
 
     # make menus draggable
     km = wm.keyconfigs.addon.keymaps.new(name="View2D Buttons List", space_type="EMPTY")

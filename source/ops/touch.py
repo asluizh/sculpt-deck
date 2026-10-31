@@ -34,9 +34,8 @@ class TOUCHVIEW_OT_right_click_action(Operator):
             return PASSTHROUGH
         if event.type not in [RMOUSE]:
             return PASSTHROUGH
-        if is_touch(event) and prefs.right_click_source == "PEN":
-            return PASSTHROUGH
-        if not is_touch(event) and prefs.right_click_source == "MOUSE":
+        # pen buttons are handled by touchview.pen_button
+        if event.is_tablet:
             return PASSTHROUGH
         if event.value == "DOUBLE_CLICK":
             return PASSTHROUGH
