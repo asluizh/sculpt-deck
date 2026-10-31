@@ -9,6 +9,7 @@ from ..utils.blender import preferences, ui_scale
 from ..utils.brush import (activate_brush, brush_name, brush_ref, history,
                            paint_settings)
 from ..utils.constants import (CANCEL, FINISHED, MODAL, PASSTHROUGH,
+                               brush_direction_pairs, pen_brush_actions,
                                pen_brush_modes, pen_buttons,
                                pen_default_context_menus, pen_hold_action)
 
@@ -71,6 +72,19 @@ class TOUCHVIEW_OT_pen_button(Operator):
             self.end_hold(context)
             self.finish(context)
             return {"FINISHED", "PASS_THROUGH"}
+
+        # hold to invert: strokes drawn while the button is held are inverted,
+        # like holding Ctrl
+        if (
+            self.hold.action == "touchview.brush_invert"
+            and event.type == "LEFTMOUSE"
+            and event.value == "PRESS"
+            and self.mode == "SCULPT"
+            and active_tool(context) == "builtin.brush"
+        ):
+            self.is_hold = True
+            bpy.ops.sculpt.brush_stroke("INVOKE_DEFAULT", mode="INVERT")  # type: ignore
+            return MODAL
 
         if not self.is_hold and self.becomes_hold(context, event):
             self.is_hold = True
@@ -186,7 +200,7 @@ class TOUCHVIEW_OT_pen_button(Operator):
         action = binding.action
         if action == "NONE":
             return
-        if pen_hold_action(action):
+        if action in pen_brush_actions or action.startswith(TOOL_PREFIX):
             target = self.switch_target(binding)
             if target is not None:
                 self.switch(context, target)
@@ -227,6 +241,23 @@ class TOUCHVIEW_OT_brush_previous(Operator):
         return FINISHED
 
 
+class TOUCHVIEW_OT_brush_invert(Operator):
+    """Switch the brush direction, e.g. add/subtract or smooth/enhance details"""
+
+    bl_label = "Invert Brush"
+    bl_idname = "touchview.brush_invert"
+
+    @classmethod
+    def poll(cls, context):
+        brush = context.tool_settings.sculpt.brush if context.mode == "SCULPT" else None
+        return brush is not None and brush.direction in brush_direction_pairs
+
+    def execute(self, context):
+        brush = context.tool_settings.sculpt.brush
+        brush.direction = brush_direction_pairs[brush.direction]
+        return FINISHED
+
+
 class TOUCHVIEW_OT_pen_use_active_brush(Operator):
     """Bind the brush that is currently active in this mode"""
 
@@ -249,6 +280,7 @@ class TOUCHVIEW_OT_pen_use_active_brush(Operator):
 
 
 classes = (
+    TOUCHVIEW_OT_brush_invert,
     TOUCHVIEW_OT_brush_previous,
     TOUCHVIEW_OT_pen_button,
     TOUCHVIEW_OT_pen_use_active_brush,

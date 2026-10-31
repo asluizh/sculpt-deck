@@ -5,9 +5,10 @@ from bpy.types import Menu, Panel, UILayout
 from ..utils.actions import TOOL_PREFIX, is_pie, operator_exists
 from ..utils.blender import preferences
 from ..utils.brush import brush_name
-from ..utils.constants import (WIDGET_SLOTS, pie_actions, pie_mode,
-                               pie_mode_items, pie_slot_display_order,
-                               pie_slot_names, primitive_items)
+from ..utils.constants import (WIDGET_SLOTS, pie_actions, pie_common_actions,
+                               pie_mode, pie_mode_actions, pie_mode_items,
+                               pie_slot_display_order, pie_slot_names,
+                               primitive_items)
 
 
 # shared by the sidebar panel and the add-on preferences
@@ -16,7 +17,7 @@ def draw_pen_buttons(layout: UILayout, prefs, mode: str):
     if pen_set is None:
         return
     layout.label(text="Mouse and touch are not affected", icon="INFO")
-    for button, label in (("upper", "Upper Button"), ("lower", "Lower Button")):
+    for button, label in (("lower", "Button 1 (lower)"), ("upper", "Button 2 (upper)")):
         box = layout.box()
         box.label(text=label, icon="STYLUS_PRESSURE")
         col = box.column()
@@ -65,21 +66,26 @@ def draw_pie_slot(pie: UILayout, idname: str):
     # empty slots keep the others in place; the pie can't contain itself
     if not idname or idname == "TOUCHVIEW_MT_floating":
         pie.separator()
-        return
+    else:
+        draw_action(pie, idname)
+
+
+# a button running an action, in a pie or a menu
+def draw_action(layout: UILayout, idname: str):
     label, icon = pie_actions.get(idname, (None, "NONE"))
     text = {"text": label} if label else {}
     if idname.startswith(TOOL_PREFIX):
-        pie.operator("wm.tool_set_by_id", icon=icon, **text).name = idname[len(TOOL_PREFIX):]
+        layout.operator("wm.tool_set_by_id", icon=icon, **text).name = idname[len(TOOL_PREFIX):]
     elif "_AST_" in idname:
-        pie.operator("wm.call_asset_shelf_popover", icon=icon, **text).name = idname
+        layout.operator("wm.call_asset_shelf_popover", icon=icon, **text).name = idname
     elif "_MT_" in idname and is_pie(idname):
-        pie.operator("wm.call_menu_pie", icon=icon, text=label or idname).name = idname
+        layout.operator("wm.call_menu_pie", icon=icon, text=label or idname).name = idname
     elif "_MT_" in idname:
-        pie.menu(idname, icon=icon, **text)
+        layout.menu(idname, icon=icon, **text)
     elif operator_exists(idname):
-        pie.operator(idname, icon=icon, **text)
+        layout.operator(idname, icon=icon, **text)
     else:
-        pie.label(text=f"Unknown: {idname}", icon="ERROR")
+        layout.label(text=f"Unknown: {idname}", icon="ERROR")
 
 
 class TouchView:
@@ -385,6 +391,29 @@ class TOUCHVIEW_MT_floating(Menu):
             draw_pie_slot(pie, menu.slot(slot) if menu else "")
 
 
+class TOUCHVIEW_MT_all_actions(Menu):
+    """Every Touchview action for the current mode"""
+
+    bl_label = "All Actions"
+
+    def draw(self, context):
+        actions = pie_mode_actions.get(pie_mode(context.mode), [])
+        groups = (
+            ("Actions", [action for action in actions if not action[0].startswith(TOOL_PREFIX)]),
+            ("Tools", [action for action in actions if action[0].startswith(TOOL_PREFIX)]),
+            ("Common", [action for action in pie_common_actions if action[0] != "TOUCHVIEW_MT_all_actions"]),
+        )
+        row = self.layout.row()
+        for title, group in groups:
+            if not group:
+                continue
+            col = row.column()
+            col.label(text=title)
+            col.separator()
+            for idname, _, _ in group:
+                draw_action(col, idname)
+
+
 class TOUCHVIEW_MT_add_mesh(Menu):
     """Add a mesh and keep working on it in the current mode"""
 
@@ -411,6 +440,7 @@ classes = (
     TOUCHVIEW_PT_gizmo_display,
     TOUCHVIEW_MT_floating,
     TOUCHVIEW_MT_add_mesh,
+    TOUCHVIEW_MT_all_actions,
 )
 
 

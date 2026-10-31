@@ -15,8 +15,8 @@ from .source.utils.constants import (WIDGET_SLOTS, double_click_items,
                                      pen_action_aliases, pen_action_numbers,
                                      pen_brush_items, pen_brush_modes,
                                      pen_button_items, pen_buttons,
-                                     pen_gestures, pen_hold_action,
-                                     pen_resolution_actions,
+                                     pen_defaults, pen_gestures,
+                                     pen_hold_action, pen_resolution_actions,
                                      pie_common_actions, pie_mode,
                                      pie_mode_actions, pie_mode_aliases,
                                      pie_mode_items, pivot_items,
@@ -757,8 +757,11 @@ class TOUCHVIEW_AP_OverlaySettings(AddonPreferences):
                 pen_set.upper_click.operator = self.right_click_mode
 
     def load(self):
+        self.loadFile()
         self.ensureMenuSets()
         self.ensurePenSets()
+
+    def loadFile(self):
         filename = path.abspath(path.dirname(__file__) + "/preferences.json")
         if not path.exists(filename):
             return None
@@ -919,9 +922,12 @@ class TOUCHVIEW_AP_OverlaySettings(AddonPreferences):
         return self.findModeSet(self.pen_sets, mode)
 
     def ensurePenSets(self):
+        # modes, not the sets: adding to a collection can move its items
+        new_modes = []
         for mode, _, _ in pie_mode_items:
             if self.getPenSet(mode) is None:
                 self.pen_sets.add().mode = mode
+                new_modes.append(mode)
         for pen_set in self.pen_sets:
             for slot, binding in pen_set.bindings():
                 binding.mode = pen_set.mode
@@ -929,6 +935,16 @@ class TOUCHVIEW_AP_OverlaySettings(AddonPreferences):
                 # actions no longer offered for this button/gesture
                 if binding.action == "":
                     binding.action = "DEFAULT"
+        for mode in new_modes:
+            pen_set = self.getPenSet(mode)
+            for slot, action in pen_defaults.get(mode, {}).items():
+                binding = getattr(pen_set, slot)
+                if isinstance(action, tuple):
+                    binding.action, ref = action
+                    binding.setBrushRef(ref)
+                else:
+                    binding.action = action
+
 
     def getGizmoSet(self, mode: str | int):
         available = list(gizmo_sets["ALL"])

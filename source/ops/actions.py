@@ -400,17 +400,33 @@ class SelectedMeshes:
         mode = object_modes[context.mode]
         if mode != "OBJECT":
             bpy.ops.object.mode_set(mode="OBJECT")
-        for obj in context.selected_objects:
-            if obj.type != "MESH":
-                obj.select_set(False)
-        bpy.ops.object.join()
-        self.after_join(context, context.view_layer.objects.active)
+        active = context.view_layer.objects.active
+        others = [obj for obj in context.selected_objects if obj.type == "MESH" and obj != active]
+        self.combine(context, active, others)
         if mode != "OBJECT":
             bpy.ops.object.mode_set(mode=mode)
         return FINISHED
 
-    def after_join(self, context, obj):
-        pass
+    def combine(self, context, active, others):
+        for obj in context.selected_objects:
+            if obj.type != "MESH":
+                obj.select_set(False)
+        bpy.ops.object.join()
+
+
+class Fuse(SelectedMeshes):
+    voxel_size: FloatProperty(  # type: ignore
+        name="Voxel Size",
+        description="Size of the remesh voxels, 0 keeps the active object's voxel size",
+        default=0.0,
+        min=0.0,
+        subtype="DISTANCE",
+    )
+
+    def remesh(self, obj):
+        if self.voxel_size > 0:
+            obj.data.remesh_voxel_size = self.voxel_size
+        bpy.ops.object.voxel_remesh()
 
 
 class TOUCHVIEW_OT_join_selected(SelectedMeshes, Operator):
@@ -421,31 +437,43 @@ class TOUCHVIEW_OT_join_selected(SelectedMeshes, Operator):
     bl_options = {"REGISTER", "UNDO"}
 
 
-class TOUCHVIEW_OT_fuse_selected(SelectedMeshes, Operator):
-    """Join the selected meshes and voxel remesh them into one surface, staying in the current mode"""
+class TOUCHVIEW_OT_fuse_selected(Fuse, Operator):
+    """Merge the selected meshes into the active one and voxel remesh them, staying in the current mode"""
 
-    bl_label = "Fuse Selected"
+    bl_label = "Fuse (Union)"
     bl_idname = "touchview.fuse_selected"
     bl_options = {"REGISTER", "UNDO"}
 
-    voxel_size: FloatProperty(  # type: ignore
-        name="Voxel Size",
-        description="Size of the remesh voxels, 0 keeps the active object's voxel size",
-        default=0.0,
-        min=0.0,
-        subtype="DISTANCE",
-    )
+    def combine(self, context, active, others):
+        super().combine(context, active, others)
+        self.remesh(active)
 
-    def after_join(self, context, obj):
-        if self.voxel_size > 0:
-            obj.data.remesh_voxel_size = self.voxel_size
-        bpy.ops.object.voxel_remesh()
+
+class TOUCHVIEW_OT_fuse_difference(Fuse, Operator):
+    """Cut the other selected meshes out of the active one and voxel remesh it, staying in the current mode"""
+
+    bl_label = "Fuse (Difference)"
+    bl_idname = "touchview.fuse_difference"
+    bl_options = {"REGISTER", "UNDO"}
+
+    def combine(self, context, active, others):
+        for cutter in others:
+            modifier = active.modifiers.new("Touchview Cut", "BOOLEAN")
+            modifier.operation = "DIFFERENCE"
+            modifier.solver = "EXACT"
+            modifier.object = cutter
+            # apply before any existing modifiers, e.g. Multires
+            bpy.ops.object.modifier_move_to_index(modifier=modifier.name, index=0)
+            bpy.ops.object.modifier_apply(modifier=modifier.name)
+            bpy.data.objects.remove(cutter)
+        self.remesh(active)
 
 
 classes = (
     TOUCHVIEW_OT_add_primitive,
     TOUCHVIEW_OT_mask_invert,
     TOUCHVIEW_OT_reveal_all,
+    TOUCHVIEW_OT_fuse_difference,
     TOUCHVIEW_OT_fuse_selected,
     TOUCHVIEW_OT_join_selected,
     TOUCHVIEW_OT_brush_resize,

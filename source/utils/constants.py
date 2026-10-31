@@ -156,6 +156,7 @@ def pie_mode(mode: str) -> str:
 # pie when it ends in _pie), a brush asset shelf (_AST_) or a tool (TOOL:). Common actions are offered in every mode and
 # cover what usually needs a keyboard shortcut.
 pie_common_actions = [
+    ("TOUCHVIEW_MT_all_actions", "All Actions", "THREE_DOTS"),
     ("ed.undo", "Undo", "LOOP_BACK"),
     ("ed.redo", "Redo", "LOOP_FORWARDS"),
     ("touchview.viewport_recenter", "Recenter on Selected", "CURSOR"),
@@ -191,7 +192,8 @@ pie_mode_actions = {
         ("object.duplicate_move", "Duplicate", "DUPLICATE"),
         ("object.duplicate_move_linked", "Duplicate Linked", "LINKED"),
         ("object.join", "Join", "OBJECT_DATA"),
-        ("touchview.fuse_selected", "Fuse Selected", "MOD_BOOLEAN"),
+        ("touchview.fuse_selected", "Fuse (Union)", "SELECT_EXTEND"),
+        ("touchview.fuse_difference", "Fuse (Difference)", "SELECT_DIFFERENCE"),
         ("touchview.cycle_control_gizmo", "Cycle Object Gizmo", "ORIENTATION_LOCAL"),
         ("touchview.increment_multires", "Multires Level Up", "TRIA_UP"),
         ("touchview.decrement_multires", "Multires Level Down", "TRIA_DOWN"),
@@ -263,11 +265,13 @@ pie_mode_actions = {
     "SCULPT": [
         ("VIEW3D_AST_brush_sculpt", "Brushes", "BRUSHES_ALL"),
         ("touchview.brush_previous", "Previous Brush", "LOOP_BACK"),
+        ("touchview.brush_invert", "Invert Brush", "ARROW_LEFTRIGHT"),
         ("TOUCHVIEW_MT_add_mesh", "Add Mesh", "ADD"),
         ("touchview.brush_resize", "Brush Size", "ANTIALIASED"),
         ("touchview.brush_strength", "Brush Strength", "SMOOTHCURVE"),
         ("touchview.join_selected", "Join Selected", "OBJECT_DATA"),
-        ("touchview.fuse_selected", "Fuse Selected", "MOD_BOOLEAN"),
+        ("touchview.fuse_selected", "Fuse (Union)", "SELECT_EXTEND"),
+        ("touchview.fuse_difference", "Fuse (Difference)", "SELECT_DIFFERENCE"),
         ("VIEW3D_MT_mask", "Mask Popup", "MOD_MASK"),
         ("VIEW3D_MT_sculpt_mask_edit_pie", "Mask Edit Pie", "MOD_MASK"),
         ("paint.mask_flood_fill", "Clear Mask", "CLIPUV_DEHLT"),
@@ -425,22 +429,23 @@ widget_defaults = {
 # initial slots of a new pie, in pie order (left, right, bottom, top, ...)
 menu_defaults = {
     "OBJECT": ("VIEW3D_MT_add", "object.delete", "VIEW3D_MT_object_mode_pie", "VIEW3D_MT_view_pie",
-               "object.duplicate_move", "object.shade_auto_smooth", "ed.undo_history", "screen.redo_last"),
+               "object.duplicate_move", "TOUCHVIEW_MT_all_actions", "ed.undo_history", "screen.redo_last"),
     "EDIT_MESH": ("VIEW3D_MT_edit_mesh_select_mode", "VIEW3D_MT_edit_mesh_delete", "VIEW3D_MT_object_mode_pie",
-                  "VIEW3D_MT_view_pie", "view3d.edit_mesh_extrude_move_normal", "mesh.loopcut_slide",
+                  "VIEW3D_MT_view_pie", "view3d.edit_mesh_extrude_move_normal", "TOUCHVIEW_MT_all_actions",
                   "VIEW3D_MT_edit_mesh_merge", "screen.redo_last"),
     "SCULPT": ("VIEW3D_AST_brush_sculpt", "VIEW3D_MT_mask", "VIEW3D_MT_object_mode_pie", "VIEW3D_MT_view_pie",
-               "VIEW3D_MT_face_sets", "object.voxel_remesh", "ed.undo_history", "TOUCHVIEW_MT_add_mesh"),
+               "VIEW3D_MT_face_sets", "TOUCHVIEW_MT_all_actions", "ed.undo_history", "TOUCHVIEW_MT_add_mesh"),
     "PAINT_VERTEX": ("VIEW3D_AST_brush_vertex_paint", "paint.sample_color", "VIEW3D_MT_object_mode_pie",
-                     "VIEW3D_MT_view_pie", "paint.brush_colors_flip", "", "", ""),
+                     "VIEW3D_MT_view_pie", "paint.brush_colors_flip", "TOUCHVIEW_MT_all_actions", "", ""),
     "PAINT_WEIGHT": ("VIEW3D_AST_brush_weight_paint", "paint.weight_sample", "VIEW3D_MT_object_mode_pie",
-                     "VIEW3D_MT_view_pie", "paint.weight_gradient", "", "", ""),
+                     "VIEW3D_MT_view_pie", "paint.weight_gradient", "TOUCHVIEW_MT_all_actions", "", ""),
     "PAINT_TEXTURE": ("VIEW3D_AST_brush_texture_paint", "paint.sample_color", "VIEW3D_MT_object_mode_pie",
-                      "VIEW3D_MT_view_pie", "paint.brush_colors_flip", "", "", ""),
+                      "VIEW3D_MT_view_pie", "paint.brush_colors_flip", "TOUCHVIEW_MT_all_actions", "", ""),
     "PAINT_GREASE_PENCIL": ("VIEW3D_AST_brush_gpencil_paint", "GREASE_PENCIL_MT_layer_active",
                             "VIEW3D_MT_object_mode_pie", "VIEW3D_MT_view_pie",
-                            "grease_pencil.insert_blank_frame", "", "", ""),
-    "OTHER": ("ed.undo", "ed.redo", "VIEW3D_MT_object_mode_pie", "VIEW3D_MT_view_pie", "", "", "", ""),
+                            "grease_pencil.insert_blank_frame", "TOUCHVIEW_MT_all_actions", "", ""),
+    "OTHER": ("ed.undo", "ed.redo", "VIEW3D_MT_object_mode_pie", "VIEW3D_MT_view_pie", "",
+              "TOUCHVIEW_MT_all_actions", "", ""),
 }
 
 double_click_items = [
@@ -550,13 +555,38 @@ pen_resolution_actions = {
     "sculpt.dynamic_topology_toggle",
     "mesh.subdivide",
     "touchview.fuse_selected",
+    "touchview.fuse_difference",
 }
 
 
 # a hold only makes sense for what can be used while held and undone on
-# release: brushes and tools
+# release: brushes, tools and inverting the brush
 def pen_hold_action(idname: str) -> bool:
-    return idname in pen_brush_actions or idname.startswith("TOOL:")
+    return idname in pen_brush_actions or idname.startswith("TOOL:") or idname == "touchview.brush_invert"
+
+
+# brush directions that Invert Brush swaps
+brush_direction_pairs = {
+    "ADD": "SUBTRACT",
+    "SUBTRACT": "ADD",
+    "SMOOTH": "ENHANCE_DETAILS",
+    "ENHANCE_DETAILS": "SMOOTH",
+    "PINCH": "MAGNIFY",
+    "MAGNIFY": "PINCH",
+    "INFLATE": "DEFLATE",
+    "DEFLATE": "INFLATE",
+}
+
+# pen buttons of a new setup; button 1 is the lower one (BTN_STYLUS),
+# button 2 the upper one (BTN_STYLUS2)
+pen_defaults = {
+    "SCULPT": {
+        "lower_click": "touchview.brush_invert",
+        "lower_hold": "touchview.brush_invert",
+        "upper_click": "BRUSH_PREVIOUS",
+        "upper_hold": ("BRUSH", ("ESSENTIALS", "", "brushes/essentials_brushes-mesh_sculpt.blend/Brush/Smooth")),
+    },
+}
 
 # what Blender does for each button by default, used when only one gesture is
 # bound and the other should keep Blender's behavior
