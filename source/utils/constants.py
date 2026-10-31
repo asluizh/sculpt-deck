@@ -151,9 +151,9 @@ def pie_mode(mode: str) -> str:
     return mode if any(mode == item[0] for item in pie_mode_items) else "OTHER"
 
 
-# Popular actions for the pie and the widget buttons, as (idname, label, icon).
-# An idname is an operator, a menu (_MT_; opened as a pie when it ends in _pie)
-# or a brush asset shelf (_AST_). Common actions are offered in every mode and
+# Popular actions for the pie, the widget buttons and the pen buttons, as
+# (idname, label, icon). An idname is an operator, a menu (_MT_; opened as a
+# pie when it ends in _pie), a brush asset shelf (_AST_) or a tool (TOOL:). Common actions are offered in every mode and
 # cover what usually needs a keyboard shortcut.
 pie_common_actions = [
     ("ed.undo", "Undo", "LOOP_BACK"),
@@ -206,6 +206,19 @@ pie_mode_actions = {
         ("VIEW3D_MT_snap", "Snap", "SNAP_ON"),
         ("object.origin_set", "Set Origin", "OBJECT_ORIGIN"),
         ("VIEW3D_MT_object_context_menu", "Context Menu", "COLLAPSEMENU"),
+        *[
+            ("TOOL:" + tool, label + " Tool", icon)
+            for tool, label, icon in (
+                ("builtin.select_box", "Select Box", "RESTRICT_SELECT_OFF"),
+                ("builtin.cursor", "3D Cursor", "PIVOT_CURSOR"),
+                ("builtin.move", "Move", "CON_LOCLIKE"),
+                ("builtin.rotate", "Rotate", "CON_ROTLIKE"),
+                ("builtin.scale", "Scale", "CON_SIZELIKE"),
+                ("builtin.transform", "Transform", "OBJECT_ORIGIN"),
+                ("builtin.measure", "Measure", "DRIVER_DISTANCE"),
+                ("builtin.annotate", "Annotate", "GREASEPENCIL"),
+            )
+        ],
     ],
     "EDIT_MESH": [
         ("VIEW3D_MT_edit_mesh_select_mode", "Select Mode", "VERTEXSEL"),
@@ -227,18 +240,40 @@ pie_mode_actions = {
         ("mesh.hide", "Hide Selected", "HIDE_ON"),
         ("mesh.reveal", "Reveal Hidden", "HIDE_OFF"),
         ("VIEW3D_MT_edit_mesh_context_menu", "Context Menu", "COLLAPSEMENU"),
+        *[
+            ("TOOL:" + tool, label + " Tool", icon)
+            for tool, label, icon in (
+                ("builtin.select_box", "Select Box", "RESTRICT_SELECT_OFF"),
+                ("builtin.cursor", "3D Cursor", "PIVOT_CURSOR"),
+                ("builtin.move", "Move", "CON_LOCLIKE"),
+                ("builtin.rotate", "Rotate", "CON_ROTLIKE"),
+                ("builtin.scale", "Scale", "CON_SIZELIKE"),
+                ("builtin.extrude_region", "Extrude Region", "EXPORT"),
+                ("builtin.inset_faces", "Inset Faces", "FULLSCREEN_EXIT"),
+                ("builtin.bevel", "Bevel", "MOD_BEVEL"),
+                ("builtin.loop_cut", "Loop Cut", "MOD_EDGESPLIT"),
+                ("builtin.knife", "Knife", "MOD_TRIANGULATE"),
+                ("builtin.poly_build", "Poly Build", "MESH_DATA"),
+                ("builtin.smooth", "Smooth", "MOD_SMOOTH"),
+                ("builtin.shrink_fatten", "Shrink/Fatten", "FULLSCREEN_ENTER"),
+                ("builtin.edge_slide", "Edge Slide", "ARROW_LEFTRIGHT"),
+            )
+        ],
     ],
     "SCULPT": [
         ("VIEW3D_AST_brush_sculpt", "Brushes", "BRUSHES_ALL"),
+        ("touchview.brush_previous", "Previous Brush", "LOOP_BACK"),
         ("TOUCHVIEW_MT_add_mesh", "Add Mesh", "ADD"),
         ("touchview.brush_resize", "Brush Size", "ANTIALIASED"),
         ("touchview.brush_strength", "Brush Strength", "SMOOTHCURVE"),
         ("touchview.join_selected", "Join Selected", "OBJECT_DATA"),
         ("touchview.fuse_selected", "Fuse Selected", "MOD_BOOLEAN"),
-        ("VIEW3D_MT_mask", "Mask", "MOD_MASK"),
+        ("VIEW3D_MT_mask", "Mask Popup", "MOD_MASK"),
         ("VIEW3D_MT_sculpt_mask_edit_pie", "Mask Edit Pie", "MOD_MASK"),
         ("paint.mask_flood_fill", "Clear Mask", "CLIPUV_DEHLT"),
-        ("VIEW3D_MT_face_sets", "Face Sets", "FACE_MAPS"),
+        ("touchview.mask_invert", "Invert Mask", "CLIPUV_HLT"),
+        ("touchview.reveal_all", "Reveal Hidden", "HIDE_OFF"),
+        ("VIEW3D_MT_face_sets", "Face Sets Popup", "FACE_MAPS"),
         ("VIEW3D_MT_sculpt_face_sets_edit_pie", "Face Sets Edit Pie", "FACE_MAPS"),
         ("VIEW3D_MT_sculpt_automasking_pie", "Auto-Masking Pie", "MOD_MASK"),
         ("paint.visibility_invert", "Invert Visibility", "HIDE_ON"),
@@ -252,9 +287,40 @@ pie_mode_actions = {
         ("object.quadriflow_remesh", "QuadriFlow Remesh", "MOD_REMESH"),
         ("sculpt.dynamic_topology_toggle", "Toggle Dyntopo", "MESH_DATA"),
         ("VIEW3D_MT_sculpt", "Sculpt Menu", "SCULPTMODE_HLT"),
+        *[
+            ("TOOL:" + tool, label + " Tool", icon)
+            for tool, label, icon in (
+                ("builtin.brush", "Brush", "BRUSH_DATA"),
+                ("builtin.box_mask", "Box Mask", "MOD_MASK"),
+                ("builtin.lasso_mask", "Lasso Mask", "MOD_MASK"),
+                ("builtin.line_mask", "Line Mask", "MOD_MASK"),
+                ("builtin.polyline_mask", "Polyline Mask", "MOD_MASK"),
+                ("builtin.box_hide", "Box Hide", "HIDE_ON"),
+                ("builtin.lasso_hide", "Lasso Hide", "HIDE_ON"),
+                ("builtin.line_hide", "Line Hide", "HIDE_ON"),
+                ("builtin.polyline_hide", "Polyline Hide", "HIDE_ON"),
+                ("builtin.box_face_set", "Box Face Set", "FACE_MAPS"),
+                ("builtin.lasso_face_set", "Lasso Face Set", "FACE_MAPS"),
+                ("builtin.face_set_edit", "Edit Face Set", "FACE_MAPS"),
+                ("builtin.box_trim", "Box Trim", "MOD_BOOLEAN"),
+                ("builtin.lasso_trim", "Lasso Trim", "MOD_BOOLEAN"),
+                ("builtin.line_trim", "Line Trim", "MOD_BOOLEAN"),
+                ("builtin.polyline_trim", "Polyline Trim", "MOD_BOOLEAN"),
+                ("builtin.line_project", "Line Project", "MOD_UVPROJECT"),
+                ("builtin.mesh_filter", "Mesh Filter", "MOD_SIMPLEDEFORM"),
+                ("builtin.cloth_filter", "Cloth Filter", "MOD_CLOTH"),
+                ("builtin.color_filter", "Color Filter", "COLOR"),
+                ("builtin.mask_by_color", "Mask by Color", "EYEDROPPER"),
+                ("builtin.move", "Move", "CON_LOCLIKE"),
+                ("builtin.rotate", "Rotate", "CON_ROTLIKE"),
+                ("builtin.scale", "Scale", "CON_SIZELIKE"),
+                ("builtin.transform", "Transform", "OBJECT_ORIGIN"),
+            )
+        ],
     ],
     "PAINT_VERTEX": [
         ("VIEW3D_AST_brush_vertex_paint", "Brushes", "BRUSHES_ALL"),
+        ("touchview.brush_previous", "Previous Brush", "LOOP_BACK"),
         ("TOUCHVIEW_MT_add_mesh", "Add Mesh", "ADD"),
         ("touchview.brush_resize", "Brush Size", "ANTIALIASED"),
         ("touchview.brush_strength", "Brush Strength", "SMOOTHCURVE"),
@@ -267,6 +333,7 @@ pie_mode_actions = {
     ],
     "PAINT_WEIGHT": [
         ("VIEW3D_AST_brush_weight_paint", "Brushes", "BRUSHES_ALL"),
+        ("touchview.brush_previous", "Previous Brush", "LOOP_BACK"),
         ("TOUCHVIEW_MT_add_mesh", "Add Mesh", "ADD"),
         ("touchview.brush_resize", "Brush Size", "ANTIALIASED"),
         ("touchview.brush_strength", "Brush Strength", "SMOOTHCURVE"),
@@ -279,6 +346,7 @@ pie_mode_actions = {
     ],
     "PAINT_TEXTURE": [
         ("VIEW3D_AST_brush_texture_paint", "Brushes", "BRUSHES_ALL"),
+        ("touchview.brush_previous", "Previous Brush", "LOOP_BACK"),
         ("TOUCHVIEW_MT_add_mesh", "Add Mesh", "ADD"),
         ("touchview.brush_resize", "Brush Size", "ANTIALIASED"),
         ("touchview.brush_strength", "Brush Strength", "SMOOTHCURVE"),
@@ -289,6 +357,7 @@ pie_mode_actions = {
     ],
     "PAINT_GREASE_PENCIL": [
         ("VIEW3D_AST_brush_gpencil_paint", "Brushes", "BRUSHES_ALL"),
+        ("touchview.brush_previous", "Previous Brush", "LOOP_BACK"),
         ("touchview.brush_resize", "Brush Size", "ANTIALIASED"),
         ("touchview.brush_strength", "Brush Strength", "SMOOTHCURVE"),
         ("GREASE_PENCIL_MT_layer_active", "Active Layer", "OUTLINER_DATA_GP_LAYER"),
@@ -442,24 +511,18 @@ pen_buttons = {
 
 pen_gestures = ("click", "hold")
 
-# modes that can have pen button bindings
-pen_mode_items = [
-    ("OBJECT", "Object", "Object Mode bindings"),
-    ("SCULPT", "Sculpt", "Sculpt Mode bindings"),
-]
+# modes with brushes, where pen buttons can switch brushes
+pen_brush_modes = {"SCULPT", "PAINT_VERTEX", "PAINT_WEIGHT", "PAINT_TEXTURE", "PAINT_GREASE_PENCIL"}
 
-# modes whose bindings may switch brushes
-pen_brush_modes = {"SCULPT"}
-
-pen_action_items = [
+# Pen button actions beyond the shared pie/widget actions. The numbers are the
+# stored values of earlier versions, which also stored the pie as "PIE", Quick
+# Favorites as "QUICK_FAVORITES" and custom operators as "OPERATOR".
+pen_button_items = [
     ("DEFAULT", "Blender Default", "Do what Blender normally does for this button", "BLENDER", 0),
     ("NONE", "Nothing", "Ignore this button", "CANCEL", 1),
-    ("PIE", "Touchview Action Pie", "Open the Touchview action pie menu", "SETTINGS", 2),
-    ("QUICK_FAVORITES", "Quick Favorites", "Open Blender's Quick Favorites menu", "SOLO_ON", 3),
-    ("OPERATOR", "Custom Operator", "Run an operator by its name, e.g. object.shade_smooth", "SCRIPT", 4),
 ]
 
-pen_brush_action_items = [
+pen_brush_items = [
     (
         "BRUSH_PREVIOUS",
         "Previous Brush",
@@ -470,11 +533,39 @@ pen_brush_action_items = [
     ("BRUSH", "Specific Brush", "Click switches to the chosen brush, hold uses it until released", "BRUSH_DATA", 6),
 ]
 
+pen_action_numbers = {"TOUCHVIEW_MT_floating": 2, "SCREEN_MT_user_menu": 3, "CUSTOM": 4}
+pen_action_aliases = {"PIE": "TOUCHVIEW_MT_floating", "QUICK_FAVORITES": "SCREEN_MT_user_menu", "OPERATOR": "CUSTOM"}
+
 pen_brush_actions = {"BRUSH_PREVIOUS", "BRUSH"}
+
+# actions that change mesh resolution, too risky on a button that's easy to
+# press by accident; editing the voxel size alone stays available
+pen_resolution_actions = {
+    "object.voxel_remesh",
+    "object.quadriflow_remesh",
+    "touchview.density_up",
+    "touchview.density_down",
+    "touchview.increment_multires",
+    "touchview.decrement_multires",
+    "sculpt.dynamic_topology_toggle",
+    "mesh.subdivide",
+    "touchview.fuse_selected",
+}
+
+
+# a hold only makes sense for what can be used while held and undone on
+# release: brushes and tools
+def pen_hold_action(idname: str) -> bool:
+    return idname in pen_brush_actions or idname.startswith("TOOL:")
 
 # what Blender does for each button by default, used when only one gesture is
 # bound and the other should keep Blender's behavior
 pen_default_context_menus = {
     "OBJECT": ("wm.call_menu", "VIEW3D_MT_object_context_menu"),
+    "EDIT_MESH": ("wm.call_menu", "VIEW3D_MT_edit_mesh_context_menu"),
     "SCULPT": ("wm.call_panel", "VIEW3D_PT_sculpt_context_menu"),
+    "PAINT_VERTEX": ("wm.call_panel", "VIEW3D_PT_paint_vertex_context_menu"),
+    "PAINT_WEIGHT": ("wm.call_panel", "VIEW3D_PT_paint_weight_context_menu"),
+    "PAINT_TEXTURE": ("wm.call_panel", "VIEW3D_PT_paint_texture_context_menu"),
+    "PAINT_GREASE_PENCIL": ("wm.call_panel", "VIEW3D_PT_greasepencil_draw_context_menu"),
 }

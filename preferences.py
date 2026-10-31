@@ -12,9 +12,11 @@ from .source.ui.panel import (draw_action_pie, draw_pen_buttons,
 from .source.utils.constants import (WIDGET_SLOTS, double_click_items,
                                      gizmo_sets, menu_defaults,
                                      menu_orientation_items, menu_style_items,
-                                     pen_action_items, pen_brush_action_items,
-                                     pen_brush_modes, pen_buttons,
-                                     pen_gestures, pen_mode_items,
+                                     pen_action_aliases, pen_action_numbers,
+                                     pen_brush_items, pen_brush_modes,
+                                     pen_button_items, pen_buttons,
+                                     pen_gestures, pen_hold_action,
+                                     pen_resolution_actions,
                                      pie_common_actions, pie_mode,
                                      pie_mode_actions, pie_mode_aliases,
                                      pie_mode_items, pivot_items,
@@ -169,16 +171,46 @@ class TOUCHVIEW_PG_MenuModeGroup(PropertyGroup):
 ##
 # Pen Button Settings
 ##
+_pen_action_cache: dict[tuple, list] = {}
+
+
+# Button-only actions (Blender default, nothing, brush switching, the action
+# pie), then the actions shared with the pie and the widget. A click can use
+# most of them (not resolution changes); a hold only brushes and tools, used
+# until the button is released
 def pen_actions(binding, _):
-    if binding.mode in pen_brush_modes:
-        return pen_action_items + pen_brush_action_items
-    return pen_action_items
+    key = (binding.mode, binding.gesture)
+    if key not in _pen_action_cache:
+        is_brush_mode = binding.mode in pen_brush_modes
+        items = list(pen_button_items) + (pen_brush_items if is_brush_mode else [])
+        for actions in (widget_only_actions, pie_mode_actions.get(binding.mode, []), pie_common_actions):
+            # Previous Brush is already above, with hold support
+            actions = [
+                action
+                for action in actions
+                if action[0] != "touchview.brush_previous"
+                and action[0] not in pen_resolution_actions
+                and (binding.gesture == "click" or pen_hold_action(action[0]))
+            ]
+            if actions:
+                items.append(None)
+            items += [
+                (idname, label, idname, icon, pen_action_numbers.get(idname, 100 + pie_choice_number(idname)))
+                for idname, label, icon in actions
+            ]
+        items += [None, ("CUSTOM", "Custom...", "Type the name of an operator or menu", "SCRIPT", 4)]
+        _pen_action_cache[key] = items
+    return _pen_action_cache[key]
 
 
 class TOUCHVIEW_PG_PenBinding(PropertyGroup):
     mode: StringProperty(name="mode", default="OBJECT")
+    gesture: StringProperty(name="gesture", default="click")  # click or hold
     action: EnumProperty(name="Action", items=pen_actions)
-    operator: StringProperty(name="Operator", description="Operator to run, e.g. object.shade_smooth")
+    operator: StringProperty(
+        name="Custom Action",
+        description="Operator (e.g. object.shade_smooth) or menu (e.g. VIEW3D_MT_add) to run",
+    )
     brush_library_type: StringProperty()
     brush_library: StringProperty()
     brush_asset: StringProperty()
@@ -199,8 +231,9 @@ class TOUCHVIEW_PG_PenBinding(PropertyGroup):
         }
 
     def from_dict(self, data: dict):
+        action = data.get("action", "DEFAULT")
         try:
-            self.action = data.get("action", "DEFAULT")
+            self.action = pen_action_aliases.get(action, action)
         except TypeError:
             self.action = "DEFAULT"
         self.operator = data.get("operator", "")
@@ -572,8 +605,8 @@ class TOUCHVIEW_AP_OverlaySettings(AddonPreferences):
     pen_sets: CollectionProperty(type=TOUCHVIEW_PG_PenModeSet)
 
     pen_mode_tab: EnumProperty(
-        name="Pen Mode",
-        items=pen_mode_items,
+        name="Buttons for Mode",
+        items=pie_mode_items,
         default="SCULPT",
     )
 
@@ -720,7 +753,7 @@ class TOUCHVIEW_AP_OverlaySettings(AddonPreferences):
         # the old "pen" right click source becomes an upper pen button binding
         if data.get("right_click_source") == "PEN" and "pen_sets" not in data:
             for pen_set in self.pen_sets:
-                pen_set.upper_click.action = "OPERATOR"
+                pen_set.upper_click.action = "CUSTOM"
                 pen_set.upper_click.operator = self.right_click_mode
 
     def load(self):
@@ -830,7 +863,8 @@ class TOUCHVIEW_AP_OverlaySettings(AddonPreferences):
             col.prop(self, "subdivision_limit", slider=True)
 
         if self.gizmo_tabs == "PEN":
-            draw_pen_buttons(col, self)
+            col.prop(self, "pen_mode_tab")
+            draw_pen_buttons(col, self, self.pen_mode_tab)
 
         if self.gizmo_tabs == "ACTIONS":
             col.label(text="Open the pie from a widget or pen button", icon="INFO")
@@ -882,18 +916,19 @@ class TOUCHVIEW_AP_OverlaySettings(AddonPreferences):
                     widget.setSlot(slots.index("") + 1, "TOUCHVIEW_MT_floating")
 
     def getPenSet(self, mode: str):
-        for pen_set in self.pen_sets:
-            if pen_set.mode == mode:
-                return pen_set
-        return None
+        return self.findModeSet(self.pen_sets, mode)
 
     def ensurePenSets(self):
-        for mode, _, _ in pen_mode_items:
+        for mode, _, _ in pie_mode_items:
             if self.getPenSet(mode) is None:
-                pen_set = self.pen_sets.add()
-                pen_set.mode = mode
-                for _, binding in pen_set.bindings():
-                    binding.mode = mode
+                self.pen_sets.add().mode = mode
+        for pen_set in self.pen_sets:
+            for slot, binding in pen_set.bindings():
+                binding.mode = pen_set.mode
+                binding.gesture = slot.rsplit("_", 1)[1]
+                # actions no longer offered for this button/gesture
+                if binding.action == "":
+                    binding.action = "DEFAULT"
 
     def getGizmoSet(self, mode: str | int):
         available = list(gizmo_sets["ALL"])

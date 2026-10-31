@@ -4,12 +4,13 @@ import bpy
 from bpy.props import StringProperty
 from bpy.types import Operator
 
+from ..utils.actions import TOOL_PREFIX, active_tool, invoke_action, set_tool
 from ..utils.blender import preferences, ui_scale
 from ..utils.brush import (activate_brush, brush_name, brush_ref, history,
                            paint_settings)
 from ..utils.constants import (CANCEL, FINISHED, MODAL, PASSTHROUGH,
-                               pen_brush_actions, pen_buttons,
-                               pen_default_context_menus)
+                               pen_brush_modes, pen_buttons,
+                               pen_default_context_menus, pen_hold_action)
 
 # a press becomes a hold after this long, or once it moves past Blender's
 # tablet drag threshold, or when the pen tip touches down while it's held
@@ -48,14 +49,14 @@ class TOUCHVIEW_OT_pen_button(Operator):
         self.start = (event.mouse_x, event.mouse_y)
         self.start_time = time.monotonic()
         self.is_hold = False
-        self.revert = None  # brush to restore when a hold ends
+        self.revert = None  # brush or tool to restore when a hold ends
         history.update(context)
         self.snapshot = history.snapshot(self.mode)
 
-        # when click and hold switch to the same brush, switch right away so
-        # drawing isn't delayed; release then decides whether it sticks
-        click_target = self.brush_target(self.click)
-        if click_target is not None and click_target == self.brush_target(self.hold):
+        # when click and hold switch to the same brush or tool, switch right
+        # away so drawing isn't delayed; release then decides whether it sticks
+        click_target = self.switch_target(self.click)
+        if click_target is not None and click_target == self.switch_target(self.hold):
             self.switch_temporarily(context, click_target)
 
         wm = context.window_manager
@@ -91,13 +92,13 @@ class TOUCHVIEW_OT_pen_button(Operator):
     # returns an operator result when the hold hands over to something else
     def start_hold(self, context):
         action = self.hold.action
-        if action in pen_brush_actions:
-            target = self.brush_target(self.hold)
+        if pen_hold_action(action):
+            target = self.switch_target(self.hold)
             if self.revert is None and target is not None:
                 self.switch_temporarily(context, target)
             return None
 
-        # the hold does something else, so drop a brush switched on press
+        # the hold does something else, so drop what was switched on press
         self.end_hold(context)
         self.finish(context)
         if action == "DEFAULT":
@@ -115,7 +116,7 @@ class TOUCHVIEW_OT_pen_button(Operator):
                 self.run_default(context, hold=False)
             else:
                 self.run_action(context, self.click)
-        # a click keeps a brush switched on press
+        # a click keeps a brush or tool switched on press
         return FINISHED
 
     def finish(self, context):
@@ -123,33 +124,52 @@ class TOUCHVIEW_OT_pen_button(Operator):
             context.window_manager.event_timer_remove(self.timer)
             self.timer = None
 
-    def brush_target(self, binding):
-        if binding.action == "BRUSH_PREVIOUS":
-            return history.previous.get(self.mode)
-        if binding.action == "BRUSH":
-            return binding.brushRef()
+    # what a brush or tool action switches to, as (kind, target)
+    def switch_target(self, binding):
+        action = binding.action
+        if action == "BRUSH_PREVIOUS":
+            ref = history.previous.get(self.mode)
+            return ("BRUSH", ref) if ref else None
+        if action == "BRUSH":
+            ref = binding.brushRef()
+            return ("BRUSH", ref) if ref else None
+        if action.startswith(TOOL_PREFIX):
+            return ("TOOL", action[len(TOOL_PREFIX):])
         return None
 
+    def current(self, context, kind: str):
+        if kind == "TOOL":
+            return ("TOOL", active_tool(context))
+        return ("BRUSH", brush_ref(paint_settings(context, self.mode)))
+
     def switch_temporarily(self, context, target):
-        current = brush_ref(paint_settings(context, self.mode))
-        if target == current:
+        current = self.current(context, target[0])
+        if target == current or not current[1]:
             return
-        if self.switch_brush(context, target):
+        if self.switch(context, target):
             self.revert = current
             history.update(context)
 
     def end_hold(self, context):
         if self.revert is None:
             return
-        self.switch_brush(context, self.revert)
+        self.switch(context, self.revert)
         self.revert = None
         # a temporary brush shouldn't become the "previous" brush
         history.restore(self.mode, self.snapshot)
 
-    def switch_brush(self, context, ref) -> bool:
-        if activate_brush(ref):
+    def switch(self, context, target) -> bool:
+        kind, value = target
+        if kind == "TOOL":
+            try:
+                set_tool(value)
+                return True
+            except RuntimeError as error:
+                self.report({"WARNING"}, f"Can't use tool {value}: {error}")
+                return False
+        if activate_brush(value):
             return True
-        self.report({"WARNING"}, f"Brush not found: {brush_name(ref)}")
+        self.report({"WARNING"}, f"Brush not found: {brush_name(value)}")
         return False
 
     def run_default(self, context, hold: bool):
@@ -164,31 +184,47 @@ class TOUCHVIEW_OT_pen_button(Operator):
 
     def run_action(self, context, binding):
         action = binding.action
-        if action == "PIE":
-            bpy.ops.wm.call_menu_pie("INVOKE_DEFAULT", name="TOUCHVIEW_MT_floating")  # type: ignore
-        elif action == "QUICK_FAVORITES":
-            bpy.ops.wm.call_menu("INVOKE_DEFAULT", name="SCREEN_MT_user_menu")  # type: ignore
-        elif action == "OPERATOR":
-            self.run_operator(binding.operator)
-        elif action == "BRUSH_PREVIOUS":
-            target = history.previous.get(self.mode)
-            if target is None:
+        if action == "NONE":
+            return
+        if pen_hold_action(action):
+            target = self.switch_target(binding)
+            if target is not None:
+                self.switch(context, target)
+            elif action == "BRUSH_PREVIOUS":
                 self.report({"INFO"}, "No previous brush yet")
             else:
-                self.switch_brush(context, target)
-        elif action == "BRUSH":
-            target = binding.brushRef()
-            if target is None:
                 self.report({"WARNING"}, "No brush set for this pen button")
-            else:
-                self.switch_brush(context, target)
+        else:
+            self.run_shared(binding.operator.strip() if action == "CUSTOM" else action)
 
-    def run_operator(self, idname: str):
+    # an action shared with the pie and the widget, or a custom one
+    def run_shared(self, idname: str):
         try:
-            category, name = idname.strip().split(".")
-            getattr(getattr(bpy.ops, category), name)("INVOKE_DEFAULT")
+            invoke_action(idname)
         except (ValueError, AttributeError, RuntimeError) as error:
             self.report({"WARNING"}, f"Can't run '{idname}': {error}")
+
+
+class TOUCHVIEW_OT_brush_previous(Operator):
+    """Switch back to the previously used brush"""
+
+    bl_label = "Previous Brush"
+    bl_idname = "touchview.brush_previous"
+
+    @classmethod
+    def poll(cls, context):
+        return context.mode in pen_brush_modes
+
+    def execute(self, context):
+        history.update(context)
+        target = history.previous.get(context.mode)
+        if target is None:
+            self.report({"INFO"}, "No previous brush yet")
+            return CANCEL
+        if not activate_brush(target):
+            self.report({"WARNING"}, f"Brush not found: {brush_name(target)}")
+            return CANCEL
+        return FINISHED
 
 
 class TOUCHVIEW_OT_pen_use_active_brush(Operator):
@@ -213,6 +249,7 @@ class TOUCHVIEW_OT_pen_use_active_brush(Operator):
 
 
 classes = (
+    TOUCHVIEW_OT_brush_previous,
     TOUCHVIEW_OT_pen_button,
     TOUCHVIEW_OT_pen_use_active_brush,
 )

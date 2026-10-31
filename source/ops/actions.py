@@ -296,6 +296,38 @@ class TOUCHVIEW_OT_density_down(Operator):
         return FINISHED
 
 
+class TOUCHVIEW_OT_mask_invert(Operator):
+    """Invert the sculpt mask"""
+
+    bl_label = "Invert Mask"
+    bl_idname = "touchview.mask_invert"
+    bl_options = {"REGISTER", "UNDO"}
+
+    @classmethod
+    def poll(cls, context):
+        return context.mode == "SCULPT"
+
+    def execute(self, context):
+        bpy.ops.paint.mask_flood_fill(mode="INVERT")
+        return FINISHED
+
+
+class TOUCHVIEW_OT_reveal_all(Operator):
+    """Show all hidden parts of the sculpt"""
+
+    bl_label = "Reveal Hidden"
+    bl_idname = "touchview.reveal_all"
+    bl_options = {"REGISTER", "UNDO"}
+
+    @classmethod
+    def poll(cls, context):
+        return context.mode == "SCULPT"
+
+    def execute(self, context):
+        bpy.ops.paint.hide_show_all(action="SHOW")
+        return FINISHED
+
+
 class TOUCHVIEW_OT_add_primitive(Operator):
     """Add a mesh at the 3D cursor and keep working on it in the current mode"""
 
@@ -412,6 +444,8 @@ class TOUCHVIEW_OT_fuse_selected(SelectedMeshes, Operator):
 
 classes = (
     TOUCHVIEW_OT_add_primitive,
+    TOUCHVIEW_OT_mask_invert,
+    TOUCHVIEW_OT_reveal_all,
     TOUCHVIEW_OT_fuse_selected,
     TOUCHVIEW_OT_join_selected,
     TOUCHVIEW_OT_brush_resize,

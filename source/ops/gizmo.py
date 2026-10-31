@@ -5,6 +5,7 @@ from bpy.props import StringProperty
 from bpy.types import Operator
 from mathutils import Vector
 
+from ..utils.actions import invoke_action
 from ..utils.blender import *
 from ..utils.constants import CANCEL, FINISHED, MODAL, PASSTHROUGH, pie_actions
 
@@ -213,15 +214,7 @@ class TOUCHVIEW_OT_widget_menu(Operator):
         return FINISHED
 
     def open_menu(self):
-        if "." in self.name:
-            category, name = self.name.split(".")
-            getattr(getattr(bpy.ops, category), name)("INVOKE_DEFAULT")
-        elif "_AST_" in self.name:
-            bpy.ops.wm.call_asset_shelf_popover("INVOKE_DEFAULT", name=self.name)  # type: ignore
-        elif self.name.endswith("_pie") or self.name == "TOUCHVIEW_MT_floating":
-            bpy.ops.wm.call_menu_pie("INVOKE_DEFAULT", name=self.name)  # type: ignore
-        else:
-            bpy.ops.wm.call_menu("INVOKE_DEFAULT", name=self.name)  # type: ignore
+        invoke_action(self.name)
 
 
 classes = (

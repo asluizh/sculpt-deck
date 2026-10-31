@@ -2,6 +2,7 @@
 import bpy
 from bpy.types import Menu, Panel, UILayout
 
+from ..utils.actions import TOOL_PREFIX, is_pie, operator_exists
 from ..utils.blender import preferences
 from ..utils.brush import brush_name
 from ..utils.constants import (WIDGET_SLOTS, pie_actions, pie_mode,
@@ -10,9 +11,8 @@ from ..utils.constants import (WIDGET_SLOTS, pie_actions, pie_mode,
 
 
 # shared by the sidebar panel and the add-on preferences
-def draw_pen_buttons(layout: UILayout, prefs):
-    layout.row().prop(prefs, "pen_mode_tab", expand=True)
-    pen_set = prefs.getPenSet(prefs.pen_mode_tab)
+def draw_pen_buttons(layout: UILayout, prefs, mode: str):
+    pen_set = prefs.getPenSet(mode)
     if pen_set is None:
         return
     layout.label(text="Mouse and touch are not affected", icon="INFO")
@@ -25,8 +25,8 @@ def draw_pen_buttons(layout: UILayout, prefs):
             slot = button + "_" + gesture
             binding = getattr(pen_set, slot)
             col.prop(binding, "action", text=gesture_label)
-            if binding.action == "OPERATOR":
-                col.prop(binding, "operator", text="Operator")
+            if binding.action == "CUSTOM":
+                col.prop(binding, "operator", text=" ", placeholder="e.g. object.shade_smooth or VIEW3D_MT_add")
             elif binding.action == "BRUSH":
                 split = col.split(factor=0.4)
                 split.label(text="")
@@ -61,15 +61,6 @@ def draw_widget_buttons(layout: UILayout, prefs, mode: str):
         draw_action_slots(layout, widget, slots, [f"Button {slot}" for slot in slots])
 
 
-def operator_exists(idname: str) -> bool:
-    try:
-        category, name = idname.split(".")
-        getattr(getattr(bpy.ops, category), name).get_rna_type()
-    except (ValueError, AttributeError, KeyError):
-        return False
-    return True
-
-
 def draw_pie_slot(pie: UILayout, idname: str):
     # empty slots keep the others in place; the pie can't contain itself
     if not idname or idname == "TOUCHVIEW_MT_floating":
@@ -77,9 +68,11 @@ def draw_pie_slot(pie: UILayout, idname: str):
         return
     label, icon = pie_actions.get(idname, (None, "NONE"))
     text = {"text": label} if label else {}
-    if "_AST_" in idname:
+    if idname.startswith(TOOL_PREFIX):
+        pie.operator("wm.tool_set_by_id", icon=icon, **text).name = idname[len(TOOL_PREFIX):]
+    elif "_AST_" in idname:
         pie.operator("wm.call_asset_shelf_popover", icon=icon, **text).name = idname
-    elif "_MT_" in idname and idname.endswith("_pie"):
+    elif "_MT_" in idname and is_pie(idname):
         pie.operator("wm.call_menu_pie", icon=icon, text=label or idname).name = idname
     elif "_MT_" in idname:
         pie.menu(idname, icon=icon, **text)
@@ -262,7 +255,10 @@ class TOUCHVIEW_PT_pen_buttons(TouchView, Panel):
     def draw(self, context):
         layout = self.layout
         layout.use_property_decorate = False
-        draw_pen_buttons(layout, preferences())
+        mode = pie_mode(context.mode)
+        names = {item[0]: item[1] for item in pie_mode_items}
+        layout.label(text=f"Pen buttons for {names[mode]}", icon="STYLUS_PRESSURE")
+        draw_pen_buttons(layout, preferences(), mode)
 
 
 class TOUCHVIEW_PT_tool_settings(TouchView, Panel):

@@ -1,6 +1,7 @@
 import bpy
 from mathutils import Matrix, Vector
 
+from ..utils.actions import TOOL_PREFIX, operator_exists
 from ..utils.blender import *
 from ..utils.constants import (action_toggles, multires_actions, pie_actions,
                                popup_actions, voxel_actions)
@@ -220,15 +221,6 @@ def action_available(context, idname: str) -> bool:
     return has_multires if idname in multires_actions else not has_multires
 
 
-def operator_exists(idname: str) -> bool:
-    try:
-        category, name = idname.split(".")
-        getattr(getattr(bpy.ops, category), name).get_rna_type()
-    except (ValueError, AttributeError, KeyError):
-        return False
-    return True
-
-
 class ActionGizmo:
     """A widget button running one of the shared pie/widget actions"""
 
@@ -259,6 +251,8 @@ class ActionGizmo:
     def set_target(self, idname: str):
         if "_AST_" in idname or "_MT_" in idname or idname in popup_actions:
             self.primary.target_set_operator("touchview.widget_menu").name = idname
+        elif idname.startswith(TOOL_PREFIX):
+            self.primary.target_set_operator("wm.tool_set_by_id").name = idname[len(TOOL_PREFIX):]
         elif operator_exists(idname):
             self.primary.target_set_operator(idname)
 
