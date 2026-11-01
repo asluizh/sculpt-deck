@@ -288,6 +288,7 @@ pie_mode_actions = {
         ("touchview.increment_multires", "Multires Level Up", "TRIA_UP"),
         ("touchview.decrement_multires", "Multires Level Down", "TRIA_DOWN"),
         ("touchview.cycle_control_gizmo", "Cycle Object Gizmo", "ORIENTATION_LOCAL"),
+        ("touchview.apply_object_scale", "Apply Scale", "CON_SIZELIKE"),
         ("object.quadriflow_remesh", "QuadriFlow Remesh", "MOD_REMESH"),
         ("sculpt.dynamic_topology_toggle", "Toggle Dyntopo", "MESH_DATA"),
         ("VIEW3D_MT_sculpt", "Sculpt Menu", "SCULPTMODE_HLT"),
@@ -319,6 +320,7 @@ pie_mode_actions = {
                 ("builtin.rotate", "Rotate", "CON_ROTLIKE"),
                 ("builtin.scale", "Scale", "CON_SIZELIKE"),
                 ("builtin.transform", "Transform", "OBJECT_ORIGIN"),
+                ("touchview.local_transform", "Local Transform", "ORIENTATION_LOCAL"),
             )
         ],
     ],

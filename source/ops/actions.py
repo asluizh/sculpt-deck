@@ -5,6 +5,7 @@ from bpy.props import EnumProperty, FloatProperty, IntProperty
 from bpy.types import Operator
 
 from ..utils.blender import preferences
+from .local_transform import TOOL_ID
 from ..utils.constants import (CANCEL, FINISHED, object_modes,
                                paint_settings_name, pivot_items,
                                primitive_items)
@@ -364,6 +365,9 @@ class TOUCHVIEW_OT_add_primitive(Operator):
             bpy.ops.object.voxel_remesh()
         if mode != "OBJECT":
             bpy.ops.object.mode_set(mode=mode)
+        if sculpt:
+            # place the new mesh right away
+            bpy.ops.wm.tool_set_by_id(name=TOOL_ID, space_type="VIEW_3D")
         return FINISHED
 
     def add_mesh(self, sculpt: bool):
