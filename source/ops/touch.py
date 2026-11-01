@@ -1,5 +1,6 @@
 # Built-in modules
 import math
+import time
 
 import bpy
 from bpy.props import EnumProperty
@@ -9,9 +10,19 @@ from bpy_extras.view3d_utils import (region_2d_to_origin_3d,
 from mathutils import Vector
 
 # Local modules
-from ..utils.blender import preferences
-from ..utils.constants import (FINISHED, LMOUSE, PASSTHROUGH, PEN, PRESS,
-                               RMOUSE, brush_modes, input_mode_items)
+from ..utils.blender import preferences, ui_scale
+from ..utils.constants import (FINISHED, LMOUSE, MODAL, PASSTHROUGH, PEN,
+                               PRESS, RMOUSE, brush_modes, input_mode_items,
+                               object_modes)
+
+# a touch that lifts within TAP_TIME without moving TAP_SLOP pixels is a tap;
+# held for LONG_PRESS_TIME without moving it toggles the object's selection
+TAP_TIME = 0.35
+TAP_SLOP = 5
+LONG_PRESS_TIME = 0.5
+# a second tap this close to the first one makes a double tap; Blender's own
+# double click needs both clicks on almost the same pixel
+DOUBLE_TAP_DISTANCE = 40
 
 
 def is_touch(event):
@@ -34,9 +45,8 @@ class TOUCHVIEW_OT_right_click_action(Operator):
             return PASSTHROUGH
         if event.type not in [RMOUSE]:
             return PASSTHROUGH
-        if is_touch(event) and prefs.right_click_source == "PEN":
-            return PASSTHROUGH
-        if not is_touch(event) and prefs.right_click_source == "MOUSE":
+        # pen buttons are handled by touchview.pen_button
+        if event.is_tablet:
             return PASSTHROUGH
         if event.value == "DOUBLE_CLICK":
             return PASSTHROUGH
@@ -219,10 +229,103 @@ class TOUCHVIEW_OT_touch_input_3d(Operator):
             elif self.mode == "ORBIT":
                 self.mode = "PAN"
 
-        if context.mode == "SCULPT":
-            bpy.ops.sculpt.set_pivot_position(mode=prefs.pivot_mode)
-        self.execute(context)
+        # wait to see whether this is a tap (select/switch object) or a drag
+        if prefs.tap_to_switch and context.mode in object_modes and not event.is_tablet:
+            self.press_time = time.monotonic()
+            self.state = "PRESSED"
+            wm = context.window_manager
+            self.timer = wm.event_timer_add(0.05, window=context.window)
+            wm.modal_handler_add(self)
+            return MODAL
+        self.navigate(context)
         return FINISHED
+
+    def modal(self, context, event):
+        elapsed = time.monotonic() - self.press_time
+        if self.state == "PRESSED":
+            if event.type == LMOUSE and event.value == "RELEASE":
+                if elapsed >= TAP_TIME:
+                    return self.finish(context)
+                # a second tap may follow; act only once it's clear it won't
+                if preferences().enable_double_click:
+                    self.state = "RELEASED"
+                    self.release_time = time.monotonic()
+                    return MODAL
+                self.tap(context)
+                return self.finish(context)
+            if event.type in {"MOUSEMOVE", "INBETWEEN_MOUSEMOVE"}:
+                dx = event.mouse_region_x - self.delta[0]
+                dy = event.mouse_region_y - self.delta[1]
+                if math.hypot(dx, dy) > TAP_SLOP * ui_scale():
+                    self.finish(context)
+                    self.navigate(context)
+                    return FINISHED
+                return MODAL
+            if event.type == "TIMER" and elapsed >= LONG_PRESS_TIME:
+                self.toggle_selection(context)
+                self.state = "LONG_PRESSED"
+            return PASSTHROUGH
+
+        if self.state == "RELEASED":
+            if event.type == LMOUSE and event.value in {"PRESS", "DOUBLE_CLICK"}:
+                dx = event.mouse_region_x - self.delta[0]
+                dy = event.mouse_region_y - self.delta[1]
+                if math.hypot(dx, dy) <= DOUBLE_TAP_DISTANCE * ui_scale():
+                    try:
+                        bpy.ops.touchview.dt_action("EXEC_DEFAULT")  # type: ignore
+                    except RuntimeError as error:
+                        self.report({"WARNING"}, str(error))
+                    self.state = "DOUBLE_TAPPED"
+                    return MODAL
+                # a new touch somewhere else: the first one was a single tap
+                self.tap(context)
+                self.finish(context)
+                return {"FINISHED", "PASS_THROUGH"}
+            double_click_time = context.preferences.inputs.mouse_double_click_time / 1000
+            if event.type == "TIMER" and time.monotonic() - self.release_time > double_click_time:
+                self.tap(context)
+                return self.finish(context)
+            return PASSTHROUGH
+
+        # long pressed or double tapped: ignore the rest of the touch
+        if event.type == LMOUSE and event.value == "RELEASE":
+            return self.finish(context)
+        return MODAL if event.type in {"MOUSEMOVE", "INBETWEEN_MOUSEMOVE"} else PASSTHROUGH
+
+    def finish(self, context):
+        context.window_manager.event_timer_remove(self.timer)
+        return FINISHED
+
+    # tap an object to select it, or to switch to it in edit/sculpt/paint modes
+    def tap(self, context):
+        if context.mode == "OBJECT":
+            bpy.ops.view3d.select("INVOKE_DEFAULT", deselect_all=True)  # type: ignore
+            return
+        target = self.objectAt(context, *self.delta)
+        if target is None or target == context.view_layer.objects.active:
+            return
+        try:
+            bpy.ops.object.transfer_mode("INVOKE_DEFAULT")  # type: ignore
+        except RuntimeError:
+            pass  # the object can't enter this mode
+
+    # long press an object to add it to or remove it from the selection
+    def toggle_selection(self, context):
+        target = self.objectAt(context, *self.delta)
+        active = context.view_layer.objects.active
+        if target is None or target == active:
+            return
+        target.select_set(not target.select_get())
+        if active is not None:
+            active.select_set(True)
+        change = "added to" if target.select_get() else "removed from"
+        self.report({"INFO"}, f"{target.name} {change} the selection")
+        context.area.tag_redraw()
+
+    def navigate(self, context):
+        if context.mode == "SCULPT":
+            bpy.ops.sculpt.set_pivot_position(mode=preferences().pivot_mode)
+        self.execute(context)
 
     def execute(self, context):
         if self.mode == "DOLLY":
@@ -259,10 +362,13 @@ class TOUCHVIEW_OT_touch_input_3d(Operator):
         return False
 
     def mouseTarget(self, context, event):
-        # get the context arguments
+        return self.objectAt(context, event.mouse_region_x, event.mouse_region_y)
+
+    # the mesh object under a point of the region, if any
+    def objectAt(self, context, x: float, y: float):
         region = context.region
         rv3d = context.region_data
-        coord = Vector((event.mouse_region_x, event.mouse_region_y))
+        coord = Vector((x, y))
 
         # get the ray from the viewport and mouse
         view_vector = region_2d_to_vector_3d(region, rv3d, coord)

@@ -2,7 +2,90 @@
 import bpy
 from bpy.types import Menu, Panel, UILayout
 
+from ..utils.actions import TOOL_PREFIX, is_pie, operator_exists
 from ..utils.blender import preferences
+from ..utils.brush import brush_name
+from ..utils.constants import (WIDGET_SLOTS, pie_actions, pie_common_actions,
+                               pie_mode, pie_mode_actions, pie_mode_items,
+                               pie_slot_display_order, pie_slot_names,
+                               primitive_items)
+
+
+# shared by the sidebar panel and the add-on preferences
+def draw_pen_buttons(layout: UILayout, prefs, mode: str):
+    pen_set = prefs.getPenSet(mode)
+    if pen_set is None:
+        return
+    layout.label(text="Mouse and touch are not affected", icon="INFO")
+    for button, label in (("lower", "Button 1 (lower)"), ("upper", "Button 2 (upper)")):
+        box = layout.box()
+        box.label(text=label, icon="STYLUS_PRESSURE")
+        col = box.column()
+        col.use_property_split = True
+        for gesture, gesture_label in (("click", "Click"), ("hold", "Hold / Drag")):
+            slot = button + "_" + gesture
+            binding = getattr(pen_set, slot)
+            col.prop(binding, "action", text=gesture_label)
+            if binding.action == "CUSTOM":
+                col.prop(binding, "operator", text=" ", placeholder="e.g. object.shade_smooth or VIEW3D_MT_add")
+            elif binding.action == "BRUSH":
+                split = col.split(factor=0.4)
+                split.label(text="")
+                row = split.row(align=True)
+                row.label(text=brush_name(binding.brushRef()) or "No brush set", icon="BRUSH_DATA")
+                op = row.operator("touchview.pen_use_active_brush", text="", icon="EYEDROPPER")
+                op.mode = pen_set.mode
+                op.slot = slot
+
+
+# shared by the sidebar panels and the add-on preferences
+def draw_action_slots(layout: UILayout, mode_set, slots, labels):
+    col = layout.column()
+    col.use_property_split = True
+    for slot, label in zip(slots, labels):
+        col.prop(mode_set, f"menu_choice_{slot}", text=label)
+        if getattr(mode_set, f"menu_choice_{slot}") == "CUSTOM":
+            col.prop(mode_set, f"menu_slot_{slot}", text=" ", placeholder="e.g. object.shade_smooth or VIEW3D_MT_add")
+
+
+def draw_action_pie(layout: UILayout, prefs, mode: str):
+    menu = prefs.getMenuSettings(mode)
+    if menu is not None:
+        labels = [pie_slot_names[slot - 1] for slot in pie_slot_display_order]
+        draw_action_slots(layout, menu, pie_slot_display_order, labels)
+
+
+def draw_widget_buttons(layout: UILayout, prefs, mode: str):
+    widget = prefs.getWidgetSettings(mode)
+    if widget is not None:
+        slots = range(1, WIDGET_SLOTS + 1)
+        draw_action_slots(layout, widget, slots, [f"Button {slot}" for slot in slots])
+
+
+def draw_pie_slot(pie: UILayout, idname: str):
+    # empty slots keep the others in place; the pie can't contain itself
+    if not idname or idname == "TOUCHVIEW_MT_floating":
+        pie.separator()
+    else:
+        draw_action(pie, idname)
+
+
+# a button running an action, in a pie or a menu
+def draw_action(layout: UILayout, idname: str):
+    label, icon = pie_actions.get(idname, (None, "NONE"))
+    text = {"text": label} if label else {}
+    if idname.startswith(TOOL_PREFIX):
+        layout.operator("wm.tool_set_by_id", icon=icon, **text).name = idname[len(TOOL_PREFIX):]
+    elif "_AST_" in idname:
+        layout.operator("wm.call_asset_shelf_popover", icon=icon, **text).name = idname
+    elif "_MT_" in idname and is_pie(idname):
+        layout.operator("wm.call_menu_pie", icon=icon, text=label or idname).name = idname
+    elif "_MT_" in idname:
+        layout.menu(idname, icon=icon, **text)
+    elif operator_exists(idname):
+        layout.operator(idname, icon=icon, **text)
+    else:
+        layout.label(text=f"Unknown: {idname}", icon="ERROR")
 
 
 class TouchView:
@@ -66,6 +149,7 @@ class TOUCHVIEW_PT_control_zones(TouchView, Panel):
         col = layout.column(align=True)
         col.prop(prefs, "isVisible", text="Show Overlay")
         col.prop(prefs, "swap_panrotate")
+        col.prop(prefs, "tap_to_switch")
         col.prop(prefs, "use_multiple_colors")
 
         col = layout.column()
@@ -113,7 +197,7 @@ class TOUCHVIEW_PT_right_click(TouchView, Panel):
         layout.use_property_split = True
 
         col = layout.column()
-        col.prop(prefs, "right_click_source", text="Source", expand=True)
+        col.prop(prefs, "right_click_source", text="Mouse/Touch", expand=True)
         col.prop(prefs, "right_click_mode", text="Mode", expand=True)
 
 
@@ -132,6 +216,55 @@ class TOUCHVIEW_PT_double_click(TouchView, Panel):
         col = layout.column()
         col.prop(prefs, "enable_double_click")
         col.prop(prefs, "double_click_mode", text="Mode", expand=True)
+
+
+class TOUCHVIEW_PT_widget_buttons(TouchView, Panel):
+    bl_label = "Widget Buttons"
+    bl_parent_id = "TOUCHVIEW_PT_view_3d_panel"
+    bl_options = {"DEFAULT_CLOSED"}
+
+    def draw_header(self, context):
+        self.layout.prop(preferences(), "show_menu", text="")
+
+    def draw(self, context):
+        prefs = preferences()
+        layout = self.layout
+        layout.use_property_decorate = False
+        mode = pie_mode(context.mode)
+        names = {item[0]: item[1] for item in pie_mode_items}
+        layout.label(text=f"Buttons for {names[mode]}", icon="TOOL_SETTINGS")
+        layout.label(text="Unusable buttons hide, e.g. voxel ones with Multires", icon="INFO")
+        draw_widget_buttons(layout, prefs, mode)
+
+
+class TOUCHVIEW_PT_action_pie(TouchView, Panel):
+    bl_label = "Action Pie"
+    bl_parent_id = "TOUCHVIEW_PT_view_3d_panel"
+    bl_options = {"DEFAULT_CLOSED"}
+
+    def draw(self, context):
+        prefs = preferences()
+        layout = self.layout
+        layout.use_property_decorate = False
+        mode = pie_mode(context.mode)
+        names = {item[0]: item[1] for item in pie_mode_items}
+        layout.label(text=f"Pie for {names[mode]}", icon="SETTINGS")
+        layout.label(text="Open it from a widget or pen button", icon="INFO")
+        draw_action_pie(layout, prefs, mode)
+
+
+class TOUCHVIEW_PT_pen_buttons(TouchView, Panel):
+    bl_label = "Pen Buttons"
+    bl_parent_id = "TOUCHVIEW_PT_view_3d_panel"
+    bl_options = {"DEFAULT_CLOSED"}
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_decorate = False
+        mode = pie_mode(context.mode)
+        names = {item[0]: item[1] for item in pie_mode_items}
+        layout.label(text=f"Pen buttons for {names[mode]}", icon="STYLUS_PRESSURE")
+        draw_pen_buttons(layout, preferences(), mode)
 
 
 class TOUCHVIEW_PT_tool_settings(TouchView, Panel):
@@ -172,7 +305,6 @@ class TOUCHVIEW_PT_viewport_options(TouchView, Panel):
             col.operator("screen.region_quadview", text="Enable Quadview")
 
         col = layout.column(align=True)
-        col.prop(prefs, "show_float_menu")
         if not len(space.region_quadviews) > 0:
             col.prop(space, "lock_cursor", text="Lock to Cursor")
             col.prop(view.region_3d, "lock_rotation", text="Lock Rotation")
@@ -240,51 +372,56 @@ class TOUCHVIEW_PT_gizmo_display(Panel):
     def draw(self, context):
         prefs = preferences()
 
-        layout = self.layout
-        col = layout.column()
-        available_gizmos = prefs.getGizmoSet(context.object.mode)
-
-        col = col.column(align=True)
+        col = self.layout.column()
         col.active = context.space_data.show_gizmo
         col.prop(prefs, "show_menu")
-        col = col.column()
-        col.active = prefs.show_menu
-        for toggle in available_gizmos:
-            col.prop(prefs, "show_" + toggle)
+        col.label(text="Choose buttons in the sidebar: Touchview > Widget Buttons")
 
 
 class TOUCHVIEW_MT_floating(Menu):
-    """Open a custom menu"""
+    """Touchview action pie"""
 
-    bl_label = "Floating Menu"
-    bl_description = "Customized Floating Menu"
+    bl_label = "Action Pie"
+    bl_description = "Touchview action pie, set up per mode in the sidebar"
 
     def draw(self, context):
-        prefs = preferences()
-        menu = prefs.getMenuSettings(context.mode)
+        menu = preferences().getMenuSettings(context.mode)
+        pie = self.layout.menu_pie()
+        for slot in range(1, 9):
+            draw_pie_slot(pie, menu.slot(slot) if menu else "")
 
-        layout = self.layout
-        pie = layout.menu_pie()
-        for i in range(8):
-            op = getattr(menu, "menu_slot_" + str(i + 1))
-            if op == "":
-                continue
-            elif "_MT_" in op:
-                pie.menu(op)
-                continue
-            elif self.__operator_exists(op):
-                pie.operator(op)
 
-    def __operator_exists(self, idname):
-        try:
-            names = idname.split(".")
-            a = bpy.ops
-            for prop in names:
-                a = getattr(a, prop)
-            a.__repr__()
-        except Exception as _:
-            return False
-        return True
+class TOUCHVIEW_MT_all_actions(Menu):
+    """Every Touchview action for the current mode"""
+
+    bl_label = "All Actions"
+
+    def draw(self, context):
+        actions = pie_mode_actions.get(pie_mode(context.mode), [])
+        groups = (
+            ("Actions", [action for action in actions if not action[0].startswith(TOOL_PREFIX)]),
+            ("Tools", [action for action in actions if action[0].startswith(TOOL_PREFIX)]),
+            ("Common", [action for action in pie_common_actions if action[0] != "TOUCHVIEW_MT_all_actions"]),
+        )
+        row = self.layout.row()
+        for title, group in groups:
+            if not group:
+                continue
+            col = row.column()
+            col.label(text=title)
+            col.separator()
+            for idname, _, _ in group:
+                draw_action(col, idname)
+
+
+class TOUCHVIEW_MT_add_mesh(Menu):
+    """Add a mesh and keep working on it in the current mode"""
+
+    bl_label = "Add Mesh"
+
+    def draw(self, context):
+        for primitive, name, _, icon, _ in primitive_items:
+            self.layout.operator("touchview.add_primitive", text=name, icon=icon).primitive = primitive
 
 
 classes = (
@@ -293,12 +430,17 @@ classes = (
     TOUCHVIEW_PT_gizmo_bar,
     TOUCHVIEW_PT_right_click,
     TOUCHVIEW_PT_double_click,
+    TOUCHVIEW_PT_widget_buttons,
+    TOUCHVIEW_PT_action_pie,
+    TOUCHVIEW_PT_pen_buttons,
     TOUCHVIEW_PT_tool_settings,
     TOUCHVIEW_PT_viewport_options,
     TOUCHVIEW_PT_image_editor_panel,
     TOUCHVIEW_PT_node_editor_panel,
     TOUCHVIEW_PT_gizmo_display,
     TOUCHVIEW_MT_floating,
+    TOUCHVIEW_MT_add_mesh,
+    TOUCHVIEW_MT_all_actions,
 )
 
 

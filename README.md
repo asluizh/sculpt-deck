@@ -50,6 +50,16 @@ You may chose to switch the Pan and Rotate regions. If you lock the viewport rot
 </div>
 </div>
 
+## Tap to Select or Switch Objects
+
+Tap an object with your finger to select it in Object Mode, or to switch to it without leaving the current mode in Edit, Sculpt and Paint modes. Dragging still moves the view, and a second tap nearby makes a double tap. This can be turned off in the Control Zones settings.
+
+Long press an object to add it to or remove it from the selection, then use _Join Selected_, _Fuse (Union)_ (merge and voxel remesh into one surface) or _Fuse (Difference)_ (cut the other objects out of the active one and voxel remesh it) from the action pie or the widget, without leaving the current mode.
+
+## Add Meshes Without Leaving Your Mode
+
+The _Add Mesh_ action (available in the action pie) adds a sphere, cube, cylinder, cone, torus, plane or monkey at the 3D cursor and keeps you in the mode you were in. In Sculpt Mode the new mesh is voxel remeshed to an even, sculptable density; adjust its resolution in the _Adjust Last Operation_ panel.
+
 ## Customizable Double-tap Action
 
 Double-tap to trigger one of the following actions:
@@ -65,19 +75,9 @@ Double-tap to trigger one of the following actions:
 
 ![gizmo bar](/docs/gizmo_bar.png)
 
-Important features have been made available directly in the viewport. Each button can be toggled on/off from the overlay menu.
+Important features have been made available directly in the viewport. Each mode has up to 12 buttons, chosen in the sidebar under _Touchview > Widget Buttons_ (or in the add-on preferences) from the same list of actions as the action pie, or any custom operator or menu.
 
-The following on-screen buttons are currently available:
-
-- Undo/Redo
-- Toggle Fullscreen Viewport
-- Toggle Quad-view
-- Recenter Viewport
-- Change Rotation Center Point
-- Toggle N-panel
-- Toggle Viewport Rotation Lock
-- Topology Control
-- Sculpt Brush Dynamics
+By default they include undo/redo, add mesh, recenter view, maximize area, the sidebar toggle and, depending on the mode, the object gizmo, voxel remesh, Multires levels and brush size/strength. Buttons that can't be used hide themselves, e.g. the voxel buttons on objects with a Multires modifier. Buttons that open a menu keep it open when tapped, or close it on release when held (releasing over an item picks it). Quad view, rotation lock, voxel density and many more are available from the list.
 
 ### Additional Details
 
@@ -119,11 +119,30 @@ A red icon means you have reached your subdivision limit and it will not try to 
 
 This feature allows you to quickly access the UI for brush resizing and strength control in sculpt mode.
 
-## Fully Customizable Floating Menu
+## Fully Customizable Action Pie
 
 <img src="/docs/sample_menu.png" width="50%">
 
-This button allows you to assign up to 8 commands, unique to each edit mode (object, sculpt, texture paint, weight paint, etc) and reposition it where ever you want, to best fit your workspace. If you don't need it, simply disable it in the prefs menu.
+An action pie with up to 8 commands, unique to each mode (object, edit, sculpt, the paint modes and Grease Pencil draw; every other mode shares one pie). Open it from a widget button (_Action Pie_) or a pen button.
+
+Set it up in the sidebar under _Touchview > Action Pie_, which edits the pie of the mode you're in, or in the add-on preferences. Each pie position has a dropdown of popular actions for that mode (e.g. the brush picker, mask and face set popups, and tools like box trim or mesh filter in sculpt mode) plus common ones that usually need a keyboard: undo history, adjust last operation, the mode, view, shading, pivot and snap pies, frame selected, local view, X-ray, search and save. _All Actions_ opens a popup with every action for the current mode, so nothing is out of reach between reassignments. Pick _Custom..._ to type any operator (`object.shade_smooth`) or menu (`VIEW3D_MT_add`) name; turn on _Preferences > Interface > Python Tooltips_ to see them when hovering Blender's buttons.
+
+## Pen Buttons
+
+Give your pen's side buttons their own actions in every mode, separately for a click and for a hold/drag. Only the pen is affected; mouse and touch keep their usual behavior.
+
+A **click** can use most actions from the action pie and widget list, the action pie itself, or:
+
+- **Blender Default** / **Nothing**
+- **Previous Brush** / **Specific Brush** (brush modes): switch brushes; for a specific brush, pick it the usual way and press the eyedropper next to the binding
+- **Invert Brush** (Sculpt Mode): a click swaps the brush direction (e.g. add/subtract, smooth/enhance details); a hold inverts the strokes you draw while holding it, like holding Ctrl
+- **Tools** such as mask, hide, face set, trim, filters and the transform tools in Sculpt Mode, or transform, cursor and modeling tools in Object and Edit Mode
+
+By default, in Sculpt Mode, button 1 (the lower one) inverts the brush on click and hold, and button 2 switches to the previous brush on click and uses the Smooth brush while held.
+
+A **hold** uses a brush or a tool only until the button is released, e.g. hold for the Smooth brush, or hold and draw with the tip for a Box Hide. Actions that change the mesh resolution (remesh, Multires levels) aren't offered for pen buttons, which are easy to press by accident; _Edit Voxel Size_ is.
+
+A press becomes a hold after a moment, once the pen moves, or when the tip touches down while the button is held. Set them up in the sidebar under _Touchview > Pen Buttons_, which edits the mode you're in, or in the add-on preferences.
 
 # Feature Roadmap
 

@@ -5,57 +5,18 @@ from bpy.types import GizmoGroup
 from mathutils import Vector
 
 from ..utils.blender import *
-from .gizmo_2d import GizmoSet, GizmoSetBoolean
-from .gizmo_config import (brushResizeConfig, brushStrengthConfig,
-                           controlGizmoConfig, controllerConfig,
-                           floatingConfig, floatingToggleConfig,
-                           fullscreenToggleConfig, nPanelConfig,
-                           quadviewToggleConfig, redoConfig,
-                           rotLocToggleConfig, snapViewConfig, subdivConfig,
-                           touchViewConfig, undoConfig, unsubdivConfig,
-                           voxelRemeshConfig, voxelSizeConfig,
-                           voxelStepDownConfig, voxelStepUpConfig)
+from ..utils.constants import WIDGET_SLOTS, action_toggles
+from .gizmo_2d import ActionGizmo, GizmoSet, GizmoSetBoolean, action_icon
+from .gizmo_config import controllerConfig, floatingToggleConfig
 
 __module__ = __name__.split(".")[0]
 
-
-configs = [
-    undoConfig,
-    redoConfig,
-    touchViewConfig,
-    controlGizmoConfig,
-    snapViewConfig,
-    fullscreenToggleConfig,
-    quadviewToggleConfig,
-    rotLocToggleConfig,
-    nPanelConfig,
-    voxelSizeConfig,
-    voxelRemeshConfig,
-    voxelStepDownConfig,
-    voxelStepUpConfig,
-    subdivConfig,
-    unsubdivConfig,
-    brushResizeConfig,
-    brushStrengthConfig,
-]
-
 ###
 # GizmoGroup
-#  - hold reference to available Gizmos
-#  - generate new Gizmos
-#  - position Gizmos during draw_@prepare()
-#
-# Gizmo
-#  - hold Icon (cannot change)
-#  - set color
-#  - set visible
-#
-# 2DGizmo (Custom Gizmo definition)
-#  - holds reference to Gizmos for related action
-#  - position applied to references
-#  - hold state to determine what icons,actions to provide
-#  - applies color and visibility based on prefs
-#
+#  - holds the menu controller, action menu and floating toggle
+#  - builds one ActionGizmo per widget button of the current mode, rebuilt
+#    when the buttons, the mode or a toggle's state (its icon) change
+#  - positions Gizmos during draw_prepare()
 ###
 
 
@@ -67,24 +28,28 @@ class GIZMO_GT_viewport_gizmo_group(GizmoGroup):
 
     # set up gizmo collection
     def setup(self, context):
-        self.gizmo_2d_sets = []
+        self.actions: list[ActionGizmo] = []
+        self.signature = None
         self.__buildController(context)
-        prefs = preferences()
-        self.spacing = prefs.menu_spacing
-        for conf in configs:
-            if conf["type"] == "boolean":
-                gizmo = GizmoSetBoolean()
-                gizmo.setup(self, conf)
-            else:  # assume Type = Default
-                gizmo = GizmoSet()
-                gizmo.setup(self, conf)
-            self.gizmo_2d_sets.append(gizmo)
+        self.spacing = preferences().menu_spacing
+
+    # rebuild the action buttons when what they show changes
+    def __syncActions(self, context):
+        widget = preferences().getWidgetSettings(context.mode)
+        idnames = [idname for idname in (widget.slots(WIDGET_SLOTS) if widget else []) if idname]
+        signature = tuple(
+            (idname, action_icon(context, idname) if idname in action_toggles else "") for idname in idnames
+        )
+        if signature == self.signature:
+            return
+        self.signature = signature
+        for action in self.actions:
+            self.gizmos.remove(action.primary)
+        self.actions = [ActionGizmo(self, context, idname) for idname in idnames]
 
     def __buildController(self, context):
         self.controller = GizmoSet()
         self.controller.setup(self, controllerConfig)
-        self.action_menu = GizmoSet()
-        self.action_menu.setup(self, floatingConfig)
         self.toggle = GizmoSetBoolean()
         self.toggle.setup(self, floatingToggleConfig)
 
@@ -92,20 +57,20 @@ class GIZMO_GT_viewport_gizmo_group(GizmoGroup):
         self.context = context
         prefs = preferences()
         self.__updateOrigin()
-        self.__updateActionOrigin()
         self.__updateToggleOrigin()
         self.toggle.draw_prepare()
         self.controller.draw_prepare()
-        self.action_menu.draw_prepare()
         self.__move_gizmo(self.controller, self.origin)
-        self.__move_gizmo(self.action_menu, self.action_origin)
         self.__move_gizmo(self.toggle, self.toggle_origin)
 
+        self.__syncActions(context)
         visible_gizmos = []
-        for gizmo in self.gizmo_2d_sets:
-            gizmo.draw_prepare()
+        for gizmo in self.actions:
+            gizmo.draw_prepare(context)
             if gizmo.visible:
                 visible_gizmos.append(gizmo)
+        for gizmo, following in zip(visible_gizmos, visible_gizmos[1:]):
+            gizmo.has_dependent = ActionGizmo.pairs.get(gizmo.idname) == following.idname
 
         if prefs.menu_style == "float.radial":
             self.__menuRadial(visible_gizmos)
@@ -117,7 +82,7 @@ class GIZMO_GT_viewport_gizmo_group(GizmoGroup):
         safe_area = safe_area_3d()
         spacing = ((36 * prefs.gizmo_scale) + 2 * prefs.gizmo_padding) * ui_scale()
         center = (safe_area[0] + safe_area[1]) / 2
-        # keep the bottom corners free for the floating toggle and action menu
+        # keep the bottom corners free, e.g. for the floating toggle
         bottom = safe_area[0].y + spacing
 
         # side bars are kept in the lower half of the viewport, and below the
@@ -214,27 +179,6 @@ class GIZMO_GT_viewport_gizmo_group(GizmoGroup):
             (
                 safe_area[0].x + span.x * prefs.menu_position[0] * 0.01,
                 safe_area[0].y + span.y * prefs.menu_position[1] * 0.01,
-                0.0,
-            )
-        )
-
-    def __updateActionOrigin(self):
-        prefs = preferences()
-        safe_area = safe_area_3d()
-
-        # distance across viewport between menus
-        span = Vector(
-            (
-                safe_area[1].x - safe_area[0].x,
-                safe_area[1].y - safe_area[0].y,
-            )
-        )
-
-        # apply position ratio to safe area
-        self.action_origin = Vector(
-            (
-                safe_area[0].x + span.x * prefs.floating_position[0] * 0.01,
-                safe_area[0].y + span.y * prefs.floating_position[1] * 0.01,
                 0.0,
             )
         )

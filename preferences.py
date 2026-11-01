@@ -1,15 +1,27 @@
 # type: ignore
 import json
+import zlib
 from os import path
 
 import bpy
 from bpy.props import *
 from bpy.types import AddonPreferences, PropertyGroup, UILayout
 
-from .source.utils.constants import (double_click_items, edit_modes,
+from .source.ui.panel import (draw_action_pie, draw_pen_buttons,
+                              draw_widget_buttons)
+from .source.utils.constants import (WIDGET_SLOTS, double_click_items,
                                      gizmo_sets, menu_defaults,
                                      menu_orientation_items, menu_style_items,
-                                     pivot_items, position_items)
+                                     pen_action_aliases, pen_action_numbers,
+                                     pen_brush_items, pen_brush_modes,
+                                     pen_button_items, pen_buttons,
+                                     pen_defaults, pen_gestures,
+                                     pen_hold_action, pen_resolution_actions,
+                                     pie_common_actions, pie_mode,
+                                     pie_mode_actions, pie_mode_aliases,
+                                     pie_mode_items, pivot_items,
+                                     position_items, widget_defaults,
+                                     widget_only_actions)
 
 
 def NODE_HT_nendo_header(s, c):
@@ -43,40 +55,211 @@ def redraw_viewports(_, c):
 ##
 # Action Menu Settings
 ##
+# the pie uses the first 8 slots, the widget all of them
+PIE_SLOTS = range(1, 9)
+ALL_SLOTS = range(1, WIDGET_SLOTS + 1)
+
+# dynamic enum items must stay referenced while Blender uses them
+_pie_choice_cache: dict[tuple, list] = {}
+
+
+# stable numbers keep stored choices valid when the catalog changes
+def pie_choice_number(idname: str) -> int:
+    return 2 + zlib.crc32(idname.encode()) % 1_000_000
+
+
+def pie_choices(group, _):
+    key = (group.mode, group.kind)
+    if key not in _pie_choice_cache:
+        items = [("NONE", "Empty", "Leave this slot empty", "BLANK1", 0)]
+        widget_actions = widget_only_actions if group.kind == "WIDGET" else []
+        for actions in (widget_actions, pie_mode_actions.get(group.mode, []), pie_common_actions):
+            if actions:
+                items.append(None)
+            items += [(idname, label, idname, icon, pie_choice_number(idname)) for idname, label, icon in actions]
+        items += [None, ("CUSTOM", "Custom...", "Type the name of an operator or menu", "SCRIPT", 1)]
+        _pie_choice_cache[key] = items
+    return _pie_choice_cache[key]
+
+
+def pie_choice(slot: int):
+    return EnumProperty(
+        name="Pie Slot",
+        description="Action for this position of the pie",
+        items=pie_choices,
+        update=lambda group, _: group.choiceChanged(slot),
+    )
+
+
+def pie_custom():
+    return StringProperty(
+        name="Custom Action",
+        description="Operator (e.g. object.shade_smooth) or menu (e.g. VIEW3D_MT_add) to show in this slot",
+        default="",
+    )
+
+
 class TOUCHVIEW_PG_MenuModeGroup(PropertyGroup):
     mode: StringProperty(name="mode", default="OBJECT")
-    menu_slot_1: StringProperty(name="Menu Item", default="")
-    menu_slot_2: StringProperty(name="Menu Item", default="")
-    menu_slot_3: StringProperty(name="Menu Item", default="")
-    menu_slot_4: StringProperty(name="Menu Item", default="")
-    menu_slot_5: StringProperty(name="Menu Item", default="")
-    menu_slot_6: StringProperty(name="Menu Item", default="")
-    menu_slot_7: StringProperty(name="Menu Item", default="")
-    menu_slot_8: StringProperty(name="Menu Item", default="")
+    kind: StringProperty(name="kind", default="PIE")  # PIE or WIDGET
+    menu_choice_1: pie_choice(1)
+    menu_choice_2: pie_choice(2)
+    menu_choice_3: pie_choice(3)
+    menu_choice_4: pie_choice(4)
+    menu_choice_5: pie_choice(5)
+    menu_choice_6: pie_choice(6)
+    menu_choice_7: pie_choice(7)
+    menu_choice_8: pie_choice(8)
+    menu_choice_9: pie_choice(9)
+    menu_choice_10: pie_choice(10)
+    menu_choice_11: pie_choice(11)
+    menu_choice_12: pie_choice(12)
+    # custom action of each slot (and the only setting in older versions)
+    menu_slot_1: pie_custom()
+    menu_slot_2: pie_custom()
+    menu_slot_3: pie_custom()
+    menu_slot_4: pie_custom()
+    menu_slot_5: pie_custom()
+    menu_slot_6: pie_custom()
+    menu_slot_7: pie_custom()
+    menu_slot_8: pie_custom()
+    menu_slot_9: pie_custom()
+    menu_slot_10: pie_custom()
+    menu_slot_11: pie_custom()
+    menu_slot_12: pie_custom()
+
+    def choiceChanged(self, slot: int):
+        if getattr(self, f"menu_choice_{slot}") != "CUSTOM":
+            setattr(self, f"menu_slot_{slot}", "")
+
+    # the operator or menu shown in a slot, "" when empty
+    def slot(self, slot: int) -> str:
+        choice = getattr(self, f"menu_choice_{slot}")
+        if choice == "CUSTOM":
+            return getattr(self, f"menu_slot_{slot}").strip()
+        return "" if choice == "NONE" else choice
+
+    def setSlot(self, slot: int, idname: str):
+        known = {item[0] for item in pie_choices(self, None) if item}
+        if not idname:
+            setattr(self, f"menu_choice_{slot}", "NONE")
+        elif idname in known:
+            setattr(self, f"menu_choice_{slot}", idname)
+        else:
+            setattr(self, f"menu_choice_{slot}", "CUSTOM")
+            setattr(self, f"menu_slot_{slot}", idname)
+
+    # settings from older versions only have the text of each slot
+    def migrate(self):
+        for slot in ALL_SLOTS:
+            text = getattr(self, f"menu_slot_{slot}")
+            if getattr(self, f"menu_choice_{slot}") == "NONE" and text:
+                self.setSlot(slot, text)
+
+    def slots(self, count: int) -> list[str]:
+        return [self.slot(slot) for slot in range(1, count + 1)]
+
+    def to_dict(self):
+        return {"mode": self.mode, **{f"menu_slot_{slot}": self.slot(slot) for slot in ALL_SLOTS}}
+
+    def from_dict(self, data: dict):
+        self.mode = pie_mode(data.get("mode", "OBJECT"))
+        for slot in ALL_SLOTS:
+            self.setSlot(slot, data.get(f"menu_slot_{slot}", ""))
+
+
+##
+# Pen Button Settings
+##
+_pen_action_cache: dict[tuple, list] = {}
+
+
+# Button-only actions (Blender default, nothing, brush switching, the action
+# pie), then the actions shared with the pie and the widget. A click can use
+# most of them (not resolution changes); a hold only brushes and tools, used
+# until the button is released
+def pen_actions(binding, _):
+    key = (binding.mode, binding.gesture)
+    if key not in _pen_action_cache:
+        is_brush_mode = binding.mode in pen_brush_modes
+        items = list(pen_button_items) + (pen_brush_items if is_brush_mode else [])
+        for actions in (widget_only_actions, pie_mode_actions.get(binding.mode, []), pie_common_actions):
+            # Previous Brush is already above, with hold support
+            actions = [
+                action
+                for action in actions
+                if action[0] != "touchview.brush_previous"
+                and action[0] not in pen_resolution_actions
+                and (binding.gesture == "click" or pen_hold_action(action[0]))
+            ]
+            if actions:
+                items.append(None)
+            items += [
+                (idname, label, idname, icon, pen_action_numbers.get(idname, 100 + pie_choice_number(idname)))
+                for idname, label, icon in actions
+            ]
+        items += [None, ("CUSTOM", "Custom...", "Type the name of an operator or menu", "SCRIPT", 4)]
+        _pen_action_cache[key] = items
+    return _pen_action_cache[key]
+
+
+class TOUCHVIEW_PG_PenBinding(PropertyGroup):
+    mode: StringProperty(name="mode", default="OBJECT")
+    gesture: StringProperty(name="gesture", default="click")  # click or hold
+    action: EnumProperty(name="Action", items=pen_actions)
+    operator: StringProperty(
+        name="Custom Action",
+        description="Operator (e.g. object.shade_smooth) or menu (e.g. VIEW3D_MT_add) to run",
+    )
+    brush_library_type: StringProperty()
+    brush_library: StringProperty()
+    brush_asset: StringProperty()
+
+    def brushRef(self) -> tuple | None:
+        if not self.brush_asset:
+            return None
+        return (self.brush_library_type, self.brush_library, self.brush_asset)
+
+    def setBrushRef(self, ref: tuple):
+        self.brush_library_type, self.brush_library, self.brush_asset = ref
 
     def to_dict(self):
         return {
-            "mode": self.mode,
-            "menu_slot_1": self.menu_slot_1,
-            "menu_slot_2": self.menu_slot_2,
-            "menu_slot_3": self.menu_slot_3,
-            "menu_slot_4": self.menu_slot_4,
-            "menu_slot_5": self.menu_slot_5,
-            "menu_slot_6": self.menu_slot_6,
-            "menu_slot_7": self.menu_slot_7,
-            "menu_slot_8": self.menu_slot_8,
+            "action": self.action,
+            "operator": self.operator,
+            "brush": list(self.brushRef() or ()),
         }
 
     def from_dict(self, data: dict):
-        self.mode = data.get("mode", "OBJECT")
-        self.menu_slot_1 = data.get("menu_slot_1", "")
-        self.menu_slot_2 = data.get("menu_slot_2", "")
-        self.menu_slot_3 = data.get("menu_slot_3", "")
-        self.menu_slot_4 = data.get("menu_slot_4", "")
-        self.menu_slot_5 = data.get("menu_slot_5", "")
-        self.menu_slot_6 = data.get("menu_slot_6", "")
-        self.menu_slot_7 = data.get("menu_slot_7", "")
-        self.menu_slot_8 = data.get("menu_slot_8", "")
+        action = data.get("action", "DEFAULT")
+        try:
+            self.action = pen_action_aliases.get(action, action)
+        except TypeError:
+            self.action = "DEFAULT"
+        self.operator = data.get("operator", "")
+        brush = data.get("brush", [])
+        if len(brush) == 3:
+            self.setBrushRef(tuple(brush))
+
+
+class TOUCHVIEW_PG_PenModeSet(PropertyGroup):
+    mode: StringProperty(name="mode", default="OBJECT")
+    upper_click: PointerProperty(type=TOUCHVIEW_PG_PenBinding)
+    upper_hold: PointerProperty(type=TOUCHVIEW_PG_PenBinding)
+    lower_click: PointerProperty(type=TOUCHVIEW_PG_PenBinding)
+    lower_hold: PointerProperty(type=TOUCHVIEW_PG_PenBinding)
+
+    def bindings(self):
+        for button in pen_buttons.values():
+            for gesture in pen_gestures:
+                yield button + "_" + gesture, getattr(self, button + "_" + gesture)
+
+    def to_dict(self):
+        return {"mode": self.mode, **{slot: binding.to_dict() for slot, binding in self.bindings()}}
+
+    def from_dict(self, data: dict):
+        for slot, binding in self.bindings():
+            binding.from_dict(data.get(slot, {}))
 
 
 class TOUCHVIEW_AP_OverlaySettings(AddonPreferences):
@@ -175,9 +358,8 @@ class TOUCHVIEW_AP_OverlaySettings(AddonPreferences):
     right_click_source: EnumProperty(
         name="Right Click Source",
         items=[
-            ("MOUSE", "Mouse", "Mouse/Touch right click"),
-            ("PEN", "Pen", "Pen right click"),
-            ("NONE", "None", "Disabled"),
+            ("MOUSE", "Mouse/Touch", "Mouse/Touch right click (pen buttons are set in Pen Buttons)"),
+            ("NONE", "Off", "Disabled"),
         ],
         default="MOUSE",
     )
@@ -185,6 +367,15 @@ class TOUCHVIEW_AP_OverlaySettings(AddonPreferences):
     swap_panrotate: BoolProperty(
         name="Swap Pan/Rotate",
         default=False,
+    )
+
+    tap_to_switch: BoolProperty(
+        name="Tap to Select/Switch",
+        description=(
+            "Tap an object with a finger to select it (Object Mode) or to switch to it in the current mode "
+            "(Edit, Sculpt and Paint modes). Dragging still moves the view"
+        ),
+        default=True,
     )
 
     width: FloatProperty(
@@ -229,8 +420,10 @@ class TOUCHVIEW_AP_OverlaySettings(AddonPreferences):
     ##
 
     show_menu: BoolProperty(
-        name="Toggle Menu Display",
+        name="Show Widget",
+        description="Show the floating widget buttons in the viewport",
         default=True,
+        update=redraw_viewports,
     )
 
     show_gizmos: BoolProperty(
@@ -382,18 +575,8 @@ class TOUCHVIEW_AP_OverlaySettings(AddonPreferences):
     # Action Menu Options
     ##
 
-    show_float_menu: BoolProperty(
-        name="Floating Menu",
-        default=False,
-    )
-
-    floating_position: FloatVectorProperty(
-        name="Floating Offset",
-        soft_min=0,
-        soft_max=100,
-        size=2,
-        default=(100, 0),
-    )
+    # the pie's old floating button, only read to give it a widget button instead
+    show_float_menu: BoolProperty(default=False)
 
     double_click_mode: EnumProperty(
         name="Double Click Mode",
@@ -406,13 +589,34 @@ class TOUCHVIEW_AP_OverlaySettings(AddonPreferences):
         options={"LIBRARY_EDITABLE"},
     )
 
+    # widget buttons per mode, same actions as the pie
+    widget_sets: CollectionProperty(type=TOUCHVIEW_PG_MenuModeGroup)
+
+    active_widget: EnumProperty(
+        name="Buttons for Mode",
+        items=pie_mode_items,
+        default="SCULPT",
+    )
+
+    ##
+    # Pen Button Options
+    ##
+
+    pen_sets: CollectionProperty(type=TOUCHVIEW_PG_PenModeSet)
+
+    pen_mode_tab: EnumProperty(
+        name="Buttons for Mode",
+        items=pie_mode_items,
+        default="SCULPT",
+    )
+
     ##
     # UI Panel Controls
     ##
 
     active_menu: EnumProperty(
-        name="Mode Settings",
-        items=edit_modes,
+        name="Pie for Mode",
+        items=pie_mode_items,
     )
 
     gizmo_tabs: EnumProperty(
@@ -420,6 +624,7 @@ class TOUCHVIEW_AP_OverlaySettings(AddonPreferences):
         items=[
             ("GIZMO", "Gizmo", "", 0),
             ("ACTIONS", "Action", "", 1),
+            ("PEN", "Pen Buttons", "", 2),
         ],
         default="GIZMO",
     )
@@ -440,6 +645,7 @@ class TOUCHVIEW_AP_OverlaySettings(AddonPreferences):
             "right_click_mode": self.right_click_mode,
             "right_click_source": self.right_click_source,
             "swap_panrotate": self.swap_panrotate,
+            "tap_to_switch": self.tap_to_switch,
             "width": self.width,
             "radius": self.radius,
             "use_multiple_colors": self.use_multiple_colors,
@@ -470,10 +676,12 @@ class TOUCHVIEW_AP_OverlaySettings(AddonPreferences):
             "pivot_mode": self.pivot_mode,
             "topology_mode": self.topology_mode,
             "show_float_menu": self.show_float_menu,
-            "floating_position": list(self.floating_position),
             "active_menu": self.active_menu,
             "gizmo_tabs": self.gizmo_tabs,
             "menu_sets": [m.to_dict() for m in self.menu_sets],
+            "widget_sets": [w.to_dict() for w in self.widget_sets],
+            "active_widget": self.active_widget,
+            "pen_sets": [p.to_dict() for p in self.pen_sets],
         }
 
     def from_dict(self, data: dict):
@@ -486,11 +694,13 @@ class TOUCHVIEW_AP_OverlaySettings(AddonPreferences):
         self.isVisible = data.get("is_visible", False)
         self.input_mode = data.get("input_mode", "FULL")
         self.enable_double_click = data.get("enable_double_click", True)
-        self.double_click_mode = data.get("double_click_mode", "screen.screen_full_area")
+        self.double_click_mode = data.get("double_click_mode", "wm.window_fullscreen_toggle")
         self.enable_right_click = data.get("enable_right_click", True)
         self.right_click_mode = data.get("right_click_mode", "wm.window_fullscreen_toggle")
-        self.right_click_source = data.get("right_click_source", "MOUSE")
+        # "PEN" is gone, pen right clicks are pen button bindings now
+        self.right_click_source = "NONE" if data.get("right_click_source", "MOUSE") != "MOUSE" else "MOUSE"
         self.swap_panrotate = data.get("swap_panrotate", False)
+        self.tap_to_switch = data.get("tap_to_switch", True)
         self.width = data.get("width", 40.0)
         self.radius = data.get("radius", 35.0)
         self.use_multiple_colors = data.get("use_multiple_colors", False)
@@ -521,13 +731,37 @@ class TOUCHVIEW_AP_OverlaySettings(AddonPreferences):
         self.pivot_mode = data.get("pivot_mode", "SURFACE")
         self.topology_mode = data.get("topology_mode", "MANUAL")
         self.show_float_menu = data.get("show_float_menu", False)
-        self.floating_position = data.get("floating_position", (100, 0))
         self.double_click_mode = data.get("double_click_mode", "wm.window_fullscreen_toggle")
-        self.active_menu = data.get("active_menu", "VIEW3D")
+        self.active_menu = pie_mode(data.get("active_menu", "OBJECT"))
         self.gizmo_tabs = data.get("gizmo_tabs", "GIZMO")
-        self.menu_sets = [TOUCHVIEW_PG_MenuModeGroup().from_dict(m) for m in data.get("menu_sets", [])]
+        self.menu_sets.clear()
+        for menu in data.get("menu_sets", []):
+            self.menu_sets.add().from_dict(menu)
+        self.widget_sets.clear()
+        for widget in data.get("widget_sets", []):
+            widget_set = self.widget_sets.add()
+            widget_set.kind = "WIDGET"
+            widget_set.from_dict(widget)
+        self.active_widget = pie_mode(data.get("active_widget", "SCULPT"))
+        self.ensureMenuSets()
+
+        self.ensurePenSets()
+        for saved in data.get("pen_sets", []):
+            pen_set = self.getPenSet(saved.get("mode"))
+            if pen_set is not None:
+                pen_set.from_dict(saved)
+        # the old "pen" right click source becomes an upper pen button binding
+        if data.get("right_click_source") == "PEN" and "pen_sets" not in data:
+            for pen_set in self.pen_sets:
+                pen_set.upper_click.action = "CUSTOM"
+                pen_set.upper_click.operator = self.right_click_mode
 
     def load(self):
+        self.loadFile()
+        self.ensureMenuSets()
+        self.ensurePenSets()
+
+    def loadFile(self):
         filename = path.abspath(path.dirname(__file__) + "/preferences.json")
         if not path.exists(filename):
             return None
@@ -578,6 +812,7 @@ class TOUCHVIEW_AP_OverlaySettings(AddonPreferences):
         col = col.column(align=True)
         col.prop(self, "isVisible", text="Show Overlay")
         col.prop(self, "swap_panrotate")
+        col.prop(self, "tap_to_switch")
         col.prop(self, "use_multiple_colors")
         col = col.column()
         col.prop(self, "overlay_main_color", text="Main Color")
@@ -607,12 +842,17 @@ class TOUCHVIEW_AP_OverlaySettings(AddonPreferences):
             col.prop(self, "gizmo_scale", slider=True)
             col.prop(self, "gizmo_padding", slider=True)
 
+            box = main_box.box()
+            box.label(text="Widget Buttons")
+            box.prop(self, "active_widget")
+            draw_widget_buttons(box, self, self.active_widget)
+
             column = main_box.column()
             box = column.box()
             box.label(text="Right Click Actions")
             col = box.column()
             row = col.row()
-            row.prop(self, "right_click_source", text="Source", expand=True)
+            row.prop(self, "right_click_source", text="Mouse/Touch", expand=True)
             col.prop(self, "right_click_mode", text="Mode", expand=True)
 
             box = main_box.box()
@@ -625,34 +865,86 @@ class TOUCHVIEW_AP_OverlaySettings(AddonPreferences):
             col.label(text="Tool Settings")
             col.prop(self, "subdivision_limit", slider=True)
 
+        if self.gizmo_tabs == "PEN":
+            col.prop(self, "pen_mode_tab")
+            draw_pen_buttons(col, self, self.pen_mode_tab)
+
         if self.gizmo_tabs == "ACTIONS":
-            if not self.show_float_menu:
-                col.operator("touchview.toggle_floating_menu", text="Show Action Menu")
-            else:
-                col.operator("touchview.toggle_floating_menu", text="Hide Action Menu", depress=True)
-                box = col.box()
-                box.active = self.show_float_menu
-                col = box.column()
-                col.prop(self, "active_menu")
-                mList = self.getMenuSettings(self.active_menu)
-                for i in range(7):
-                    col.prop(mList, "menu_slot_" + str(i + 1))
+            col.label(text="Open the pie from a widget or pen button", icon="INFO")
+            col.prop(self, "active_menu")
+            draw_action_pie(col, self, self.active_menu)
 
     ##
     # Data Accessors
     ##
+    # the pie or widget buttons for a mode, e.g. context.mode; modes without
+    # their own share one
     def getMenuSettings(self, mode: str):
-        m = None
-        for opts in self.menu_sets:
-            if opts.mode == mode:
-                m = opts
-        if m is None:
-            m = self.menu_sets.add()
-            m.mode = mode
-            ops = menu_defaults[mode]
-            for i, o in enumerate(ops):
-                setattr(m, "menu_slot_" + str(i + 1), o)
-        return m
+        return self.findModeSet(self.menu_sets, mode)
+
+    def getWidgetSettings(self, mode: str):
+        return self.findModeSet(self.widget_sets, mode)
+
+    def findModeSet(self, collection, mode: str):
+        mode = pie_mode(mode)
+        for mode_set in collection:
+            if mode_set.mode == mode:
+                return mode_set
+        return None
+
+    def ensureMenuSets(self):
+        kinds = ((self.menu_sets, menu_defaults, "PIE"), (self.widget_sets, widget_defaults, "WIDGET"))
+        for collection, defaults, kind in kinds:
+            for mode_set in collection:
+                mode_set.kind = kind
+                alias = pie_mode_aliases.get(mode_set.mode)
+                if alias is not None and self.findModeSet(collection, alias) is None:
+                    mode_set.mode = alias
+            for mode, _, _ in pie_mode_items:
+                if self.findModeSet(collection, mode) is None:
+                    mode_set = collection.add()
+                    mode_set.mode = mode
+                    mode_set.kind = kind
+                    for slot, idname in enumerate(defaults.get(mode, ()), 1):
+                        mode_set.setSlot(slot, idname)
+            for mode_set in collection:
+                mode_set.migrate()
+
+        # the pie used to have a floating button of its own, now it's a widget button
+        if self.show_float_menu:
+            self.show_float_menu = False
+            for widget in self.widget_sets:
+                slots = widget.slots(WIDGET_SLOTS)
+                if "TOUCHVIEW_MT_floating" not in slots and "" in slots:
+                    widget.setSlot(slots.index("") + 1, "TOUCHVIEW_MT_floating")
+
+    def getPenSet(self, mode: str):
+        return self.findModeSet(self.pen_sets, mode)
+
+    def ensurePenSets(self):
+        # modes, not the sets: adding to a collection can move its items
+        new_modes = []
+        for mode, _, _ in pie_mode_items:
+            if self.getPenSet(mode) is None:
+                self.pen_sets.add().mode = mode
+                new_modes.append(mode)
+        for pen_set in self.pen_sets:
+            for slot, binding in pen_set.bindings():
+                binding.mode = pen_set.mode
+                binding.gesture = slot.rsplit("_", 1)[1]
+                # actions no longer offered for this button/gesture
+                if binding.action == "":
+                    binding.action = "DEFAULT"
+        for mode in new_modes:
+            pen_set = self.getPenSet(mode)
+            for slot, action in pen_defaults.get(mode, {}).items():
+                binding = getattr(pen_set, slot)
+                if isinstance(action, tuple):
+                    binding.action, ref = action
+                    binding.setBrushRef(ref)
+                else:
+                    binding.action = action
+
 
     def getGizmoSet(self, mode: str | int):
         available = list(gizmo_sets["ALL"])
@@ -673,6 +965,8 @@ class TOUCHVIEW_AP_OverlaySettings(AddonPreferences):
 
 classes = (
     TOUCHVIEW_PG_MenuModeGroup,
+    TOUCHVIEW_PG_PenBinding,
+    TOUCHVIEW_PG_PenModeSet,
     TOUCHVIEW_AP_OverlaySettings,
 )
 
