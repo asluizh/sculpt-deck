@@ -202,7 +202,23 @@ Select it and click `Install Add-on`.
 
 # Changelog
 
-<details open><summary><b>v4.3.0</b></summary><br>
+<details open><summary><b>v4.4.0</b></summary><br>
+
+- `ADDED`: Local Transform tool (Sculpt Mode): move, rotate and scale the whole object along its own or the world's axes, with per-handle tooltips and a uniform scale ring. Scale is applied to the mesh after every scale, so stretching after a rotation never skews it.
+- `ADDED`: Local Transform pivots: Origin, Bounding Box Center, 3D Cursor and Instances (default), which rotates and scales each array copy in place.
+- `ADDED`: Linear Array and Circular Array tools (Sculpt Mode): copies follow the mesh as you sculpt, can be stacked, and are edited with gizmos for count, spacing, radius, center and arc (15° steps inside the circle, 1° outside). They have X/Y/Z/View axes and Global/Local handles, and can be applied or removed from the header.
+- `ADDED`: Apply Scale without leaving Sculpt Mode.
+- `ADDED`: Pen button bindings per mode, with separate click and hold actions, temporary brushes and tools while held, and Invert Brush.
+- `ADDED`: Configurable widget (up to 12 buttons per mode) and action pie (8 slots per mode), sharing one action list with the pen buttons; All Actions popup.
+- `ADDED`: Tap an object to select it or switch to it, and long press to toggle its selection.
+- `ADDED`: Add Mesh, Join Selected, Fuse (Union) and Fuse (Difference) without leaving the current mode.
+- `CHANGED`: Add Mesh in Sculpt Mode switches to the Local Transform tool to place the new mesh.
+- `CHANGED`: The action pie is a widget button instead of a separate floating button.
+- `FIXED`: Action menu slots weren't restored from saved preferences.
+
+</details>
+
+<details><summary><b>v4.3.0</b></summary><br>
 
 - `CHANGED`: Requires Blender v5.2 or newer.
 - `ADDED`: Tooltips on every on-screen button.

@@ -1,7 +1,7 @@
 schema_version = "1.0.0"
 
 id = "touchview"
-version = "4.3.0"
+version = "4.4.0"
 name = "Touch Viewport"
 tagline = "Creates active touch zones over View 2D and 3D areas"
 maintainer = "NENDO, Karan(b3dhub)"
@@ -34,5 +34,6 @@ paths_exclude_pattern = [
     "mypy.ini",
     "requirements.txt",
     "README.md",
+    "PROJECT.md",
     "dev/",
 ]
