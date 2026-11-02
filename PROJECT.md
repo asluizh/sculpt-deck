@@ -65,6 +65,7 @@ source/
     constants.py           action lists per mode, enums, defaults
     actions.py             runs an action by idname (operator, menu, pie, asset shelf, tool), tool history
     brush.py               brush history, polled every 0.25 s along with the tool history
+    settings.py            default settings (add-on user folder) and per-file settings (scene property), unsaved check
     keymaps.py             keymap registration
     overlay.py             touch region overlay
     blender.py             preferences access, safe area and other UI helpers
@@ -85,6 +86,7 @@ Development notes (Blender 5.2):
 - Python edits to mesh data in Sculpt Mode, and Python operators with `UNDO`, both undo correctly. `object.transform_apply` doesn't run in Sculpt Mode, but `object.modifier_apply` does.
 - Sculpt and Edit Mode undo steps can't add or remove objects. Operators that do (Add Mesh, Join, Fuse) store a whole scene step first (`push_scene_undo`, which hides the active object so Blender picks that step type), finish in Object Mode so their own step is a whole scene step too, and return to the mode from a timer (`finish_in_mode`). Those steps are saved in Object Mode, so the object carries a `touchview_return_mode` property and undo/redo handlers switch it back. Each such operator leaves one extra "Before ..." undo step.
 - Undo can be tested in the UI with operators called from a timer as `bpy.ops.<op>("EXEC_DEFAULT", True, ...)` (the `True` pushes an undo step) and `bpy.context.window_manager.print_undo_steps()`.
+- Add-on `unregister()` runs when Blender quits normally, but not after a crash. Changing add-on preferences from Python or the sidebar doesn't mark Blender's preferences as unsaved.
 - Headless tests run with `flatpak run --filesystem=home org.blender.Blender -b --factory-startup --python <script>`, with the add-on linked into a scripts folder through `BLENDER_USER_SCRIPTS`. Gizmos, drags and headers need testing in the UI.
 
 ## Progress
@@ -106,6 +108,7 @@ Done:
   - X/Y/Z/View axis and Global/Local;
   - Apply and Remove hand back to the previous tool.
 - [x] Arrays stay correct while a non-uniform scale is dragged and after scale is applied.
+- [x] Default and per-file settings: Save Default Settings in the sidebar, settings stored in the .blend file when they differ, Auto-Save Defaults option.
 - [x] Add Mesh: shape options (segments, subdivisions, base vertices, capsule and torus sizes), Smooth and Round Edges; Icosphere, Quad Sphere and Capsule. Undo and redo in Sculpt and Edit Mode fixed for Add Mesh, Join and Fuse.
 
 Next:

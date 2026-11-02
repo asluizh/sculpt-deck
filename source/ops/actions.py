@@ -7,6 +7,7 @@ from bpy.props import BoolProperty, EnumProperty, FloatProperty, IntProperty
 from bpy.types import Operator
 from mathutils import Matrix
 
+from ..utils import settings
 from ..utils.blender import preferences
 from .local_transform import TOOL_ID
 from ..utils.constants import (CANCEL, FINISHED, object_modes,
@@ -716,7 +717,36 @@ class TOUCHVIEW_OT_fuse_difference(Fuse, Operator):
         self.remesh(active)
 
 
+class TOUCHVIEW_OT_save_default_settings(Operator):
+    """Use the current settings for new files and files without their own settings"""
+
+    bl_label = "Save Default Settings"
+    bl_idname = "touchview.save_default_settings"
+
+    def execute(self, context):
+        try:
+            settings.save_defaults()
+        except OSError as error:
+            self.report({"ERROR"}, f"Couldn't save the default settings: {error}")
+            return CANCEL
+        self.report({"INFO"}, "Default settings saved")
+        return FINISHED
+
+
+class TOUCHVIEW_OT_revert_settings(Operator):
+    """Go back to the default settings"""
+
+    bl_label = "Revert to Default Settings"
+    bl_idname = "touchview.revert_settings"
+
+    def execute(self, context):
+        settings.revert_to_defaults()
+        return FINISHED
+
+
 classes = (
+    TOUCHVIEW_OT_save_default_settings,
+    TOUCHVIEW_OT_revert_settings,
     TOUCHVIEW_OT_add_primitive,
     TOUCHVIEW_OT_mask_invert,
     TOUCHVIEW_OT_reveal_all,

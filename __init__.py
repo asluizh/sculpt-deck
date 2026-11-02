@@ -43,6 +43,5 @@ def register():
 
 
 def unregister():
-    bpy.context.preferences.addons[__package__].preferences.save()  # type: ignore
     source.unregister()
     preferences.unregister()

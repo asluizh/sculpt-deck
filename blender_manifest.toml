@@ -30,6 +30,7 @@ paths_exclude_pattern = [
     "/*.zip",
     "/bin",
     "settings.json",
+    "preferences.json",
     "bundle.sh",
     "mypy.ini",
     "requirements.txt",

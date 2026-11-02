@@ -151,6 +151,14 @@ A **hold** uses a brush or a tool only until the button is released, e.g. hold f
 
 A press becomes a hold after a moment, once the pen moves, or when the tip touches down while the button is held. Set them up in the sidebar under _Touchview > Pen Buttons_, which edits the mode you're in, or in the add-on preferences.
 
+## Default and Per-file Settings
+
+Settings changed in the sidebar or the add-on preferences apply right away. When they differ from your defaults, the bottom of the _Touchview_ sidebar tab offers **Save Default Settings** (use them for new files and files without their own settings) and a revert button (go back to the defaults). Until they're saved as defaults, the changed settings are stored in the .blend file when you save it, so each file can keep its own setup. Opening a file without its own settings brings back the defaults.
+
+To have every change saved as the default instead, turn on **Auto-Save Defaults** in the add-on preferences.
+
+Defaults are kept in the add-on's user folder, so they survive add-on updates. You don't need to save Blender's preferences for them.
+
 # Feature Roadmap
 
 If you have a suggestion for more features, please check if it's on this list before submitting a request on Github.
@@ -215,6 +223,8 @@ Select it and click `Install Add-on`.
 - `ADDED`: Add Mesh shape options: sphere segments and rings, cylinder and cone base vertices (for prisms and pyramids), torus outer and inner radius and segments.
 - `ADDED`: Add Mesh _Smooth_ (shade smooth, on by default) and _Round Edges_ (cube, cylinder, cone) options.
 - `CHANGED`: Add Mesh in Sculpt Mode keeps the icosphere, quad sphere and plane as they are instead of remeshing them.
+- `ADDED`: Default and per-file settings: _Save Default Settings_ and revert at the bottom of the sidebar when the settings differ from the defaults; changed settings are kept in the .blend file; _Auto-Save Defaults_ option.
+- `FIXED`: Settings were only saved when Blender quit normally or the add-on was disabled, and into the add-on's folder, so a crash or an add-on update lost them. Defaults now live in the add-on's user folder; the old file is read once to carry the settings over.
 - `FIXED`: In Sculpt or Edit Mode, undoing Add Mesh, Join or Fuse left the objects behind, and changing Add Mesh settings in _Adjust Last Operation_ added a new copy each time.
 
 </details>

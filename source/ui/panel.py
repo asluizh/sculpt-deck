@@ -2,6 +2,7 @@
 import bpy
 from bpy.types import Menu, Panel, UILayout
 
+from ..utils import settings
 from ..utils.actions import TOOL_PREFIX, is_pie, operator_exists
 from ..utils.blender import preferences
 from ..utils.brush import brush_name
@@ -310,6 +311,31 @@ class TOUCHVIEW_PT_viewport_options(TouchView, Panel):
             col.prop(view.region_3d, "lock_rotation", text="Lock Rotation")
 
 
+def draw_default_settings(layout):
+    """Save Default Settings and Revert, when the settings differ from the defaults"""
+    if not settings.is_unsaved():
+        return
+    col = layout.column(align=True)
+    col.label(text="Settings differ from the defaults", icon="INFO")
+    col.label(text="They're kept in this file when it's saved")
+    row = layout.row(align=True)
+    row.operator("touchview.save_default_settings", icon="FILE_TICK")
+    row.operator("touchview.revert_settings", text="", icon="LOOP_BACK")
+
+
+class TOUCHVIEW_PT_default_settings(TouchView, Panel):
+    bl_label = "Default Settings"
+    bl_parent_id = "TOUCHVIEW_PT_view_3d_panel"
+    bl_options = {"HIDE_HEADER"}
+
+    @classmethod
+    def poll(cls, context):
+        return settings.is_unsaved()
+
+    def draw(self, context):
+        draw_default_settings(self.layout)
+
+
 class TOUCHVIEW_PT_image_editor_panel(TouchView, Panel):
     bl_space_type = "IMAGE_EDITOR"
 
@@ -435,6 +461,8 @@ classes = (
     TOUCHVIEW_PT_pen_buttons,
     TOUCHVIEW_PT_tool_settings,
     TOUCHVIEW_PT_viewport_options,
+    # last, so it sits at the bottom
+    TOUCHVIEW_PT_default_settings,
     TOUCHVIEW_PT_image_editor_panel,
     TOUCHVIEW_PT_node_editor_panel,
     TOUCHVIEW_PT_gizmo_display,

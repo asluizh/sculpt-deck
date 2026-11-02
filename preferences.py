@@ -1,14 +1,13 @@
 # type: ignore
-import json
 import zlib
-from os import path
 
 import bpy
 from bpy.props import *
 from bpy.types import AddonPreferences, PropertyGroup, UILayout
 
-from .source.ui.panel import (draw_action_pie, draw_pen_buttons,
-                              draw_widget_buttons)
+from .source.ui.panel import (draw_action_pie, draw_default_settings,
+                              draw_pen_buttons, draw_widget_buttons)
+from .source.utils import settings
 from .source.utils.constants import (WIDGET_SLOTS, double_click_items,
                                      gizmo_sets, menu_defaults,
                                      menu_orientation_items, menu_style_items,
@@ -310,6 +309,16 @@ class TOUCHVIEW_AP_OverlaySettings(AddonPreferences):
     isVisible: BoolProperty(
         name="Show Overlay",
         default=False,
+    )
+
+    auto_save_defaults: BoolProperty(
+        name="Auto-Save Defaults",
+        description=(
+            "Save every change as the default settings for new and other files. "
+            "Off: changes stay in the current file until saved as defaults from the sidebar"
+        ),
+        default=False,
+        update=lambda self, _: settings.auto_save_changed(),
     )
 
     input_mode: EnumProperty(
@@ -638,6 +647,7 @@ class TOUCHVIEW_AP_OverlaySettings(AddonPreferences):
             "toggle_position": list(self.toggle_position),
             "toggle_color": list(self.toggle_color),
             "is_visible": self.isVisible,
+            "auto_save_defaults": self.auto_save_defaults,
             "input_mode": self.input_mode,
             "enable_double_click": self.enable_double_click,
             "double_click_mode": self.double_click_mode,
@@ -692,6 +702,7 @@ class TOUCHVIEW_AP_OverlaySettings(AddonPreferences):
         self.toggle_position = data.get("toggle_position", (0, 0))
         self.toggle_color = data.get("toggle_color", (0.1, 0.1, 0.2, 0.5))
         self.isVisible = data.get("is_visible", False)
+        self.auto_save_defaults = data.get("auto_save_defaults", False)
         self.input_mode = data.get("input_mode", "FULL")
         self.enable_double_click = data.get("enable_double_click", True)
         self.double_click_mode = data.get("double_click_mode", "wm.window_fullscreen_toggle")
@@ -757,27 +768,7 @@ class TOUCHVIEW_AP_OverlaySettings(AddonPreferences):
                 pen_set.upper_click.operator = self.right_click_mode
 
     def load(self):
-        self.loadFile()
-        self.ensureMenuSets()
-        self.ensurePenSets()
-
-    def loadFile(self):
-        filename = path.abspath(path.dirname(__file__) + "/preferences.json")
-        if not path.exists(filename):
-            return None
-
-        data = {}
-        try:
-            with open(filename, "r") as file:
-                data = json.load(file)
-                self.from_dict(data)
-        except Exception as _:
-            return None
-
-    def save(self):
-        filename = path.abspath(path.dirname(__file__) + "/preferences.json")
-        with open(filename, "w") as file:
-            json.dump(self.to_dict(), file)
+        settings.load_defaults()
 
     def draw_v4(self, context):
         pass
@@ -786,6 +777,10 @@ class TOUCHVIEW_AP_OverlaySettings(AddonPreferences):
     def draw(self, context):
         layout = self.layout
         layout.use_property_decorate = False
+
+        box = layout.box()
+        box.prop(self, "auto_save_defaults")
+        draw_default_settings(box)
 
         # Input Mode
         box = layout.box()
