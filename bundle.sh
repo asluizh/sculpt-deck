@@ -7,6 +7,7 @@ bundle() {
   cp "preferences.py" "$dir"
   cp "blender_manifest.toml" "$dir"
   cp -r "source" "$dir"
+  cp -r "icons" "$dir"
   cd "$dest"
   zip -r "touchview.zip" "touchview"
   cd ".."
