@@ -83,6 +83,8 @@ Development notes (Blender 5.2):
 - Writing `matrix_world` recomputes the scale with rounding errors. Moves and rotations restore the exact scale afterwards.
 - Data can't be changed while gizmos draw, so tools change data from a `bpy.app.timers` callback.
 - Python edits to mesh data in Sculpt Mode, and Python operators with `UNDO`, both undo correctly. `object.transform_apply` doesn't run in Sculpt Mode, but `object.modifier_apply` does.
+- Sculpt and Edit Mode undo steps can't add or remove objects. Operators that do (Add Mesh, Join, Fuse) store a whole scene step first (`push_scene_undo`, which hides the active object so Blender picks that step type), finish in Object Mode so their own step is a whole scene step too, and return to the mode from a timer (`finish_in_mode`). Those steps are saved in Object Mode, so the object carries a `touchview_return_mode` property and undo/redo handlers switch it back. Each such operator leaves one extra "Before ..." undo step.
+- Undo can be tested in the UI with operators called from a timer as `bpy.ops.<op>("EXEC_DEFAULT", True, ...)` (the `True` pushes an undo step) and `bpy.context.window_manager.print_undo_steps()`.
 - Headless tests run with `flatpak run --filesystem=home org.blender.Blender -b --factory-startup --python <script>`, with the add-on linked into a scripts folder through `BLENDER_USER_SCRIPTS`. Gizmos, drags and headers need testing in the UI.
 
 ## Progress
@@ -104,6 +106,7 @@ Done:
   - X/Y/Z/View axis and Global/Local;
   - Apply and Remove hand back to the previous tool.
 - [x] Arrays stay correct while a non-uniform scale is dragged and after scale is applied.
+- [x] Add Mesh: shape options (segments, subdivisions, base vertices, capsule and torus sizes), Smooth and Round Edges; Icosphere, Quad Sphere and Capsule. Undo and redo in Sculpt and Edit Mode fixed for Add Mesh, Join and Fuse.
 
 Next:
 
@@ -117,3 +120,4 @@ Known limitations:
 - Blender hides generative modifiers while dynamic topology is on, so array copies may not show then.
 - Brushes only act on the real mesh, not on array copies, until the array is applied.
 - Arrays created before node group version 2 lack the scale handling; remove and re-add them.
+- After Add Mesh, Join or Fuse in Edit Mode, undoing the first edit made afterwards lands in Object Mode (Blender only leaves Edit Mode when the scene step it undoes to is already loaded, so the return mode mark isn't seen). Sculpt Mode isn't affected.

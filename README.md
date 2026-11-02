@@ -58,7 +58,14 @@ Long press an object to add it to or remove it from the selection, then use _Joi
 
 ## Add Meshes Without Leaving Your Mode
 
-The _Add Mesh_ action (available in the action pie) adds a sphere, cube, cylinder, cone, torus, plane or monkey at the 3D cursor and keeps you in the mode you were in. In Sculpt Mode the new mesh is voxel remeshed to an even, sculptable density; adjust its resolution in the _Adjust Last Operation_ panel.
+The _Add Mesh_ action (available in the action pie) adds a UV sphere, icosphere, quad sphere, cube, cylinder, cone, capsule, torus, plane or monkey at the 3D cursor and keeps you in the mode you were in. In Sculpt Mode the new mesh is voxel remeshed to an even, sculptable density. The icosphere, quad sphere and plane are already evenly spaced, so they're kept as they are.
+
+The _Adjust Last Operation_ panel has:
+
+- **Shape options**: segments and rings (sphere), subdivisions (icosphere, quad sphere), base vertices (cylinder and cone: 6 for a hexagonal prism, 4 for a pyramid), radius and length (capsule), outer and inner radius and segments (torus).
+- **Resolution** (Sculpt Mode): how dense the remesh is.
+- **Smooth** (on by default): shades the mesh smooth.
+- **Round Edges** (cube, cylinder, cone): rounds off the sharp edges, from crisp to fully rounded.
 
 ## Customizable Double-tap Action
 
@@ -202,7 +209,17 @@ Select it and click `Install Add-on`.
 
 # Changelog
 
-<details open><summary><b>v4.4.0</b></summary><br>
+<details open><summary><b>Unreleased</b></summary><br>
+
+- `ADDED`: Add Mesh shapes: Icosphere and Quad Sphere (with subdivisions), and Capsule (with radius and length).
+- `ADDED`: Add Mesh shape options: sphere segments and rings, cylinder and cone base vertices (for prisms and pyramids), torus outer and inner radius and segments.
+- `ADDED`: Add Mesh _Smooth_ (shade smooth, on by default) and _Round Edges_ (cube, cylinder, cone) options.
+- `CHANGED`: Add Mesh in Sculpt Mode keeps the icosphere, quad sphere and plane as they are instead of remeshing them.
+- `FIXED`: In Sculpt or Edit Mode, undoing Add Mesh, Join or Fuse left the objects behind, and changing Add Mesh settings in _Adjust Last Operation_ added a new copy each time.
+
+</details>
+
+<details><summary><b>v4.4.0</b></summary><br>
 
 - `ADDED`: Local Transform tool (Sculpt Mode): move, rotate and scale the whole object along its own or the world's axes, with per-handle tooltips and a uniform scale ring. Scale is applied to the mesh after every scale, so stretching after a rotation never skews it.
 - `ADDED`: Local Transform pivots: Origin, Bounding Box Center, 3D Cursor and Instances (default), which rotates and scales each array copy in place.
