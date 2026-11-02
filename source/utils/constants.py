@@ -289,6 +289,8 @@ pie_mode_actions = {
         ("touchview.decrement_multires", "Multires Level Down", "TRIA_DOWN"),
         ("touchview.cycle_control_gizmo", "Cycle Object Gizmo", "ORIENTATION_LOCAL"),
         ("touchview.apply_object_scale", "Apply Scale", "CON_SIZELIKE"),
+        ("touchview.array_apply", "Apply Array", "MOD_ARRAY"),
+        ("touchview.array_remove", "Remove Array", "X"),
         ("object.quadriflow_remesh", "QuadriFlow Remesh", "MOD_REMESH"),
         ("sculpt.dynamic_topology_toggle", "Toggle Dyntopo", "MESH_DATA"),
         ("VIEW3D_MT_sculpt", "Sculpt Menu", "SCULPTMODE_HLT"),
@@ -321,6 +323,8 @@ pie_mode_actions = {
                 ("builtin.scale", "Scale", "CON_SIZELIKE"),
                 ("builtin.transform", "Transform", "OBJECT_ORIGIN"),
                 ("touchview.local_transform", "Local Transform", "ORIENTATION_LOCAL"),
+                ("touchview.linear_array", "Linear Array", "MOD_ARRAY"),
+                ("touchview.circular_array", "Circular Array", "MESH_CIRCLE"),
             )
         ],
     ],

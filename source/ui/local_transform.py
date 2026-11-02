@@ -6,7 +6,7 @@ from bpy.types import GizmoGroup, WorkSpaceTool
 from mathutils import Matrix
 
 from ..ops.local_transform import (TOOL_ID, TOUCHVIEW_OT_local_transform,
-                                   pivot_point, settings)
+                                   pivot_point, settings, unit_scale)
 
 ###
 # Local Transform tool
@@ -39,6 +39,11 @@ SCALE_LENGTH = 0.72
 VIEW_RING = 1.22
 UNIFORM_RING = 1.4
 CENTER_DOT = 0.12
+# the move arrows start this far past the outermost ring on screen, and hide
+# when their axis points almost straight at the view
+MOVE_MARGIN = - 0.06
+MOVE_MAX_START = 4.0
+MOVE_MIN_SIDEWAYS = 0.2
 
 
 def brighter(color) -> tuple:
@@ -77,6 +82,8 @@ class TOUCHVIEW_GGT_local_transform(GizmoGroup):
             arrow.draw_options = set()
             arrow.length = MOVE_LENGTH
             arrow.matrix_offset = Matrix.Translation((0.0, 0.0, MOVE_START))
+            # offsets in gizmo units like the gizmo itself, not scene units
+            arrow.use_draw_offset_scale = True
             self.move.append(arrow)
 
             box = self.handle("GIZMO_GT_arrow_3d", "SCALE", axis, color)
@@ -118,13 +125,19 @@ class TOUCHVIEW_GGT_local_transform(GizmoGroup):
         local = pivot @ obj.matrix_world.to_3x3().normalized().to_4x4()
         axes = pivot if options.orientation == "GLOBAL" else local
         view = pivot @ context.region_data.view_rotation.to_matrix().to_4x4()
+        toward_viewer = view.col[2].xyz
 
         for i in range(3):
             self.rotate[i].matrix_basis = axes @ AXIS_ALIGN[i]
             self.move[i].matrix_basis = axes @ AXIS_ALIGN[i]
             self.scale[i].matrix_basis = local @ AXIS_ALIGN[i]
+            # how much of the arrow shows sideways on screen
+            facing = axes.col[i].xyz.normalized().dot(toward_viewer)
+            sideways = math.sqrt(max(0.0, 1.0 - facing * facing))
+            start = min(max(MOVE_START, (UNIFORM_RING + MOVE_MARGIN) / max(sideways, 1e-3)), MOVE_MAX_START)
+            self.move[i].matrix_offset = Matrix.Translation((0.0, 0.0, start))
             self.rotate[i].hide = running or not options.show_rotate
-            self.move[i].hide = running or not options.show_move
+            self.move[i].hide = running or not options.show_move or sideways < MOVE_MIN_SIDEWAYS
             self.scale[i].hide = running or not options.show_scale
         self.view_ring.matrix_basis = view
         self.uniform_ring.matrix_basis = view
@@ -149,17 +162,19 @@ class TOUCHVIEW_TOOL_local_transform(WorkSpaceTool):
     def draw_settings(context, layout, tool):  # type: ignore
         options = settings(context)
         row = layout.row(align=True)
-        row.label(text="Axis")
-        row.prop(options, "orientation", expand=True)
-        layout.prop(options, "pivot")
-        row = layout.row(align=True)
         row.prop(options, "show_move", toggle=True)
         row.prop(options, "show_rotate", toggle=True)
         row.prop(options, "show_scale", toggle=True)
+        row = layout.row(align=True)
+        row.label(text="Axis")
+        row.prop(options, "orientation", expand=True)
+        layout.prop(options, "pivot")
         obj = context.active_object
-        row = layout.row()
-        row.enabled = obj is not None and tuple(obj.scale) != (1.0, 1.0, 1.0)
-        row.operator("touchview.apply_object_scale", icon="CON_SIZELIKE")
+        if obj is not None and not unit_scale(obj):
+            # left over from before, brushes work stretched until it's applied
+            row = layout.row()
+            row.alert = True
+            row.operator("touchview.apply_object_scale", icon="CON_SIZELIKE")
 
 
 def register():

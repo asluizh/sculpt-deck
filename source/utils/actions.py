@@ -28,6 +28,37 @@ def set_tool(tool: str):
     bpy.ops.wm.tool_set_by_id(name=tool)  # type: ignore
 
 
+class ToolHistory:
+    """Recently used tools per mode, polled with the brush history, so a tool
+    can hand back to the one used before it"""
+
+    size = 8
+
+    def __init__(self):
+        self.recent: dict[str, list[str]] = {}
+
+    def update(self, context):
+        tool = active_tool(context)
+        if not tool:
+            return
+        recent = self.recent.setdefault(context.mode, [])
+        if recent and recent[-1] == tool:
+            return
+        if tool in recent:
+            recent.remove(tool)
+        recent.append(tool)
+        del recent[: -self.size]
+
+    def previous(self, mode: str, skip: set[str], default: str) -> str:
+        for tool in reversed(self.recent.get(mode, [])):
+            if tool not in skip:
+                return tool
+        return default
+
+
+tool_history = ToolHistory()
+
+
 def invoke_action(idname: str):
     if idname.startswith(TOOL_PREFIX):
         set_tool(idname[len(TOOL_PREFIX):])

@@ -7,7 +7,10 @@ from bpy.types import Operator, PropertyGroup
 from bpy_extras import view3d_utils
 from mathutils import Matrix, Vector
 
-from ..utils.constants import CANCEL, FINISHED, MODAL, object_modes
+from ..utils.constants import CANCEL, FINISHED, object_modes
+from .array import array_snapshot, keep_arrays, restore_arrays, scale_arrays
+from .drag import (ViewDrag, axis_on_screen, distance_along,
+                   set_world_matrix, view_plane_offset)
 
 ###
 # Local Transform
@@ -25,6 +28,13 @@ local_pivot_items = [
     ("ORIGIN", "Origin", "Transform around the object's origin", "OBJECT_ORIGIN", 0),
     ("BOUNDS", "Bounding Box Center", "Transform around the center of the object's bounds", "PIVOT_BOUNDBOX", 1),
     ("CURSOR", "3D Cursor", "Transform around the 3D cursor", "PIVOT_CURSOR", 2),
+    (
+        "INSTANCES",
+        "Instances",
+        "Rotate and scale every array copy around its own origin, the array's layout stays in place",
+        "PIVOT_INDIVIDUAL",
+        3,
+    ),
 ]
 
 orientation_items = [
@@ -47,8 +57,6 @@ transform_axes = [
 
 AXIS_INDEX = {"X": 0, "Y": 1, "Z": 2}
 
-# mouse travel before a release confirms, so a tap doesn't end the transform
-DRAG_THRESHOLD = 4
 SNAP_ANGLE = math.radians(5)
 SNAP_FACTOR = 0.1
 SNAP_DISTANCE = 0.1
@@ -59,7 +67,7 @@ class TOUCHVIEW_PG_local_transform(PropertyGroup):
         name="Pivot",
         description="Point the object rotates and scales around",
         items=local_pivot_items,
-        default="ORIGIN",
+        default="INSTANCES",
     )
     orientation: EnumProperty(  # type: ignore
         name="Axis",
@@ -86,12 +94,22 @@ def pivot_point(context, obj) -> Vector:
     return obj.matrix_world.translation.copy()
 
 
+def unit_scale(obj) -> bool:
+    return all(abs(factor - 1.0) < 1e-5 for factor in obj.scale)
+
+
 def apply_scale(context, obj) -> bool:
     """Bake the object's scale into its mesh, staying in the current mode"""
-    if obj.type != "MESH" or tuple(obj.scale) == (1.0, 1.0, 1.0):
+    if obj.type != "MESH":
+        return True
+    if unit_scale(obj):
+        # no more than rounding left over from matrix math
+        obj.scale = (1.0, 1.0, 1.0)
         return True
     if obj.data.users > 1:
         return False
+    # arrays are in the object's space, they scale with the mesh
+    scale_arrays(obj, Vector(obj.scale))
     multires = any(modifier.type == "MULTIRES" for modifier in obj.modifiers)
     dyntopo = context.mode == "SCULPT" and obj.use_dynamic_topology_sculpting
     if multires or dyntopo or obj.children:
@@ -134,15 +152,14 @@ def scaled(matrix: Matrix, pivot: Vector, factors: Vector) -> Matrix:
     return result
 
 
-class TOUCHVIEW_OT_local_transform(Operator):
+class TOUCHVIEW_OT_local_transform(ViewDrag, Operator):
     """Move, rotate or scale the whole object, staying in the current mode"""
 
     bl_label = "Local Transform"
     bl_idname = "touchview.local_transform"
     bl_options = {"REGISTER", "UNDO", "BLOCKING"}
 
-    # the gizmos hide while a transform runs
-    running = False
+    status = "Drag to transform  •  Release/Click: Confirm  •  Right Click/Esc: Cancel  •  Ctrl: Snap"
 
     mode: EnumProperty(name="Mode", items=transform_modes, default="MOVE")  # type: ignore
     axis: EnumProperty(name="Axis", items=transform_axes, default="X")  # type: ignore
@@ -160,6 +177,7 @@ class TOUCHVIEW_OT_local_transform(Operator):
     pivot: FloatVectorProperty(options={"HIDDEN", "SKIP_SAVE"})  # type: ignore
     view_axis: FloatVectorProperty(default=(0, 0, 1), options={"HIDDEN", "SKIP_SAVE"})  # type: ignore
     use_pivot: BoolProperty(options={"HIDDEN", "SKIP_SAVE"})  # type: ignore
+    instances: BoolProperty(options={"HIDDEN", "SKIP_SAVE"})  # type: ignore
 
     @classmethod
     def poll(cls, context):
@@ -239,15 +257,28 @@ class TOUCHVIEW_OT_local_transform(Operator):
         if not self.use_pivot:
             self.pivot = pivot_point(context, obj)
             self.use_pivot = True
-        obj.matrix_world = self.transformed(obj.matrix_world.copy())
+            self.instances = settings(context).pivot == "INSTANCES"
+        self.begin(obj)
+        self.set_matrix(obj, self.transformed(self.start))
         if self.mode == "SCALE":
             self.apply_scale(context)
         return FINISHED
 
+    def begin(self, obj):
+        self.start = obj.matrix_world.copy()
+        self.arrays = array_snapshot(obj) if self.instances else []
+
+    def set_matrix(self, obj, matrix: Matrix):
+        set_world_matrix(obj, matrix, keep_scale=self.mode != "SCALE")
+        if self.arrays and self.mode != "MOVE":
+            keep_arrays(obj, self.arrays, self.start.to_3x3().inverted_safe() @ matrix.to_3x3())
+
     def apply_scale(self, context):
+        obj = context.active_object
         context.view_layer.update()
-        if not apply_scale(context, context.active_object):
+        if not apply_scale(context, obj):
             self.report({"WARNING"}, "Scale not applied, the mesh is shared with other objects")
+
 
     def invoke(self, context, event):
         region, rv3d = context.region, context.region_data
@@ -255,91 +286,43 @@ class TOUCHVIEW_OT_local_transform(Operator):
             return self.execute(context)
         obj = context.active_object
         self.use_settings(context)
-        self.start = obj.matrix_world.copy()
         self.pivot = pivot_point(context, obj)
         self.use_pivot = True
+        self.instances = settings(context).pivot == "INSTANCES"
+        self.begin(obj)
         self.view_axis = rv3d.view_rotation @ Vector((0.0, 0.0, 1.0))
 
         pivot = Vector(self.pivot)
         center = view3d_utils.location_3d_to_region_2d(region, rv3d, pivot)
         self.center = center if center is not None else Vector((region.width / 2, region.height / 2))
-        self.start_mouse = Vector((event.mouse_region_x, event.mouse_region_y))
-        self.previous = self.start_mouse - self.center
+        self.previous = Vector((event.mouse_region_x, event.mouse_region_y)) - self.center
         self.screen_angle = 0.0
-        self.moved = False
-        self.screen_axis = self.axis_on_screen(context, pivot)
+        self.screen_axis = axis_on_screen(region, rv3d, pivot, self.world_axis(self.start))
+        return self.start_drag(context, event)
 
-        TOUCHVIEW_OT_local_transform.running = True
-        context.window_manager.modal_handler_add(self)
-        context.workspace.status_text_set(
-            "Drag to transform  •  Release/Click: Confirm  •  Right Click/Esc: Cancel  •  Ctrl: Snap"
-        )
-        self.update(context, event)
-        return MODAL
+    def restore(self, context):
+        context.active_object.matrix_world = self.start
+        restore_arrays(context.active_object, self.arrays)
 
-    def axis_on_screen(self, context, pivot: Vector) -> Vector:
-        """Pixels covered by one unit along the axis, at the pivot"""
-        region, rv3d = context.region, context.region_data
-        side = view3d_utils.region_2d_to_location_3d(region, rv3d, self.center + Vector((1.0, 0.0)), pivot)
-        step = max((side - pivot).length, 1e-6) * 50
-        tip = view3d_utils.location_3d_to_region_2d(region, rv3d, pivot + self.world_axis(self.start) * step)
-        axis = (tip - self.center) / step if tip is not None else Vector((0.0, 0.0))
-        if axis.length < 1e-3:
-            # the axis points at the viewer, drag up and down instead
-            axis = Vector((0.0, 1.0 / step * 50))
-        return axis
-
-    def modal(self, context, event):
-        if event.type in {"RIGHTMOUSE", "ESC"} and event.value == "PRESS":
-            context.active_object.matrix_world = self.start
-            return self.finish(context, CANCEL)
-        if event.type in {"RET", "NUMPAD_ENTER", "SPACE"} and event.value == "PRESS":
-            return self.confirm(context)
-        if event.type == "LEFTMOUSE":
-            self.update(context, event)
-            # a tap (e.g. from a pie or button) leaves the transform running
-            if event.value == "RELEASE" and self.moved:
-                return self.confirm(context)
-            return MODAL
-        if event.type in {"MOUSEMOVE", "INBETWEEN_MOUSEMOVE", "LEFT_CTRL", "RIGHT_CTRL"}:
-            self.update(context, event)
-        return MODAL
-
-    def confirm(self, context):
-        if self.is_identity():
-            return self.finish(context, CANCEL)
+    def confirmed(self, context):
         if self.mode == "SCALE":
             self.apply_scale(context)
-        return self.finish(context, FINISHED)
 
-    def finish(self, context, result):
-        TOUCHVIEW_OT_local_transform.running = False
-        context.workspace.status_text_set(None)
-        context.area.header_text_set(None)
-        context.area.tag_redraw()
-        return result
-
-    def update(self, context, event):
-        mouse = Vector((event.mouse_region_x, event.mouse_region_y))
-        if (mouse - self.start_mouse).length > DRAG_THRESHOLD:
-            self.moved = True
-        snap = event.ctrl
+    def drag(self, context, mouse: Vector, snap: bool):
         if self.mode == "MOVE":
             self.update_move(context, mouse, snap)
         elif self.mode == "ROTATE":
             self.update_rotate(context, mouse, snap)
         else:
             self.update_scale(mouse, snap)
-        context.active_object.matrix_world = self.transformed(self.start)
-        context.area.header_text_set(self.header_text())
+        self.set_matrix(context.active_object, self.transformed(self.start))
 
     def update_move(self, context, mouse: Vector, snap: bool):
         if self.axis == "VIEW":
-            region, rv3d, pivot = context.region, context.region_data, Vector(self.pivot)
-            start = view3d_utils.region_2d_to_location_3d(region, rv3d, self.start_mouse, pivot)
-            self.offset = view3d_utils.region_2d_to_location_3d(region, rv3d, mouse, pivot) - start
+            region, rv3d = context.region, context.region_data
+            self.offset = view_plane_offset(region, rv3d, Vector(self.pivot), self.start_mouse, mouse)
             return
-        distance = (mouse - self.start_mouse).dot(self.screen_axis) / self.screen_axis.length_squared
+        distance = distance_along(self.screen_axis, self.start_mouse, mouse)
         if snap:
             distance = round(distance / SNAP_DISTANCE) * SNAP_DISTANCE
         self.distance = distance

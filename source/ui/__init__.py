@@ -6,16 +6,18 @@
 # layout (vertical, horizontal, etc)
 # to be managed through inheritance.
 ###
-from . import gizmo_group_2d, local_transform, panel
+from . import array, gizmo_group_2d, local_transform, panel
 
 
 def register():
     gizmo_group_2d.register()
     panel.register()
     local_transform.register()
+    array.register()
 
 
 def unregister():
+    array.unregister()
     local_transform.unregister()
     gizmo_group_2d.unregister()
     panel.unregister()
