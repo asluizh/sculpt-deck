@@ -317,6 +317,27 @@ class TOUCHVIEW_OT_mask_invert(Operator):
         return FINISHED
 
 
+class TOUCHVIEW_OT_stroke_method(Operator):
+    """Choose how the active brush applies its stroke (Space, Dots, Line, Curve...)"""
+
+    bl_label = "Stroke Method"
+    bl_idname = "touchview.stroke_method"
+
+    @classmethod
+    def poll(cls, context):
+        paint = paint_settings_name(context.mode)
+        if paint is None:
+            return False
+        brush = getattr(getattr(context.tool_settings, paint, None), "brush", None)
+        return brush is not None and hasattr(brush, "stroke_method")
+
+    def execute(self, context):
+        # the menu Blender opens with Alt E in paint and sculpt modes
+        paint = paint_settings_name(context.mode)
+        bpy.ops.wm.context_menu_enum(data_path=f"tool_settings.{paint}.brush.stroke_method")
+        return FINISHED
+
+
 class TOUCHVIEW_OT_reveal_all(Operator):
     """Show all hidden parts of the sculpt"""
 
@@ -750,6 +771,7 @@ classes = (
     TOUCHVIEW_OT_add_primitive,
     TOUCHVIEW_OT_mask_invert,
     TOUCHVIEW_OT_reveal_all,
+    TOUCHVIEW_OT_stroke_method,
     TOUCHVIEW_OT_fuse_difference,
     TOUCHVIEW_OT_fuse_selected,
     TOUCHVIEW_OT_join_selected,

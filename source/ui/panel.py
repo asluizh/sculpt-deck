@@ -89,6 +89,9 @@ def draw_pie_slot(pie: UILayout, idname: str):
 def draw_action(layout: UILayout, idname: str):
     label, icon = pie_actions.get(idname, (None, "NONE"))
     text = {"text": label} if label else {}
+    # popup menus run their buttons with EXEC by default, which skips file
+    # browsers and popups (Save, Search); invoke them like widget buttons do
+    layout.operator_context = "INVOKE_REGION_WIN"
     if idname.startswith(TOOL_PREFIX):
         layout.operator("wm.tool_set_by_id", icon=icon, **text).name = idname[len(TOOL_PREFIX):]
     elif "_AST_" in idname:
