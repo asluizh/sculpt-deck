@@ -458,12 +458,10 @@ menu_defaults = {
               "TOUCHVIEW_MT_all_actions", "", ""),
 }
 
-double_click_items = [
-    ("object.transfer_mode", "Transfer Mode", ""),
-    ("touchview.toggle_touch", "Toggle Touch View", ""),
-    ("view3d.localview", "Toggle Local View", ""),
-    ("wm.window_fullscreen_toggle", "Toggle Full Screen", ""),
-]
+# mouse and touch actions kept with the pen buttons of each mode, using the
+# same actions as a pen button click
+click_slots = ("right_click", "double_click")
+click_defaults = {"right_click": "DEFAULT", "double_click": "screen.screen_full_area"}
 
 menu_style_items = [
     ("float.radial", "Floating Radial", ""),

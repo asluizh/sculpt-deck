@@ -24,19 +24,33 @@ def draw_pen_buttons(layout: UILayout, prefs, mode: str):
         col = box.column()
         col.use_property_split = True
         for gesture, gesture_label in (("click", "Click"), ("hold", "Hold / Drag")):
-            slot = button + "_" + gesture
-            binding = getattr(pen_set, slot)
-            col.prop(binding, "action", text=gesture_label)
-            if binding.action == "CUSTOM":
-                col.prop(binding, "operator", text=" ", placeholder="e.g. object.shade_smooth or VIEW3D_MT_add")
-            elif binding.action == "BRUSH":
-                split = col.split(factor=0.4)
-                split.label(text="")
-                row = split.row(align=True)
-                row.label(text=brush_name(binding.brushRef()) or "No brush set", icon="BRUSH_DATA")
-                op = row.operator("touchview.pen_use_active_brush", text="", icon="EYEDROPPER")
-                op.mode = pen_set.mode
-                op.slot = slot
+            draw_binding(col, pen_set, button + "_" + gesture, gesture_label)
+
+
+def draw_binding(col: UILayout, pen_set, slot: str, label: str):
+    binding = getattr(pen_set, slot)
+    col.prop(binding, "action", text=label)
+    if binding.action == "CUSTOM":
+        col.prop(binding, "operator", text=" ", placeholder="e.g. object.shade_smooth or VIEW3D_MT_add")
+    elif binding.action == "BRUSH":
+        split = col.split(factor=0.4)
+        split.label(text="")
+        row = split.row(align=True)
+        row.label(text=brush_name(binding.brushRef()) or "No brush set", icon="BRUSH_DATA")
+        op = row.operator("touchview.pen_use_active_brush", text="", icon="EYEDROPPER")
+        op.mode = pen_set.mode
+        op.slot = slot
+
+
+# right click and double click: the same actions as a pen button click, for each mode
+def draw_click_binding(layout: UILayout, prefs, mode: str, slot: str, enable: str):
+    pen_set = prefs.getPenSet(mode)
+    if pen_set is None:
+        return
+    col = layout.column()
+    col.use_property_split = True
+    col.active = getattr(prefs, enable)
+    draw_binding(col, pen_set, slot, "Action")
 
 
 # shared by the sidebar panels and the add-on preferences
@@ -185,38 +199,39 @@ class TOUCHVIEW_PT_gizmo_bar(TouchView, Panel):
         col.prop(prefs, "gizmo_padding", slider=True)
 
 
-class TOUCHVIEW_PT_right_click(TouchView, Panel):
-    bl_label = "Right Click Actions"
+class ClickPanel(TouchView):
     bl_parent_id = "TOUCHVIEW_PT_view_3d_panel"
     bl_options = {"DEFAULT_CLOSED"}
+    slot = ""
+    enable = ""
+    note = ""
+
+    def draw_header(self, context):
+        self.layout.prop(preferences(), self.enable, text="")
 
     def draw(self, context):
         prefs = preferences()
-
         layout = self.layout
         layout.use_property_decorate = False
-        layout.use_property_split = True
+        mode = pie_mode(context.mode)
+        names = {item[0]: item[1] for item in pie_mode_items}
+        layout.label(text=f"Action for {names[mode]}", icon="TOOL_SETTINGS")
+        layout.label(text=self.note, icon="INFO")
+        draw_click_binding(layout, prefs, mode, self.slot, self.enable)
 
-        col = layout.column()
-        col.prop(prefs, "right_click_source", text="Mouse/Touch", expand=True)
-        col.prop(prefs, "right_click_mode", text="Mode", expand=True)
+
+class TOUCHVIEW_PT_right_click(ClickPanel, Panel):
+    bl_label = "Right Click"
+    slot = "right_click"
+    enable = "enable_right_click"
+    note = "Mouse and touch, not the pen"
 
 
-class TOUCHVIEW_PT_double_click(TouchView, Panel):
-    bl_label = "Double Click Actions"
-    bl_parent_id = "TOUCHVIEW_PT_view_3d_panel"
-    bl_options = {"DEFAULT_CLOSED"}
-
-    def draw(self, context):
-        prefs = preferences()
-
-        layout = self.layout
-        layout.use_property_decorate = False
-        layout.use_property_split = True
-
-        col = layout.column()
-        col.prop(prefs, "enable_double_click")
-        col.prop(prefs, "double_click_mode", text="Mode", expand=True)
+class TOUCHVIEW_PT_double_click(ClickPanel, Panel):
+    bl_label = "Double Click"
+    slot = "double_click"
+    enable = "enable_double_click"
+    note = "Double tap or mouse double click"
 
 
 class TOUCHVIEW_PT_widget_buttons(TouchView, Panel):

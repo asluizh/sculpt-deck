@@ -49,9 +49,9 @@ dev/                     development tools, not shipped
 source/
   ops/                   operators
     actions.py             general actions: add mesh, join/fuse, remesh, Multires, masks, brush size/strength
-    touch.py               touch navigation, tap/double tap/long press on objects
+    touch.py               touch navigation, tap/double tap/long press on objects, double click and right click actions
     gizmo.py               widget and action pie operators
-    pen.py                 pen button bindings (click and hold, temporary brushes and tools)
+    pen.py                 pen button bindings (click and hold, temporary brushes and tools), BindingRunner shared with clicks
     drag.py                shared modal drag for tool gizmos (confirm on release, tap keeps running)
     local_transform.py     Local Transform tool operator, settings, Apply Scale
     array.py               array node groups, settings, and the add/apply/remove/axis/edit operators
@@ -108,6 +108,7 @@ Done:
   - X/Y/Z/View axis and Global/Local;
   - Apply and Remove hand back to the previous tool.
 - [x] Arrays stay correct while a non-uniform scale is dragged and after scale is applied.
+- [x] Double Click and Right Click: per-mode actions from the pen button click list, with header checkboxes.
 - [x] Default and per-file settings: Save Default Settings in the sidebar, settings stored in the .blend file when they differ, Auto-Save Defaults option.
 - [x] Add Mesh: shape options (segments, subdivisions, base vertices, capsule and torus sizes), Smooth and Round Edges; Icosphere, Quad Sphere and Capsule. Undo and redo in Sculpt and Edit Mode fixed for Add Mesh, Join and Fuse.
 

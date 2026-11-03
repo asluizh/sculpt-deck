@@ -14,6 +14,7 @@ from ..utils.blender import preferences, ui_scale
 from ..utils.constants import (FINISHED, LMOUSE, MODAL, PASSTHROUGH, PEN,
                                PRESS, RMOUSE, brush_modes, input_mode_items,
                                object_modes)
+from .pen import BindingRunner
 
 # a touch that lifts within TAP_TIME without moving TAP_SLOP pixels is a tap;
 # held for LONG_PRESS_TIME without moving it toggles the object's selection
@@ -29,20 +30,46 @@ def is_touch(event):
     return event.pressure in [0.0, 1.0]
 
 
-class TOUCHVIEW_OT_right_click_action(Operator):
-    """Viewport right-click shortcut"""
+def click_binding(context, slot: str):
+    """The right click or double click action for the current mode, or None to leave the click to Blender"""
+    prefs = preferences()
+    if not getattr(prefs, "enable_" + slot):
+        return None
+    pen_set = prefs.getPenSet(context.mode)
+    binding = getattr(pen_set, slot) if pen_set is not None else None
+    if binding is None or binding.action == "DEFAULT":
+        return None
+    return binding
 
-    bl_label = "Viewport right-click shortcut"
+
+class ClickAction(BindingRunner):
+    slot = ""
+
+    def run(self, context):
+        binding = click_binding(context, self.slot)
+        if binding is None:
+            return PASSTHROUGH
+        self.mode = context.mode
+        self.run_action(context, binding)
+        return FINISHED
+
+    def execute(self, context):
+        return self.run(context)
+
+
+class TOUCHVIEW_OT_right_click_action(ClickAction, Operator):
+    """Run the right click action set for this mode"""
+
+    bl_label = "Right Click Action"
     bl_idname = "touchview.rc_action"
+    bl_options = {"INTERNAL"}
+    slot = "right_click"
 
     @classmethod
     def poll(cls, context):
         return context.area.type in {"VIEW_2D", "VIEW_3D"} and context.region.type == "WINDOW"
 
     def invoke(self, context, event):
-        prefs = preferences()
-        if prefs.right_click_source == "NONE":
-            return PASSTHROUGH
         if event.type not in [RMOUSE]:
             return PASSTHROUGH
         # pen buttons are handled by touchview.pen_button
@@ -50,27 +77,16 @@ class TOUCHVIEW_OT_right_click_action(Operator):
             return PASSTHROUGH
         if event.value == "DOUBLE_CLICK":
             return PASSTHROUGH
-        self.execute(context)
-        return FINISHED
-
-    def execute(self, context):
-        prefs = preferences()
-        op = prefs.right_click_mode.split(".")
-        if op[1] == "transfer_mode" and context.area.type != "VIEW_3D":
-            return PASSTHROUGH
-        if op[1] == "transfer_mode" and context.mode == "OBJECT":
-            bpy.ops.view3d.select("INVOKE_DEFAULT")  # type: ignore
-            return PASSTHROUGH
-        opgrp = getattr(bpy.ops, op[0])
-        getattr(opgrp, op[1])("INVOKE_DEFAULT")
-        return FINISHED
+        return self.run(context)
 
 
-class TOUCHVIEW_OT_double_click_action(Operator):
-    """Viewport double-tap shortcut"""
+class TOUCHVIEW_OT_double_click_action(ClickAction, Operator):
+    """Run the double click action set for this mode"""
 
-    bl_label = "Viewport double-tap shortcut"
+    bl_label = "Double Click Action"
     bl_idname = "touchview.dt_action"
+    bl_options = {"INTERNAL"}
+    slot = "double_click"
 
     @classmethod
     def poll(cls, context):
@@ -83,21 +99,7 @@ class TOUCHVIEW_OT_double_click_action(Operator):
             return PASSTHROUGH
         if event.value != "DOUBLE_CLICK":
             return PASSTHROUGH
-        return self.execute(context)
-
-    def execute(self, context):
-        prefs = preferences()
-        if not prefs.enable_double_click:
-            return PASSTHROUGH
-        op = prefs.double_click_mode.split(".")
-        opgrp = getattr(bpy.ops, op[0])
-        if op[1] == "transfer_mode" and context.area.type != "VIEW_3D":
-            return PASSTHROUGH
-        if op[1] == "transfer_mode" and context.mode == "OBJECT":
-            bpy.ops.view3d.select("INVOKE_DEFAULT")  # type: ignore
-            return PASSTHROUGH
-        getattr(opgrp, op[1])("INVOKE_DEFAULT")
-        return FINISHED
+        return self.run(context)
 
 
 class TOUCHVIEW_OT_touch_input_2d(Operator):
@@ -247,7 +249,7 @@ class TOUCHVIEW_OT_touch_input_3d(Operator):
                 if elapsed >= TAP_TIME:
                     return self.finish(context)
                 # a second tap may follow; act only once it's clear it won't
-                if preferences().enable_double_click:
+                if click_binding(context, "double_click") is not None:
                     self.state = "RELEASED"
                     self.release_time = time.monotonic()
                     return MODAL

@@ -22,7 +22,62 @@ def is_pen(event) -> bool:
     return event.is_tablet
 
 
-class TOUCHVIEW_OT_pen_button(Operator):
+class BindingRunner:
+    """Runs a pen button action; also used by right click and double click, which work like a click.
+
+    Needs `self.mode`, the mode the action is for."""
+
+    # what a brush or tool action switches to, as (kind, target)
+    def switch_target(self, binding):
+        action = binding.action
+        if action == "BRUSH_PREVIOUS":
+            ref = history.previous.get(self.mode)
+            return ("BRUSH", ref) if ref else None
+        if action == "BRUSH":
+            ref = binding.brushRef()
+            return ("BRUSH", ref) if ref else None
+        if action.startswith(TOOL_PREFIX):
+            return ("TOOL", action[len(TOOL_PREFIX):])
+        return None
+
+    def switch(self, context, target) -> bool:
+        kind, value = target
+        if kind == "TOOL":
+            try:
+                set_tool(value)
+                return True
+            except RuntimeError as error:
+                self.report({"WARNING"}, f"Can't use tool {value}: {error}")
+                return False
+        if activate_brush(value):
+            return True
+        self.report({"WARNING"}, f"Brush not found: {brush_name(value)}")
+        return False
+
+    def run_action(self, context, binding):
+        action = binding.action
+        if action == "NONE":
+            return
+        if action in pen_brush_actions or action.startswith(TOOL_PREFIX):
+            target = self.switch_target(binding)
+            if target is not None:
+                self.switch(context, target)
+            elif action == "BRUSH_PREVIOUS":
+                self.report({"INFO"}, "No previous brush yet")
+            else:
+                self.report({"WARNING"}, "No brush set for this pen button")
+        else:
+            self.run_shared(binding.operator.strip() if action == "CUSTOM" else action)
+
+    # an action shared with the pie and the widget, or a custom one
+    def run_shared(self, idname: str):
+        try:
+            invoke_action(idname)
+        except (ValueError, AttributeError, RuntimeError) as error:
+            self.report({"WARNING"}, f"Can't run '{idname}': {error}")
+
+
+class TOUCHVIEW_OT_pen_button(BindingRunner, Operator):
     """Run the action bound to this pen button"""
 
     bl_label = "Pen Button Action"
@@ -138,19 +193,6 @@ class TOUCHVIEW_OT_pen_button(Operator):
             context.window_manager.event_timer_remove(self.timer)
             self.timer = None
 
-    # what a brush or tool action switches to, as (kind, target)
-    def switch_target(self, binding):
-        action = binding.action
-        if action == "BRUSH_PREVIOUS":
-            ref = history.previous.get(self.mode)
-            return ("BRUSH", ref) if ref else None
-        if action == "BRUSH":
-            ref = binding.brushRef()
-            return ("BRUSH", ref) if ref else None
-        if action.startswith(TOOL_PREFIX):
-            return ("TOOL", action[len(TOOL_PREFIX):])
-        return None
-
     def current(self, context, kind: str):
         if kind == "TOOL":
             return ("TOOL", active_tool(context))
@@ -172,20 +214,6 @@ class TOUCHVIEW_OT_pen_button(Operator):
         # a temporary brush shouldn't become the "previous" brush
         history.restore(self.mode, self.snapshot)
 
-    def switch(self, context, target) -> bool:
-        kind, value = target
-        if kind == "TOOL":
-            try:
-                set_tool(value)
-                return True
-            except RuntimeError as error:
-                self.report({"WARNING"}, f"Can't use tool {value}: {error}")
-                return False
-        if activate_brush(value):
-            return True
-        self.report({"WARNING"}, f"Brush not found: {brush_name(value)}")
-        return False
-
     def run_default(self, context, hold: bool):
         if self.button_type == "MIDDLEMOUSE":
             if hold:
@@ -195,29 +223,6 @@ class TOUCHVIEW_OT_pen_button(Operator):
         if op is not None:
             category, op_name = op.split(".")
             getattr(getattr(bpy.ops, category), op_name)("INVOKE_DEFAULT", name=name)
-
-    def run_action(self, context, binding):
-        action = binding.action
-        if action == "NONE":
-            return
-        if action in pen_brush_actions or action.startswith(TOOL_PREFIX):
-            target = self.switch_target(binding)
-            if target is not None:
-                self.switch(context, target)
-            elif action == "BRUSH_PREVIOUS":
-                self.report({"INFO"}, "No previous brush yet")
-            else:
-                self.report({"WARNING"}, "No brush set for this pen button")
-        else:
-            self.run_shared(binding.operator.strip() if action == "CUSTOM" else action)
-
-    # an action shared with the pie and the widget, or a custom one
-    def run_shared(self, idname: str):
-        try:
-            invoke_action(idname)
-        except (ValueError, AttributeError, RuntimeError) as error:
-            self.report({"WARNING"}, f"Can't run '{idname}': {error}")
-
 
 class TOUCHVIEW_OT_brush_previous(Operator):
     """Switch back to the previously used brush"""

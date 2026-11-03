@@ -67,14 +67,11 @@ The _Adjust Last Operation_ panel has:
 - **Smooth** (on by default): shades the mesh smooth.
 - **Round Edges** (cube, cylinder, cone): rounds off the sharp edges, from crisp to fully rounded.
 
-## Customizable Double-tap Action
+## Double Click and Right Click Actions
 
-Double-tap to trigger one of the following actions:
+A double tap (or mouse double click) and a mouse or touch right click can each run an action, chosen for each mode from the same list as a pen button click: Blender's default, nothing, brushes, tools, the widget and pie actions, or any operator or menu. Turn them on with the checkbox in their sidebar panel header (_Touchview > Double Click_ and _Right Click_) or in the add-on preferences under _Pen & Clicks_.
 
-- "Transfer Mode" to change the active object
-- Toggle Touch Control
-- Toggle Local View
-- Toggle Full-screen Viewport
+By default the double tap maximizes the area, and right click is off, leaving it to Blender.
 
 ###### _note:_ this feature only works by tapping your finger or clicking to prevent the pen from accidentally triggering it while drawing
 
@@ -223,6 +220,7 @@ Select it and click `Install Add-on`.
 - `ADDED`: Add Mesh shape options: sphere segments and rings, cylinder and cone base vertices (for prisms and pyramids), torus outer and inner radius and segments.
 - `ADDED`: Add Mesh _Smooth_ (shade smooth, on by default) and _Round Edges_ (cube, cylinder, cone) options.
 - `CHANGED`: Add Mesh in Sculpt Mode keeps the icosphere, quad sphere and plane as they are instead of remeshing them.
+- `CHANGED`: Double Click and Right Click use the pen button click actions, set for each mode, with an on/off checkbox in their panel header. Defaults: double tap maximizes the area, right click is off (Blender's own). The Mouse/Touch/Off choice for right click is gone.
 - `ADDED`: Default and per-file settings: _Save Default Settings_ and revert at the bottom of the sidebar when the settings differ from the defaults; changed settings are kept in the .blend file; _Auto-Save Defaults_ option.
 - `FIXED`: Settings were only saved when Blender quit normally or the add-on was disabled, and into the add-on's folder, so a crash or an add-on update lost them. Defaults now live in the add-on's user folder; the old file is read once to carry the settings over.
 - `FIXED`: In Sculpt or Edit Mode, undoing Add Mesh, Join or Fuse left the objects behind, and changing Add Mesh settings in _Adjust Last Operation_ added a new copy each time.

@@ -5,10 +5,11 @@ import bpy
 from bpy.props import *
 from bpy.types import AddonPreferences, PropertyGroup, UILayout
 
-from .source.ui.panel import (draw_action_pie, draw_default_settings,
-                              draw_pen_buttons, draw_widget_buttons)
+from .source.ui.panel import (draw_action_pie, draw_click_binding,
+                              draw_default_settings, draw_pen_buttons,
+                              draw_widget_buttons)
 from .source.utils import settings
-from .source.utils.constants import (WIDGET_SLOTS, double_click_items,
+from .source.utils.constants import (WIDGET_SLOTS, click_defaults, click_slots,
                                      gizmo_sets, menu_defaults,
                                      menu_orientation_items, menu_style_items,
                                      pen_action_aliases, pen_action_numbers,
@@ -247,18 +248,26 @@ class TOUCHVIEW_PG_PenModeSet(PropertyGroup):
     upper_hold: PointerProperty(type=TOUCHVIEW_PG_PenBinding)
     lower_click: PointerProperty(type=TOUCHVIEW_PG_PenBinding)
     lower_hold: PointerProperty(type=TOUCHVIEW_PG_PenBinding)
+    # mouse/touch right click and double tap, with the actions of a pen button click
+    right_click: PointerProperty(type=TOUCHVIEW_PG_PenBinding)
+    double_click: PointerProperty(type=TOUCHVIEW_PG_PenBinding)
 
     def bindings(self):
         for button in pen_buttons.values():
             for gesture in pen_gestures:
                 yield button + "_" + gesture, getattr(self, button + "_" + gesture)
 
+    def all_bindings(self):
+        yield from self.bindings()
+        for slot in click_slots:
+            yield slot, getattr(self, slot)
+
     def to_dict(self):
-        return {"mode": self.mode, **{slot: binding.to_dict() for slot, binding in self.bindings()}}
+        return {"mode": self.mode, **{slot: binding.to_dict() for slot, binding in self.all_bindings()}}
 
     def from_dict(self, data: dict):
-        for slot, binding in self.bindings():
-            binding.from_dict(data.get(slot, {}))
+        for slot, binding in self.all_bindings():
+            binding.from_dict(data.get(slot, {"action": click_defaults.get(slot, "DEFAULT")}))
 
 
 class TOUCHVIEW_AP_OverlaySettings(AddonPreferences):
@@ -344,33 +353,14 @@ class TOUCHVIEW_AP_OverlaySettings(AddonPreferences):
 
     enable_double_click: BoolProperty(
         name="Double Click",
+        description="Run an action on a double tap or double click, set for each mode",
         default=True,
-    )
-
-    double_click_mode: EnumProperty(
-        name="Double Click Mode",
-        items=double_click_items,
-        default="screen.screen_full_area",
     )
 
     enable_right_click: BoolProperty(
-        name="Enable Right Click",
-        default=True,
-    )
-
-    right_click_mode: EnumProperty(
-        name="Right Click Mode",
-        items=double_click_items,
-        default="wm.window_fullscreen_toggle",
-    )
-
-    right_click_source: EnumProperty(
-        name="Right Click Source",
-        items=[
-            ("MOUSE", "Mouse/Touch", "Mouse/Touch right click (pen buttons are set in Pen Buttons)"),
-            ("NONE", "Off", "Disabled"),
-        ],
-        default="MOUSE",
+        name="Right Click",
+        description="Run an action on a mouse or touch right click, set for each mode. Off: Blender's own right click",
+        default=False,
     )
 
     swap_panrotate: BoolProperty(
@@ -587,12 +577,6 @@ class TOUCHVIEW_AP_OverlaySettings(AddonPreferences):
     # the pie's old floating button, only read to give it a widget button instead
     show_float_menu: BoolProperty(default=False)
 
-    double_click_mode: EnumProperty(
-        name="Double Click Mode",
-        items=double_click_items,
-        default="wm.window_fullscreen_toggle",
-    )
-
     menu_sets: CollectionProperty(
         type=TOUCHVIEW_PG_MenuModeGroup,
         options={"LIBRARY_EDITABLE"},
@@ -633,7 +617,7 @@ class TOUCHVIEW_AP_OverlaySettings(AddonPreferences):
         items=[
             ("GIZMO", "Gizmo", "", 0),
             ("ACTIONS", "Action", "", 1),
-            ("PEN", "Pen Buttons", "", 2),
+            ("PEN", "Pen & Clicks", "", 2),
         ],
         default="GIZMO",
     )
@@ -650,10 +634,7 @@ class TOUCHVIEW_AP_OverlaySettings(AddonPreferences):
             "auto_save_defaults": self.auto_save_defaults,
             "input_mode": self.input_mode,
             "enable_double_click": self.enable_double_click,
-            "double_click_mode": self.double_click_mode,
             "enable_right_click": self.enable_right_click,
-            "right_click_mode": self.right_click_mode,
-            "right_click_source": self.right_click_source,
             "swap_panrotate": self.swap_panrotate,
             "tap_to_switch": self.tap_to_switch,
             "width": self.width,
@@ -705,11 +686,8 @@ class TOUCHVIEW_AP_OverlaySettings(AddonPreferences):
         self.auto_save_defaults = data.get("auto_save_defaults", False)
         self.input_mode = data.get("input_mode", "FULL")
         self.enable_double_click = data.get("enable_double_click", True)
-        self.double_click_mode = data.get("double_click_mode", "wm.window_fullscreen_toggle")
-        self.enable_right_click = data.get("enable_right_click", True)
-        self.right_click_mode = data.get("right_click_mode", "wm.window_fullscreen_toggle")
-        # "PEN" is gone, pen right clicks are pen button bindings now
-        self.right_click_source = "NONE" if data.get("right_click_source", "MOUSE") != "MOUSE" else "MOUSE"
+        # before 4.5 right click was on by default, with its own short list of actions
+        self.enable_right_click = data.get("enable_right_click", False) and "right_click_source" not in data
         self.swap_panrotate = data.get("swap_panrotate", False)
         self.tap_to_switch = data.get("tap_to_switch", True)
         self.width = data.get("width", 40.0)
@@ -742,7 +720,6 @@ class TOUCHVIEW_AP_OverlaySettings(AddonPreferences):
         self.pivot_mode = data.get("pivot_mode", "SURFACE")
         self.topology_mode = data.get("topology_mode", "MANUAL")
         self.show_float_menu = data.get("show_float_menu", False)
-        self.double_click_mode = data.get("double_click_mode", "wm.window_fullscreen_toggle")
         self.active_menu = pie_mode(data.get("active_menu", "OBJECT"))
         self.gizmo_tabs = data.get("gizmo_tabs", "GIZMO")
         self.menu_sets.clear()
@@ -765,7 +742,7 @@ class TOUCHVIEW_AP_OverlaySettings(AddonPreferences):
         if data.get("right_click_source") == "PEN" and "pen_sets" not in data:
             for pen_set in self.pen_sets:
                 pen_set.upper_click.action = "CUSTOM"
-                pen_set.upper_click.operator = self.right_click_mode
+                pen_set.upper_click.operator = data.get("right_click_mode", "wm.window_fullscreen_toggle")
 
     def load(self):
         settings.load_defaults()
@@ -842,20 +819,6 @@ class TOUCHVIEW_AP_OverlaySettings(AddonPreferences):
             box.prop(self, "active_widget")
             draw_widget_buttons(box, self, self.active_widget)
 
-            column = main_box.column()
-            box = column.box()
-            box.label(text="Right Click Actions")
-            col = box.column()
-            row = col.row()
-            row.prop(self, "right_click_source", text="Mouse/Touch", expand=True)
-            col.prop(self, "right_click_mode", text="Mode", expand=True)
-
-            box = main_box.box()
-            box.label(text="Double Click Actions")
-            col = box.column()
-            col.prop(self, "enable_double_click")
-            col.prop(self, "double_click_mode", text="Mode", expand=True)
-
             col = main_box.column()
             col.label(text="Tool Settings")
             col.prop(self, "subdivision_limit", slider=True)
@@ -863,6 +826,13 @@ class TOUCHVIEW_AP_OverlaySettings(AddonPreferences):
         if self.gizmo_tabs == "PEN":
             col.prop(self, "pen_mode_tab")
             draw_pen_buttons(col, self, self.pen_mode_tab)
+            for slot, enable, label in (
+                ("right_click", "enable_right_click", "Right Click (mouse/touch)"),
+                ("double_click", "enable_double_click", "Double Click / Double Tap"),
+            ):
+                box = col.box()
+                box.prop(self, enable, text=label)
+                draw_click_binding(box, self, self.pen_mode_tab, slot, enable)
 
         if self.gizmo_tabs == "ACTIONS":
             col.label(text="Open the pie from a widget or pen button", icon="INFO")
@@ -924,14 +894,16 @@ class TOUCHVIEW_AP_OverlaySettings(AddonPreferences):
                 self.pen_sets.add().mode = mode
                 new_modes.append(mode)
         for pen_set in self.pen_sets:
-            for slot, binding in pen_set.bindings():
+            for slot, binding in pen_set.all_bindings():
                 binding.mode = pen_set.mode
-                binding.gesture = slot.rsplit("_", 1)[1]
+                binding.gesture = "click" if slot in click_slots else slot.rsplit("_", 1)[1]
                 # actions no longer offered for this button/gesture
                 if binding.action == "":
                     binding.action = "DEFAULT"
         for mode in new_modes:
             pen_set = self.getPenSet(mode)
+            for slot in click_slots:
+                getattr(pen_set, slot).action = click_defaults[slot]
             for slot, action in pen_defaults.get(mode, {}).items():
                 binding = getattr(pen_set, slot)
                 if isinstance(action, tuple):
