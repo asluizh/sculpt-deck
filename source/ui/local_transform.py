@@ -6,7 +6,8 @@ from bpy.types import GizmoGroup, WorkSpaceTool
 from mathutils import Matrix
 
 from ..ops.local_transform import (TOOL_ID, TOUCHVIEW_OT_local_transform,
-                                   pivot_point, settings, unit_scale)
+                                   pivot_point, settings, transform_objects,
+                                   unit_scale)
 
 ###
 # Local Transform tool
@@ -121,7 +122,7 @@ class TOUCHVIEW_GGT_local_transform(GizmoGroup):
         options = settings(context)
         running = TOUCHVIEW_OT_local_transform.running
 
-        pivot = Matrix.Translation(pivot_point(context, obj))
+        pivot = Matrix.Translation(pivot_point(context, transform_objects(context)))
         local = pivot @ obj.matrix_world.to_3x3().normalized().to_4x4()
         axes = pivot if options.orientation == "GLOBAL" else local
         view = pivot @ context.region_data.view_rotation.to_matrix().to_4x4()
@@ -169,8 +170,7 @@ class TOUCHVIEW_TOOL_local_transform(WorkSpaceTool):
         row.label(text="Axis")
         row.prop(options, "orientation", expand=True)
         layout.prop(options, "pivot")
-        obj = context.active_object
-        if obj is not None and not unit_scale(obj):
+        if any(not unit_scale(obj) for obj in transform_objects(context) if obj.type == "MESH"):
             # left over from before, brushes work stretched until it's applied
             row = layout.row()
             row.alert = True

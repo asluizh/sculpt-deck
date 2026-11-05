@@ -1,8 +1,10 @@
+import json
 import math
 
 import bpy
+import numpy
 from bpy.props import (BoolProperty, EnumProperty, FloatProperty,
-                       FloatVectorProperty, PointerProperty)
+                       FloatVectorProperty, PointerProperty, StringProperty)
 from bpy.types import Operator, PropertyGroup
 from bpy_extras import view3d_utils
 from mathutils import Matrix, Vector
@@ -25,13 +27,13 @@ from .drag import (ViewDrag, axis_on_screen, distance_along,
 TOOL_ID = "touchview.local_transform"
 
 local_pivot_items = [
-    ("ORIGIN", "Origin", "Transform around the object's origin", "OBJECT_ORIGIN", 0),
-    ("BOUNDS", "Bounding Box Center", "Transform around the center of the object's bounds", "PIVOT_BOUNDBOX", 1),
+    ("ORIGIN", "Origin", "Transform around the active object's origin", "OBJECT_ORIGIN", 0),
+    ("BOUNDS", "Bounding Box Center", "Transform around the center of the selected objects' bounds", "PIVOT_BOUNDBOX", 1),
     ("CURSOR", "3D Cursor", "Transform around the 3D cursor", "PIVOT_CURSOR", 2),
     (
         "INSTANCES",
         "Instances",
-        "Rotate and scale every array copy around its own origin, the array's layout stays in place",
+        "Rotate and scale every selected object and array copy around its own origin, the array's layout stays in place",
         "PIVOT_INDIVIDUAL",
         3,
     ),
@@ -84,14 +86,37 @@ def settings(context) -> TOUCHVIEW_PG_local_transform:
     return context.scene.touchview_local_transform  # type: ignore
 
 
-def pivot_point(context, obj) -> Vector:
+def transform_objects(context) -> list:
+    """The objects Local Transform works on: the active one first, then the other selected ones. Children of
+    those are left out, they follow their parents."""
+    active = context.active_object
+    objects = [active] if active is not None else []
+    objects += [obj for obj in context.selected_objects if obj != active]
+    chosen = set(objects)
+
+    def has_chosen_parent(obj):
+        parent = obj.parent
+        while parent is not None:
+            if parent in chosen:
+                return True
+            parent = parent.parent
+        return False
+
+    return [obj for obj in objects if not has_chosen_parent(obj)]
+
+
+def pivot_point(context, objects: list) -> Vector:
+    """Where the handles sit, and what Origin, Bounding Box Center and 3D Cursor turn and scale around. Origin is
+    the active object's; with Instances, each object turns around its own origin instead."""
     pivot = settings(context).pivot
     if pivot == "CURSOR":
         return context.scene.cursor.location.copy()
     if pivot == "BOUNDS":
-        center = sum((Vector(corner) for corner in obj.bound_box), Vector()) / 8
-        return obj.matrix_world @ center
-    return obj.matrix_world.translation.copy()
+        corners = [obj.matrix_world @ Vector(corner) for obj in objects for corner in obj.bound_box]
+        low = Vector([min(corner[i] for corner in corners) for i in range(3)])
+        high = Vector([max(corner[i] for corner in corners) for i in range(3)])
+        return (low + high) / 2
+    return objects[0].matrix_world.translation.copy()
 
 
 def unit_scale(obj) -> bool:
@@ -132,6 +157,16 @@ def apply_scale(context, obj) -> bool:
     obj.scale = (1.0, 1.0, 1.0)
     obj.data.update()
     return True
+
+
+def local_size(obj) -> Vector:
+    """Size of the mesh itself in the object's space, without modifiers"""
+    if obj.type != "MESH" or not obj.data.vertices:
+        return Vector()
+    positions = numpy.empty(len(obj.data.vertices) * 3, dtype=numpy.float32)
+    obj.data.vertices.foreach_get("co", positions)
+    positions = positions.reshape(-1, 3)
+    return Vector((positions.max(axis=0) - positions.min(axis=0)).tolist())
 
 
 def moved(matrix: Matrix, offset: Vector) -> Matrix:
@@ -178,6 +213,11 @@ class TOUCHVIEW_OT_local_transform(ViewDrag, Operator):
     view_axis: FloatVectorProperty(default=(0, 0, 1), options={"HIDDEN", "SKIP_SAVE"})  # type: ignore
     use_pivot: BoolProperty(options={"HIDDEN", "SKIP_SAVE"})  # type: ignore
     instances: BoolProperty(options={"HIDDEN", "SKIP_SAVE"})  # type: ignore
+    # the objects and where they started, filled on the first run, so Adjust Last Operation starts from there too.
+    # Undo steps made in Sculpt Mode don't hold object transforms, so the step Adjust Last Operation goes back to
+    # can leave the objects where they were long before (as far back as entering Sculpt Mode)
+    use_start: BoolProperty(options={"HIDDEN", "SKIP_SAVE"})  # type: ignore
+    start_state: StringProperty(options={"HIDDEN", "SKIP_SAVE"})  # type: ignore
 
     @classmethod
     def poll(cls, context):
@@ -226,13 +266,15 @@ class TOUCHVIEW_OT_local_transform(ViewDrag, Operator):
         return matrix.col[index].xyz.normalized()
 
     def transformed(self, matrix: Matrix) -> Matrix:
-        pivot = Vector(self.pivot)
+        """Where an object starting at the matrix ends up. Moves and rotations follow the active object's axes,
+        scaling follows each object's own"""
+        pivot = matrix.translation if self.instances else Vector(self.pivot)
         if self.mode == "MOVE":
             if self.axis == "VIEW":
                 return moved(matrix, Vector(self.offset))
-            return moved(matrix, self.world_axis(matrix) * self.distance)
+            return moved(matrix, self.world_axis(self.start) * self.distance)
         if self.mode == "ROTATE":
-            return rotated(matrix, pivot, self.world_axis(matrix), self.angle)
+            return rotated(matrix, pivot, self.world_axis(self.start), self.angle)
         factors = Vector((1.0, 1.0, 1.0))
         if self.axis == "VIEW":
             factors *= self.factor
@@ -252,44 +294,101 @@ class TOUCHVIEW_OT_local_transform(ViewDrag, Operator):
             self.orientation = settings(context).orientation
 
     def execute(self, context):
-        obj = context.active_object
         self.use_settings(context)
         if not self.use_pivot:
-            self.pivot = pivot_point(context, obj)
+            self.pivot = pivot_point(context, transform_objects(context))
             self.use_pivot = True
             self.instances = settings(context).pivot == "INSTANCES"
-        self.begin(obj)
-        self.set_matrix(obj, self.transformed(self.start))
+        self.begin(context)
+        if not self.targets:
+            return CANCEL
+        self.set_matrices()
         if self.mode == "SCALE":
             self.apply_scale(context)
         return FINISHED
 
-    def begin(self, obj):
-        self.start = obj.matrix_world.copy()
-        self.arrays = array_snapshot(obj) if self.instances else []
+    def begin(self, context):
+        """Fill self.targets with (object, start matrix, array snapshot), the active object first"""
+        if self.use_start:
+            # run again by Adjust Last Operation: put the objects back where this operation started
+            self.targets = []
+            states = json.loads(self.start_state or "{}")
+            for state in states.get("objects", []):
+                obj = bpy.data.objects.get(state["name"])
+                if obj is None:
+                    continue
+                start = Matrix([state["matrix"][row * 4:row * 4 + 4] for row in range(4)])
+                obj.matrix_world = start
+                arrays = [(name, {key: Vector(value) for key, value in values.items()})
+                          for name, values in state["arrays"] if name in obj.modifiers]
+                restore_arrays(obj, arrays)
+                self.restore_mesh_size(obj, Vector(state["size"]))
+                self.targets.append((obj, start, arrays))
+            # applying a parent's scale changes its children's own transforms
+            for name, matrix in states.get("children", []):
+                child = bpy.data.objects.get(name)
+                if child is not None:
+                    child.matrix_world = Matrix([matrix[row * 4:row * 4 + 4] for row in range(4)])
+        else:
+            self.targets = [(obj, obj.matrix_world.copy(), array_snapshot(obj)) for obj in transform_objects(context)]
+            flat = lambda matrix: [value for row in matrix for value in row]  # noqa: E731
+            self.start_state = json.dumps({
+                "objects": [
+                    {
+                        "name": obj.name,
+                        "matrix": flat(start),
+                        "arrays": [(name, {key: list(value) for key, value in values.items()})
+                                   for name, values in arrays],
+                        "size": list(local_size(obj)),
+                    }
+                    for obj, start, arrays in self.targets
+                ],
+                "children": [
+                    (child.name, flat(child.matrix_world))
+                    for obj, _, _ in self.targets for child in obj.children_recursive
+                ],
+            })
+            self.use_start = True
+        # the active object's start sets the handles' axes
+        self.start = self.targets[0][1] if self.targets else Matrix.Identity(4)
 
-    def set_matrix(self, obj, matrix: Matrix):
-        set_world_matrix(obj, matrix, keep_scale=self.mode != "SCALE")
-        if self.arrays and self.mode != "MOVE":
-            keep_arrays(obj, self.arrays, self.start.to_3x3().inverted_safe() @ matrix.to_3x3())
+    def restore_mesh_size(self, obj, start_size: Vector):
+        """Take back a scale this operation applied to the mesh, when going back a step didn't"""
+        if self.mode != "SCALE" or obj.type != "MESH" or obj.data.users > 1:
+            return
+        if obj.use_dynamic_topology_sculpting or any(m.type == "MULTIRES" for m in obj.modifiers):
+            # Blender's own apply was used, see apply_scale
+            return
+        size = local_size(obj)
+        ratios = Vector([s / c if s > 1e-9 and c > 1e-9 else 1.0 for s, c in zip(start_size, size)])
+        if all(abs(ratio - 1.0) < 1e-5 for ratio in ratios):
+            return
+        obj.data.transform(Matrix.Diagonal(ratios.to_4d()), shape_keys=True)
+        obj.data.update()
+
+    def set_matrices(self):
+        for obj, start, arrays in self.targets:
+            matrix = self.transformed(start)
+            set_world_matrix(obj, matrix, keep_scale=self.mode != "SCALE")
+            if self.instances and arrays and self.mode != "MOVE":
+                keep_arrays(obj, arrays, start.to_3x3().inverted_safe() @ matrix.to_3x3())
 
     def apply_scale(self, context):
-        obj = context.active_object
         context.view_layer.update()
-        if not apply_scale(context, obj):
-            self.report({"WARNING"}, "Scale not applied, the mesh is shared with other objects")
+        if not all([apply_scale(context, obj) for obj, _, _ in self.targets]):
+            self.report({"WARNING"}, "Scale not applied to meshes shared with other objects")
 
 
     def invoke(self, context, event):
         region, rv3d = context.region, context.region_data
         if context.area is None or context.area.type != "VIEW_3D" or rv3d is None:
             return self.execute(context)
-        obj = context.active_object
         self.use_settings(context)
-        self.pivot = pivot_point(context, obj)
+        self.pivot = pivot_point(context, transform_objects(context))
         self.use_pivot = True
         self.instances = settings(context).pivot == "INSTANCES"
-        self.begin(obj)
+        self.use_start = False
+        self.begin(context)
         self.view_axis = rv3d.view_rotation @ Vector((0.0, 0.0, 1.0))
 
         pivot = Vector(self.pivot)
@@ -301,8 +400,9 @@ class TOUCHVIEW_OT_local_transform(ViewDrag, Operator):
         return self.start_drag(context, event)
 
     def restore(self, context):
-        context.active_object.matrix_world = self.start
-        restore_arrays(context.active_object, self.arrays)
+        for obj, start, arrays in self.targets:
+            obj.matrix_world = start
+            restore_arrays(obj, arrays)
 
     def confirmed(self, context):
         if self.mode == "SCALE":
@@ -315,7 +415,7 @@ class TOUCHVIEW_OT_local_transform(ViewDrag, Operator):
             self.update_rotate(context, mouse, snap)
         else:
             self.update_scale(mouse, snap)
-        self.set_matrix(context.active_object, self.transformed(self.start))
+        self.set_matrices()
 
     def update_move(self, context, mouse: Vector, snap: bool):
         if self.axis == "VIEW":
@@ -381,7 +481,8 @@ class TOUCHVIEW_OT_local_transform(ViewDrag, Operator):
 
 
 class TOUCHVIEW_OT_apply_object_scale(Operator):
-    """Apply the object's scale to its mesh, so brushes aren't stretched, staying in the current mode"""
+    """Apply the scale of the active and selected objects to their meshes, so brushes aren't stretched, staying in
+    the current mode"""
 
     bl_label = "Apply Scale"
     bl_idname = "touchview.apply_object_scale"
@@ -393,7 +494,8 @@ class TOUCHVIEW_OT_apply_object_scale(Operator):
         return obj is not None and obj.type == "MESH" and context.mode in object_modes
 
     def execute(self, context):
-        if not apply_scale(context, context.active_object):
+        meshes = [obj for obj in transform_objects(context) if obj.type == "MESH"]
+        if not all([apply_scale(context, obj) for obj in meshes]):
             self.report({"WARNING"}, "Can't apply the scale of a mesh shared with other objects")
             return CANCEL
         return FINISHED

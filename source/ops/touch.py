@@ -307,7 +307,9 @@ class TOUCHVIEW_OT_touch_input_3d(Operator):
         if target is None or target == context.view_layer.objects.active:
             return
         try:
-            bpy.ops.object.transfer_mode("INVOKE_DEFAULT")  # type: ignore
+            # with its undo steps, as from Blender's own keymap: called from Python it skips the step of entering
+            # the mode, so undo would go back to "Change Active", saved before the object entered it
+            bpy.ops.object.transfer_mode("INVOKE_DEFAULT", True)  # type: ignore
         except RuntimeError:
             pass  # the object can't enter this mode
 
