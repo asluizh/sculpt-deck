@@ -1,6 +1,6 @@
 import bpy
 
-from .actions import tool_history
+from .actions import object_history, tool_history
 from .constants import paint_settings_name, pen_brush_modes
 
 # A brush is referenced the way Blender's asset system does it:
@@ -77,6 +77,7 @@ def poll_history():
     try:
         history.update()
         tool_history.update(bpy.context)
+        object_history.update(bpy.context)
     except (AttributeError, ReferenceError, TypeError):
         pass  # no scene while loading files
     return 0.25

@@ -421,6 +421,9 @@ def ensure_array(object_name: str, kind: str, view_rotation):
 
 
 ARRAY_TOOLS = {LINEAR_TOOL_ID: "LINEAR", CIRCULAR_TOOL_ID: "CIRCULAR"}
+# tools that add a modifier when they start, never handed back to; the
+# mirror tool adds itself
+modifier_tools = set(ARRAY_TOOLS)
 
 
 def active_tool(context) -> str:
@@ -429,8 +432,8 @@ def active_tool(context) -> str:
 
 
 def leave_tool(context):
-    """Back to the tool used before the array tools, else the brush"""
-    tool = tool_history.previous(context.mode, set(ARRAY_TOOLS), "builtin.brush")
+    """Back to the tool used before the array and mirror tools, else the brush"""
+    tool = tool_history.previous(context.mode, modifier_tools, "builtin.brush")
     bpy.ops.wm.tool_set_by_id(name=tool, space_type="VIEW_3D")
 
 

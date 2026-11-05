@@ -3,11 +3,13 @@ import math
 import bmesh
 import bpy
 from bpy.app.handlers import persistent
-from bpy.props import BoolProperty, EnumProperty, FloatProperty, IntProperty
+from bpy.props import (BoolProperty, EnumProperty, FloatProperty, IntProperty,
+                       StringProperty)
 from bpy.types import Operator
 from mathutils import Matrix
 
 from ..utils import settings
+from ..utils.actions import object_history
 from ..utils.blender import preferences
 from .local_transform import TOOL_ID
 from ..utils.constants import (CANCEL, FINISHED, object_modes,
@@ -509,6 +511,9 @@ class TOUCHVIEW_OT_add_primitive(Operator):
         name="Tube Segments", description="Vertices around the tube", default=24, min=3, max=256)
     # set once the undo step before the mesh is stored, so redos from Adjust Last Operation don't stack more
     undo_pushed: BoolProperty(options={"HIDDEN", "SKIP_SAVE"})  # type: ignore
+    # for Delete: the mode to end in when called from Object Mode, and whether to keep the current tool
+    target_mode: StringProperty(options={"HIDDEN", "SKIP_SAVE"})  # type: ignore
+    keep_tool: BoolProperty(options={"HIDDEN", "SKIP_SAVE"})  # type: ignore
 
     # options drawn for each shape, besides Resolution, Smooth and Round Edges
     shape_options = {
@@ -538,11 +543,11 @@ class TOUCHVIEW_OT_add_primitive(Operator):
             layout.prop(self, "roundness", slider=True)
 
     def execute(self, context):
-        mode = object_modes[context.mode]
+        mode = self.target_mode or object_modes[context.mode]
         if not self.undo_pushed:
             push_scene_undo(context, "Before Add Mesh")
             self.undo_pushed = True
-        if mode != "OBJECT":
+        if context.mode != "OBJECT":
             bpy.ops.object.mode_set(mode="OBJECT")
         bpy.ops.object.select_all(action="DESELECT")
         sculpt = mode == "SCULPT"
@@ -564,7 +569,7 @@ class TOUCHVIEW_OT_add_primitive(Operator):
             # keep the corners of cubes and prisms crisp
             bpy.ops.object.shade_smooth_by_angle()
         # place the new mesh right away
-        finish_in_mode(context, mode, TOOL_ID if sculpt else "")
+        finish_in_mode(context, mode, TOOL_ID if sculpt and not self.keep_tool else "")
         return FINISHED
 
     def add_mesh(self, context, sculpt: bool):
@@ -738,6 +743,73 @@ class TOUCHVIEW_OT_fuse_difference(Fuse, Operator):
         self.remesh(active)
 
 
+class ActiveMesh:
+    """Shared by Duplicate and Delete: run in Object Mode on the active mesh, then return to the user's mode"""
+
+    # see TOUCHVIEW_OT_add_primitive
+    undo_pushed: BoolProperty(options={"HIDDEN", "SKIP_SAVE"})  # type: ignore
+
+    @classmethod
+    def poll(cls, context):
+        obj = context.view_layer.objects.active
+        return context.mode in object_modes and obj is not None and obj.type == "MESH"
+
+    def execute(self, context):
+        mode = object_modes[context.mode]
+        if not self.undo_pushed:
+            push_scene_undo(context, f"Before {self.bl_label}")
+            self.undo_pushed = True
+        if mode != "OBJECT":
+            bpy.ops.object.mode_set(mode="OBJECT")
+        obj = context.view_layer.objects.active
+        bpy.ops.object.select_all(action="DESELECT")
+        obj.select_set(True)
+        self.run(context, obj, mode)
+        return FINISHED
+
+
+class TOUCHVIEW_OT_duplicate_object(ActiveMesh, Operator):
+    """Copy the active mesh and move the copy with Local Transform, staying in the current mode"""
+
+    bl_label = "Duplicate"
+    bl_idname = "touchview.duplicate_object"
+    bl_options = {"REGISTER", "UNDO"}
+
+    def run(self, context, obj, mode):
+        bpy.ops.object.duplicate()
+        # the copy is active; place it right away
+        finish_in_mode(context, mode, TOOL_ID if mode == "SCULPT" else "")
+
+
+# Round Edges of the cube Delete adds when no mesh is left
+DELETE_CUBE_ROUNDNESS = 0.25
+
+
+class TOUCHVIEW_OT_delete_object(ActiveMesh, Operator):
+    """Delete the active mesh and go back to the mesh used before it, in the current mode.
+    When no mesh is left, a rounded cube takes its place"""
+
+    bl_label = "Delete"
+    bl_idname = "touchview.delete_object"
+    bl_options = {"REGISTER", "UNDO"}
+
+    def run(self, context, obj, mode):
+        layer = context.view_layer
+        previous = object_history.previous(context, obj) or next(
+            (o for o in layer.objects if o != obj and o.type == "MESH" and o.visible_get()), None
+        )
+        bpy.ops.object.delete()
+        if previous is not None:
+            previous.select_set(True)
+            layer.objects.active = previous
+            finish_in_mode(context, mode)
+        elif mode != "OBJECT":
+            # Sculpt and the other modes need a mesh to work on
+            bpy.ops.touchview.add_primitive(
+                primitive="CUBE", roundness=DELETE_CUBE_ROUNDNESS, target_mode=mode, keep_tool=True, undo_pushed=True
+            )
+
+
 class TOUCHVIEW_OT_save_default_settings(Operator):
     """Use the current settings for new files and files without their own settings"""
 
@@ -769,6 +841,8 @@ classes = (
     TOUCHVIEW_OT_save_default_settings,
     TOUCHVIEW_OT_revert_settings,
     TOUCHVIEW_OT_add_primitive,
+    TOUCHVIEW_OT_duplicate_object,
+    TOUCHVIEW_OT_delete_object,
     TOUCHVIEW_OT_mask_invert,
     TOUCHVIEW_OT_reveal_all,
     TOUCHVIEW_OT_stroke_method,

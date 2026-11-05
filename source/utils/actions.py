@@ -59,6 +59,39 @@ class ToolHistory:
 tool_history = ToolHistory()
 
 
+class ObjectHistory:
+    """Recently active meshes, polled with the brush history, so Delete can
+    go back to the mesh used before the deleted one"""
+
+    size = 16
+
+    def __init__(self):
+        self.recent: list[str] = []
+
+    def update(self, context):
+        obj = context.view_layer.objects.active
+        if obj is None or obj.type != "MESH":
+            return
+        if self.recent and self.recent[-1] == obj.name:
+            return
+        if obj.name in self.recent:
+            self.recent.remove(obj.name)
+        self.recent.append(obj.name)
+        del self.recent[: -self.size]
+
+    def previous(self, context, skip):
+        """The latest mesh still in the view layer and visible, other than `skip`"""
+        layer = context.view_layer.objects
+        for name in reversed(self.recent):
+            obj = layer.get(name)
+            if obj is not None and obj != skip and obj.type == "MESH" and obj.visible_get():
+                return obj
+        return None
+
+
+object_history = ObjectHistory()
+
+
 def invoke_action(idname: str):
     if idname.startswith(TOOL_PREFIX):
         set_tool(idname[len(TOOL_PREFIX):])
