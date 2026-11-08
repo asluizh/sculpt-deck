@@ -8,10 +8,12 @@ from bpy.types import Operator, PropertyGroup
 from bpy_extras import view3d_utils
 from mathutils import Matrix, Vector
 
-from ..utils.actions import tool_history
-from ..utils.constants import CANCEL, FINISHED, object_modes
-from .drag import (ScreenAngle, ViewDrag, axis_on_screen, distance_along,
-                   facing_sign, set_world_matrix, view_plane_offset)
+from ...core.hop import hop
+from ...ops.drag import (ScreenAngle, ViewDrag, axis_on_screen,
+                         distance_along, facing_sign, set_world_matrix,
+                         view_plane_offset)
+from ...utils.actions import tool_history
+from ...utils.constants import CANCEL, FINISHED, object_modes
 
 ###
 # Arrays
@@ -461,14 +463,23 @@ def array_poll(context) -> bool:
 
 def apply_modifier(context, modifier):
     """Apply, staying in the current mode where Blender allows it"""
+    obj = context.active_object
+    if obj.mode == "SCULPT" and obj.use_dynamic_topology_sculpting:
+        # with dynamic topology on, Blender applies with only a warning ("Not supported in dyntopo"): the mesh
+        # gets the copies, but the dynamic topology mesh being sculpted doesn't, and overwrites them when Sculpt
+        # Mode ends, so the copies are lost. In Object Mode it applies properly, but the new mesh doesn't keep
+        # dynamic topology on, so it's turned back on (an operator called from Python, so no extra undo step).
+        with hop(context, "OBJECT"):
+            bpy.ops.object.modifier_apply(modifier=modifier.name)
+        if not obj.use_dynamic_topology_sculpting:
+            bpy.ops.sculpt.dynamic_topology_toggle()
+        return
     try:
         bpy.ops.object.modifier_apply(modifier=modifier.name)
     except RuntimeError:
-        # e.g. with dynamic topology on, Blender only applies in Object Mode
-        mode = object_modes[context.mode]
-        bpy.ops.object.mode_set(mode="OBJECT")
-        bpy.ops.object.modifier_apply(modifier=modifier.name)
-        bpy.ops.object.mode_set(mode=mode)
+        # wherever else Blender refuses to apply, Object Mode allows it
+        with hop(context, "OBJECT"):
+            bpy.ops.object.modifier_apply(modifier=modifier.name)
 
 
 def view_rotation(context):

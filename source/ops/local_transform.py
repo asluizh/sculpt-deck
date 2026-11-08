@@ -9,9 +9,10 @@ from bpy.types import Operator, PropertyGroup
 from bpy_extras import view3d_utils
 from mathutils import Matrix, Vector
 
+from ..features.array.operators import (array_snapshot, keep_arrays,
+                                        restore_arrays, scale_arrays)
 from ..utils.constants import CANCEL, FINISHED, object_modes
 from ..utils.undo import push_scene_undo
-from .array import array_snapshot, keep_arrays, restore_arrays, scale_arrays
 from .drag import (ViewDrag, axis_on_screen, distance_along,
                    set_world_matrix, view_plane_offset)
 

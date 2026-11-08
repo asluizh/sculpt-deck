@@ -51,6 +51,15 @@ dev/                     development tools, not shipped
   tests/                   smoke.sh: headless register check (expected output in smoke_expected.txt)
                            scenarios.sh: UI scenarios (undo, Adjust Last Operation, pen hold) on headless weston
 source/
+  core/                  shared mechanisms (PARTS registered in order)
+    hop.py                 the Hop: a context manager that switches to a mode, runs the body and switches back
+  features/              sculpt workflow features, one package each (PARTS: Mirror before the arrays, for toolbar order)
+    array/                 Linear and Circular Array
+      operators.py           node groups, settings (Scene.sculpt_deck_array), add/apply/remove/axis/edit operators
+      tools.py               toolbar tools, headers and 3D gizmos
+    mirror/                Mirror
+      operators.py           node group (its inputs are the Mirror settings), apply/remove operators
+      tools.py               toolbar tool, header and plane outlines
   ops/                   operators
     actions.py             general actions: add mesh, join/fuse, remesh, Multires, masks, brush size/strength
     touch.py               touch navigation, tap/double tap/long press on objects, double click and right click actions
@@ -58,15 +67,11 @@ source/
     pen.py                 pen button bindings (click and hold, temporary brushes and tools), BindingRunner shared with clicks
     drag.py                shared modal drag for tool gizmos (confirm on release, tap keeps running)
     local_transform.py     Local Transform tool operator, settings, Apply Scale
-    array.py               array node groups, settings, and the add/apply/remove/axis/edit operators
-    mirror.py              mirror node group and the apply/remove operators
   ui/                    drawing
     gizmo_group_2d.py      on-screen widget
     gizmo_2d.py, gizmo_config.py  widget button types and layout
     panel.py               sidebar panels and menus (action pie, All Actions, Add Mesh)
     local_transform.py     Local Transform toolbar tool, header and 3D gizmos
-    array.py               Linear/Circular Array toolbar tools, headers and 3D gizmos
-    mirror.py              Mirror toolbar tool, header and plane outlines
   utils/                 shared helpers
     constants.py           action lists per mode, enums, defaults
     actions.py             runs an action by idname (operator, menu, pie, asset shelf, tool), tool history
@@ -99,7 +104,7 @@ Development notes (Blender 5.2):
 - Operators called from Python push no undo steps, but `object.transfer_mode` still saves its "Change Active" step (with the new object still in Object Mode) and then skips the step of entering the mode, so undo lands in Object Mode. The tap calls it with `undo=True`.
 - Run `dev/tests/scenarios.sh` (or `dev/tests/scenarios.sh <name> ...`) after changes to undo, modes, Detours or pen buttons. Real Sculpt undo steps only exist in the full UI, so it starts `weston --backend=headless --renderer=gl --xwayland` and runs Blender's flatpak on its Xwayland display with `--enable-event-simulate`, driving it from a timer under a `temp_override` of the 3D viewport. A scenario is a generator in `dev/tests/scenarios.py` that calls operators with an undo step, checks the result and yields seconds to wait; add it to `SCENARIOS`. A scenario failing because of a known bug goes in `KNOWN_FAILURES` with the reason. `window.event_simulate` can't make tablet events, so the pen scenario makes the add-on take simulated presses for pen presses.
 - Undo can be tested in the UI with operators called from a timer as `bpy.ops.<op>("EXEC_DEFAULT", True, ...)` (the `True` pushes an undo step) and `bpy.context.window_manager.print_undo_steps()`.
-- `bpy.utils.register_tool(after=...)` puts a tool at the end of the separator section holding `after`, so the order inside a section is the registration order (`ui/__init__.py`).
+- `bpy.utils.register_tool(after=...)` puts a tool at the end of the separator section holding `after`, so the order inside a section is the registration order (`ui/__init__.py`, then `features/__init__.py`).
 - Popup menus opened with `wm.call_menu` run their operator buttons with `EXEC_REGION_WIN`, so operators that need `invoke` (Save's file browser, Search) fail or vanish. `draw_action` sets `operator_context = "INVOKE_REGION_WIN"`.
 - Add-on `unregister()` runs when Blender quits normally, but not after a crash. Changing add-on preferences from Python or the sidebar doesn't mark Blender's preferences as unsaved.
 - Headless tests run with `flatpak run --filesystem=home org.blender.Blender -b --factory-startup --python <script>`, with the add-on linked into a scripts folder through `BLENDER_USER_SCRIPTS`. Gizmos, drags and headers need testing in the UI.
@@ -137,6 +142,7 @@ Next:
 
 Known limitations:
 
+- Applying an array or mirror with Dyntopo on makes a Hop to Object Mode (Blender applies in Sculpt Mode with only a warning, and Dyntopo's own mesh then overwrites the result). Leaving and entering Sculpt Mode with Dyntopo pushes Blender's own "Dynamic topology disable/enable" undo steps, so this Hop shows in the undo history: one undo leaves the array applied, the next brings it back with Dyntopo off (scenario `hop_array_apply_dyntopo_undo`).
 - Arrays after a Multires modifier probably don't apply as displayed. Arrays are aimed at voxel and dynamic topology meshes.
 - Blender hides generative modifiers while dynamic topology is on, so array copies may not show then.
 - Brushes only act on the real mesh, not on array copies or the mirror image, until the array or mirror is applied. Sculpt symmetry mirrors in the object's space, so it only matches the Mirror tool while the object sits on the world origin's planes.
