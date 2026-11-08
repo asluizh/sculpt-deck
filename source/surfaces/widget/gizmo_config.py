@@ -1,4 +1,4 @@
-from ..utils.constants import pivot_icon_items
+from ...utils.constants import pivot_icon_items
 
 ###
 #  Config Standard

@@ -61,19 +61,27 @@ source/
       add_mesh.py            Add Mesh operator and menu
       duplicate_delete.py    Duplicate and Delete
       combine.py             Join Selected, Fuse (Union) and Fuse (Difference)
+  surfaces/              Action Surfaces, each with its settings and sidebar panels
+    action_slots.py        the per-mode Action slots shared by the Widget and the Action Pie (property group, drawing)
+    widget/                the Widget: on-screen buttons and the floating touch toggle
+      operators.py           moving/folding the widget, opening a button's menu, moving the floating toggle
+      gizmo_group_2d.py      the gizmo group, building one button per Action of the current mode
+      gizmo_2d.py, gizmo_config.py  widget button types and layout
+      panels.py              Gizmo and Widget Buttons sidebar panels, Gizmos popover entry
+    pie/                   the Action Pie
+      menus.py               the pie and the All Actions popup, draw_action
+      panels.py              Action Pie sidebar panel
   ops/                   operators
     actions.py             general actions: remesh, Multires, masks, brush size/strength
     touch.py               touch navigation, tap/double tap/long press on objects, double click and right click actions
-    gizmo.py               widget and action pie operators
+    gizmo.py               Cycle Control Gizmo (an Action for the object gizmos)
     pen.py                 pen button bindings (click and hold, temporary brushes and tools), BindingRunner shared with clicks
     drag.py                shared modal drag for tool gizmos (confirm on release, tap keeps running)
     local_transform.py     Local Transform tool operator, settings, Apply Scale
     array.py               array node groups, settings, and the add/apply/remove/axis/edit operators
     mirror.py              mirror node group and the apply/remove operators
   ui/                    drawing
-    gizmo_group_2d.py      on-screen widget
-    gizmo_2d.py, gizmo_config.py  widget button types and layout
-    panel.py               sidebar panels and menus (action pie, All Actions)
+    panel.py               sidebar panels
     local_transform.py     Local Transform toolbar tool, header and 3D gizmos
     array.py               Linear/Circular Array toolbar tools, headers and 3D gizmos
     mirror.py              Mirror toolbar tool, header and plane outlines
@@ -109,7 +117,7 @@ Development notes (Blender 5.2):
 - Operators called from Python push no undo steps, but `object.transfer_mode` still saves its "Change Active" step (with the new object still in Object Mode) and then skips the step of entering the mode, so undo lands in Object Mode. The tap calls it with `undo=True`.
 - Run `dev/tests/scenarios.sh` (or `dev/tests/scenarios.sh <name> ...`) after changes to undo, modes, Detours or pen buttons. Its `adjust_last` runs `ed.undo_redo` with an undo step: called from Python without one, the repeated operator stores no step of its own and runs while still in Object Mode (`detour_repeat_from_object_mode` uses that on purpose). Real Sculpt undo steps only exist in the full UI, so it starts `weston --backend=headless --renderer=gl --xwayland` and runs Blender's flatpak on its Xwayland display with `--enable-event-simulate`, driving it from a timer under a `temp_override` of the 3D viewport. A scenario is a generator in `dev/tests/scenarios.py` that calls operators with an undo step, checks the result and yields seconds to wait; add it to `SCENARIOS`. A scenario failing because of a known bug goes in `KNOWN_FAILURES` with the reason. `window.event_simulate` can't make tablet events, so the pen scenario makes the add-on take simulated presses for pen presses.
 - Undo can be tested in the UI with operators called from a timer as `bpy.ops.<op>("EXEC_DEFAULT", True, ...)` (the `True` pushes an undo step) and `bpy.context.window_manager.print_undo_steps()`.
-- `bpy.utils.register_tool(after=...)` puts a tool at the end of the separator section holding `after`, so the order inside a section is the registration order (`ui/__init__.py`).
+- `bpy.utils.register_tool(after=...)` puts a tool at the end of the separator section holding `after`, so the order inside a section is the registration order (`ui/__init__.py`). Sidebar sub-panels go in registration order too unless `bl_order` says otherwise; the panels after the surfaces' ones set it, since the surfaces register later.
 - Popup menus opened with `wm.call_menu` run their operator buttons with `EXEC_REGION_WIN`, so operators that need `invoke` (Save's file browser, Search) fail or vanish. `draw_action` sets `operator_context = "INVOKE_REGION_WIN"`.
 - Add-on `unregister()` runs when Blender quits normally, but not after a crash. Changing add-on preferences from Python or the sidebar doesn't mark Blender's preferences as unsaved.
 - Headless tests run with `flatpak run --filesystem=home org.blender.Blender -b --factory-startup --python <script>`, with the add-on linked into a scripts folder through `BLENDER_USER_SCRIPTS`. Gizmos, drags and headers need testing in the UI.

@@ -313,6 +313,86 @@ def pen_hold_momentary_brush():
     check(brush() == before, f"pen release: expected {before} back, got {brush()}")
 
 
+def widget_group():
+    """The Widget's gizmo group in the viewport, caught on its next redraw"""
+    module = sys.modules[PACKAGE + ".source.surfaces.widget.gizmo_group_2d"]
+    group_class = module.GIZMO_GT_viewport_gizmo_group
+    found = []
+    original = group_class.draw_prepare
+
+    def draw_prepare(self, context):
+        found.append(self)
+        return original(self, context)
+
+    group_class.draw_prepare = draw_prepare
+    try:
+        for _ in range(20):
+            _window, area, _region = view3d()
+            area.tag_redraw()
+            yield 0.1
+            if found:
+                break
+    finally:
+        group_class.draw_prepare = original
+    check(bool(found), "the Widget's gizmo group didn't draw")
+    return found[-1]
+
+
+def click_widget_button(group, idname: str):
+    """Tap the Widget button set to `idname`, at the place the Widget drew it"""
+    button = next((action for action in group.actions if action.idname == idname), None)
+    check(button is not None, f"no Widget button for {idname}: {[action.idname for action in group.actions]}")
+    check(button.visible, f"the Widget button for {idname} is hidden")
+    window, _area, region = view3d()
+    position = button.primary.matrix_basis.translation
+    x, y = region.x + round(position.x), region.y + round(position.y)
+    window.event_simulate("MOUSEMOVE", "NOTHING", x=x, y=y)
+    yield 0.3
+    window.event_simulate("LEFTMOUSE", "PRESS", x=x, y=y)
+    yield 0.05
+    window.event_simulate("LEFTMOUSE", "RELEASE", x=x, y=y)
+    yield 0.5
+
+
+def widget_button_runs_action():
+    yield from reset()
+    _window, area, _region = view3d()
+    space = area.spaces.active
+    before = space.show_region_ui
+    group = yield from widget_group()
+    # a Sculpt Mode default: an operator Action, run by the button itself
+    yield from click_widget_button(group, "sculpt_deck.toggle_n_panel")
+    check(space.show_region_ui != before, f"Widget N Panel button: sidebar still {'shown' if before else 'hidden'}")
+    check(mode() == "SCULPT", f"Widget N Panel button: expected Sculpt Mode, got {mode()}")
+
+
+def widget_button_opens_action_pie():
+    yield from reset()
+    menus = sys.modules[PACKAGE + ".source.surfaces.pie.menus"]
+    pie_class = menus.SCULPT_DECK_MT_floating
+    drawn = []
+    original = pie_class.draw
+
+    def draw(self, context):
+        drawn.append(context.mode)
+        return original(self, context)
+
+    pie_class.draw = draw
+    try:
+        group = yield from widget_group()
+        # a menu Action: the button runs sculpt_deck.widget_menu, which opens the pie after the release
+        yield from click_widget_button(group, "SCULPT_DECK_MT_floating")
+        yield 0.5
+    finally:
+        pie_class.draw = original
+    check(bool(drawn), "Widget Action Pie button: the pie didn't open")
+    check(set(drawn) == {"SCULPT"}, f"Widget Action Pie button: the pie drew in modes {sorted(set(drawn))}")
+    window, area, _region = view3d()
+    window.event_simulate("ESC", "PRESS", x=area.x + 5, y=area.y + 5)
+    window.event_simulate("ESC", "RELEASE", x=area.x + 5, y=area.y + 5)
+    yield 0.3
+
+
 SCENARIOS = [
     detour_add_mesh,
     detour_add_mesh_adjust_last,
@@ -326,6 +406,8 @@ SCENARIOS = [
     local_transform_undo,
     local_transform_adjust_last,
     pen_hold_momentary_brush,
+    widget_button_runs_action,
+    widget_button_opens_action_pie,
 ]
 
 # Scenarios that fail on purpose because of a known bug, with the reason. They report XFAIL and don't fail the
