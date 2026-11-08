@@ -1,7 +1,7 @@
 from bpy_extras import view3d_utils
 from mathutils import Matrix, Vector
 
-from ..utils.constants import CANCEL, FINISHED, MODAL
+from .constants import CANCEL, FINISHED, MODAL
 
 ###
 # Gizmo drags

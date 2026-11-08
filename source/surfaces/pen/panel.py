@@ -2,15 +2,15 @@
 import bpy
 from bpy.types import Panel, UILayout
 
-from ...ui.panel import SculptDeckPanel
-from ...utils.blender import preferences
+from ...core.constants import pie_mode, pie_mode_items
+from ...core.ui import SculptDeckPanel
 from ...features.brush.history import brush_name
-from ...utils.constants import pie_mode, pie_mode_items
+from .settings import pen_settings
 
 
 # shared by the sidebar panel and the add-on preferences
-def draw_pen_buttons(layout: UILayout, prefs, mode: str):
-    pen_set = prefs.getPenSet(mode)
+def draw_pen_buttons(layout: UILayout, mode: str):
+    pen_set = pen_settings().getPenSet(mode)
     if pen_set is None:
         return
     layout.label(text="Mouse and touch are not affected", icon="INFO")
@@ -51,7 +51,7 @@ class SCULPT_DECK_PT_pen_buttons(SculptDeckPanel, Panel):
         mode = pie_mode(context.mode)
         names = {item[0]: item[1] for item in pie_mode_items}
         layout.label(text=f"Pen buttons for {names[mode]}", icon="STYLUS_PRESSURE")
-        draw_pen_buttons(layout, preferences(), mode)
+        draw_pen_buttons(layout, mode)
 
 
 register, unregister = bpy.utils.register_classes_factory((SCULPT_DECK_PT_pen_buttons,))

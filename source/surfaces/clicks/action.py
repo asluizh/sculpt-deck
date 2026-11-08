@@ -3,10 +3,21 @@
 import bpy
 from bpy.types import Operator
 
-from ...utils.blender import preferences
-from ...utils.constants import (DCLICK, FINISHED, LMOUSE, PASSTHROUGH, PEN,
-                                PRESS, RMOUSE, viewport_keymaps)
+from ...core.constants import FINISHED, LMOUSE, PASSTHROUGH, PEN, PRESS
 from ..pen.button import BindingRunner
+from ..pen.settings import pen_settings
+from .settings import click_settings
+
+RMOUSE = "RIGHTMOUSE"
+
+DCLICK = "DOUBLE_CLICK"
+
+# the 3D View keymaps the double click and right click actions join ("Image Paint" is Texture Paint Mode's)
+viewport_keymaps = (
+    "3D View",
+    "Image Paint",
+    "Grease Pencil",
+)
 
 
 def is_touch(event):
@@ -15,10 +26,9 @@ def is_touch(event):
 
 def click_binding(context, slot: str):
     """The right click or double click action for the current mode, or None to leave the click to Blender"""
-    prefs = preferences()
-    if not getattr(prefs, "enable_" + slot):
+    if not getattr(click_settings(), "enable_" + slot):
         return None
-    pen_set = prefs.getPenSet(context.mode)
+    pen_set = pen_settings().getPenSet(context.mode)
     binding = getattr(pen_set, slot) if pen_set is not None else None
     if binding is None or binding.action == "DEFAULT":
         return None

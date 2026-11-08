@@ -7,14 +7,27 @@ import bpy
 from bpy.props import StringProperty
 from bpy.types import Operator
 
-from ...core.actions import is_momentary
-from ...utils.actions import TOOL_PREFIX, active_tool, invoke_action, set_tool
-from ...utils.blender import preferences, ui_scale
-from ...features.brush.history import (activate_brush, brush_name, brush_ref, history,
-                                       paint_settings)
-from ...utils.constants import (CANCEL, FINISHED, MODAL, PASSTHROUGH, PRESS,
-                                pen_brush_actions, pen_buttons,
-                                pen_default_context_menus)
+from ...core.actions import TOOL_PREFIX, is_momentary
+from ...core.blender import ui_scale
+from ...core.constants import CANCEL, FINISHED, MODAL, PASSTHROUGH, PRESS
+from ...core.invoke import active_tool, invoke_action, set_tool
+from ...features.brush.history import activate_brush, brush_name, brush_ref, history, paint_settings
+from .settings import pen_buttons, pen_settings
+
+# the brush choices of a pen button, which switch brushes (see core/actions.py)
+pen_brush_actions = {"BRUSH_PREVIOUS", "BRUSH"}
+
+# what Blender does for each button by default, used when only one gesture is
+# bound and the other should keep Blender's behavior
+pen_default_context_menus = {
+    "OBJECT": ("wm.call_menu", "VIEW3D_MT_object_context_menu"),
+    "EDIT_MESH": ("wm.call_menu", "VIEW3D_MT_edit_mesh_context_menu"),
+    "SCULPT": ("wm.call_panel", "VIEW3D_PT_sculpt_context_menu"),
+    "PAINT_VERTEX": ("wm.call_panel", "VIEW3D_PT_paint_vertex_context_menu"),
+    "PAINT_WEIGHT": ("wm.call_panel", "VIEW3D_PT_paint_weight_context_menu"),
+    "PAINT_TEXTURE": ("wm.call_panel", "VIEW3D_PT_paint_texture_context_menu"),
+    "PAINT_GREASE_PENCIL": ("wm.call_panel", "VIEW3D_PT_greasepencil_draw_context_menu"),
+}
 
 # a press becomes a hold after this long, or once it moves past Blender's
 # tablet drag threshold, or when the pen tip touches down while it's held
@@ -95,7 +108,7 @@ class SCULPT_DECK_OT_pen_button(BindingRunner, Operator):
     def invoke(self, context, event):
         if not is_pen(event) or event.value != "PRESS" or event.type not in pen_buttons:
             return PASSTHROUGH
-        pen_set = preferences().getPenSet(context.mode)
+        pen_set = pen_settings().getPenSet(context.mode)
         if pen_set is None:
             return PASSTHROUGH
         self.button_type = event.type
@@ -240,7 +253,7 @@ class SCULPT_DECK_OT_pen_use_active_brush(Operator):
     slot: StringProperty()  # type: ignore
 
     def execute(self, context):
-        pen_set = preferences().getPenSet(self.mode)
+        pen_set = pen_settings().getPenSet(self.mode)
         ref = brush_ref(paint_settings(context, self.mode))
         if pen_set is None or ref is None:
             self.report({"WARNING"}, "No active brush to use")

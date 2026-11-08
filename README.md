@@ -196,7 +196,7 @@ Or drag `sculpt_deck.zip` into Blender.
 - `FIXED`: Undo after Local Transform in Sculpt Mode left the objects where they were moved to. Each move now adds a _Before Local Transform_ step, so undo moves them back.
 - `FIXED`: After tapping another object in Sculpt or Edit Mode, undo went back to Object Mode.
 - `FIXED`: Adjust Last Operation on Local Transform in Sculpt Mode put the object back where it was long before, often at the world origin, losing earlier transforms. It now only changes the last operation.
-- `FIXED`: Settings were only saved when Blender quit normally or the add-on was disabled, and into the add-on's folder, so a crash or an add-on update lost them. Defaults now live in the add-on's user folder; the old file is read once to carry the settings over.
+- `FIXED`: Settings were only saved when Blender quit normally or the add-on was disabled, and into the add-on's folder, so a crash or an add-on update lost them. Defaults now live in the add-on's user folder.
 - `FIXED`: In Sculpt or Edit Mode, undoing Add Mesh, Join or Fuse left the objects behind, and changing Add Mesh settings in _Adjust Last Operation_ added a new copy each time.
 
 </details>

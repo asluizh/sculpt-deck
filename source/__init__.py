@@ -1,26 +1,30 @@
-# The add-on is moving from the layered packages (ops, ui, utils) to parts grouped by feature (core, features,
-# surfaces, navigation); both are registered until the move is done.
-from . import core, features, ops, surfaces, ui, utils
+"""The add-on's parts, registered in order: core first, then the features, the Action Surfaces and navigation."""
 
-# touch navigation, removable as a unit (ADR 0001): delete navigation/, this import and its two calls below
-from . import navigation  # isort: skip
+from importlib import import_module
+from importlib.util import find_spec
+
+from . import core, features, surfaces
+
+# Touch navigation can be removed as a unit (ADR 0001): deleting navigation/ is all it takes, it's registered only
+# when it's there.
+OPTIONAL = ("navigation",)
+
+
+
+def present(name: str) -> bool:
+    """The part's package is there: a folder left with only __pycache__ is a namespace package, without an origin"""
+    spec = find_spec(f"{__name__}.{name}")
+    return spec is not None and spec.origin is not None
+
+
+PARTS = [core, features, surfaces] + [import_module(f"{__name__}.{name}") for name in OPTIONAL if present(name)]
 
 
 def register():
-    ops.register()
-    ui.register()
-    utils.register()
-    core.register()
-    features.register()
-    surfaces.register()
-    navigation.register()
+    for part in PARTS:
+        part.register()
 
 
 def unregister():
-    navigation.unregister()
-    surfaces.unregister()
-    features.unregister()
-    core.unregister()
-    ops.unregister()
-    ui.unregister()
-    utils.unregister()
+    for part in reversed(PARTS):
+        part.unregister()

@@ -1,4 +1,11 @@
-from ...utils.constants import pivot_icon_items
+
+pivot_icon_items = [
+    ("BORDER", "PIVOT_BOUNDBOX"),
+    ("ORIGIN", "PIVOT_CURSOR"),
+    ("UNMASKED", "CLIPUV_HLT"),
+    ("ACTIVE", "PIVOT_ACTIVE"),
+    ("SURFACE", "PIVOT_MEDIAN"),
+]
 
 ###
 #  Config Standard
@@ -15,15 +22,6 @@ controllerConfig = {
     "binding": {"location": "", "name": "menu_controller"},
     "command": "sculpt_deck.move_float_menu",
     "icon": "BLANK1",
-    "use_grab_cursor": True,
-}
-
-floatingToggleConfig = {
-    "type": "boolean",
-    "binding": {"location": "", "name": "float_toggle"},
-    "command": "sculpt_deck.move_toggle_button",
-    "onIcon": "OUTLINER_DATA_CAMERA",
-    "offIcon": "GREASEPENCIL",
     "use_grab_cursor": True,
 }
 
@@ -51,21 +49,6 @@ gizmo_colors = {
         "alpha": 0.15,
         "color_highlight": [0.8, 0.7, 0.3],
         "alpha_highlight": 0.3,
-    },
-}
-
-toggle_colors = {
-    "active": {
-        "color": [0.1, 0.1, 0.2],
-        "alpha": 0.5,
-        "color_highlight": [0.15, 0.15, 0.3],
-        "alpha_highlight": 0.7,
-    },
-    "inactive": {
-        "color": [0.0, 0.0, 0.0],
-        "alpha": 0.5,
-        "color_highlight": [0.05, 0.05, 0.05],
-        "alpha_highlight": 0.7,
     },
 }
 

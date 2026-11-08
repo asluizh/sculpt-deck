@@ -3,7 +3,7 @@ tap's, see features/object_tap), and Alt T for Toggle Touch Controls."""
 
 import bpy
 
-from ..utils.constants import LMOUSE, PRESS
+from ..core.constants import LMOUSE, PRESS
 
 KEYMAPS = ("3D View", "Grease Pencil")
 keymap_items = []

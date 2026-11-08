@@ -1,19 +1,31 @@
 import math
 
 import bpy
-from bpy.props import (BoolProperty, EnumProperty, FloatProperty,
-                       FloatVectorProperty, IntProperty, PointerProperty,
-                       StringProperty)
+from bpy.props import (
+    BoolProperty,
+    EnumProperty,
+    FloatProperty,
+    FloatVectorProperty,
+    IntProperty,
+    PointerProperty,
+    StringProperty,
+)
 from bpy.types import Operator, PropertyGroup
 from bpy_extras import view3d_utils
 from mathutils import Matrix, Vector
 
-from ...core.drag import (ScreenAngle, ViewDrag, axis_on_screen,
-                          distance_along, facing_sign, set_world_matrix,
-                          view_plane_offset)
+from ...core.constants import CANCEL, FINISHED, object_modes
+from ...core.drag import (
+    ScreenAngle,
+    ViewDrag,
+    axis_on_screen,
+    distance_along,
+    facing_sign,
+    set_world_matrix,
+    view_plane_offset,
+)
+from ...core.history import tool_history
 from ...core.hop import hop
-from ...utils.actions import tool_history
-from ...utils.constants import CANCEL, FINISHED, object_modes
 
 ###
 # Arrays

@@ -3,7 +3,7 @@
 import bpy
 from bpy.types import Operator
 
-from ...utils.constants import FINISHED
+from ...core.constants import FINISHED
 
 
 class SCULPT_DECK_OT_mask_invert(Operator):

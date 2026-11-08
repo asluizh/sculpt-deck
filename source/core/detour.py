@@ -5,8 +5,8 @@ import bpy
 from bpy.app.handlers import persistent
 from bpy.props import BoolProperty, StringProperty
 
-from ..utils.constants import FINISHED, object_modes
 from .checkpoint import store_scene_checkpoint
+from .constants import FINISHED, object_modes
 
 # custom property marking the mode an object returns to: saved in the undo step, cleared once back in that mode
 RETURN_MODE = "sculpt_deck_return_mode"

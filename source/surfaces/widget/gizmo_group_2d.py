@@ -4,16 +4,18 @@ import bpy
 from bpy.types import GizmoGroup
 from mathutils import Vector
 
-from ...utils.blender import *
-from ...utils.constants import WIDGET_SLOTS, action_toggles
-from .gizmo_2d import ActionGizmo, GizmoSet, GizmoSetBoolean, action_icon
-from .gizmo_config import controllerConfig, floatingToggleConfig
+from ...core.blender import navigation_gizmo_height, safe_area_3d, ui_scale
+from ..action_slots import WIDGET_SLOTS
+from .gizmo_2d import ActionGizmo, GizmoSet, action_icon, action_toggles
+from .gizmo_config import controllerConfig
+from .settings import widget_settings
 
 __module__ = __name__.split(".")[0]
 
 ###
 # GizmoGroup
-#  - holds the menu controller, action menu and floating toggle
+#  - holds the menu controller and the action buttons (the floating
+#    toggle is navigation's, see navigation/toggle.py)
 #  - builds one ActionGizmo per widget button of the current mode, rebuilt
 #    when the buttons, the mode or a toggle's state (its icon) change
 #  - positions Gizmos during draw_prepare()
@@ -31,11 +33,11 @@ class GIZMO_GT_viewport_gizmo_group(GizmoGroup):
         self.actions: list[ActionGizmo] = []
         self.signature = None
         self.__buildController(context)
-        self.spacing = preferences().menu_spacing
+        self.spacing = widget_settings().menu_spacing
 
     # rebuild the action buttons when what they show changes
     def __syncActions(self, context):
-        widget = preferences().getWidgetSettings(context.mode)
+        widget = widget_settings().getWidgetSettings(context.mode)
         idnames = [idname for idname in (widget.slots(WIDGET_SLOTS) if widget else []) if idname]
         signature = tuple(
             (idname, action_icon(context, idname) if idname in action_toggles else "") for idname in idnames
@@ -50,18 +52,13 @@ class GIZMO_GT_viewport_gizmo_group(GizmoGroup):
     def __buildController(self, context):
         self.controller = GizmoSet()
         self.controller.setup(self, controllerConfig)
-        self.toggle = GizmoSetBoolean()
-        self.toggle.setup(self, floatingToggleConfig)
 
     def draw_prepare(self, context):
         self.context = context
-        prefs = preferences()
+        prefs = widget_settings()
         self.__updateOrigin()
-        self.__updateToggleOrigin()
-        self.toggle.draw_prepare()
         self.controller.draw_prepare()
         self.__move_gizmo(self.controller, self.origin)
-        self.__move_gizmo(self.toggle, self.toggle_origin)
 
         self.__syncActions(context)
         visible_gizmos = []
@@ -78,7 +75,7 @@ class GIZMO_GT_viewport_gizmo_group(GizmoGroup):
             self.__menuBar(visible_gizmos)
 
     def __menuBar(self, visible_gizmos: list[GizmoSet]):
-        prefs = preferences()
+        prefs = widget_settings()
         safe_area = safe_area_3d()
         spacing = ((36 * prefs.gizmo_scale) + 2 * prefs.gizmo_padding) * ui_scale()
         center = (safe_area[0] + safe_area[1]) / 2
@@ -131,7 +128,7 @@ class GIZMO_GT_viewport_gizmo_group(GizmoGroup):
                 self.__move_gizmo(gizmo, start + axis * (offset + i * spacing) + wrap * (line * spacing))
 
     def __menuRadial(self, visible_gizmos: list[GizmoSet]):
-        prefs = preferences()
+        prefs = widget_settings()
         # calculate minimum radius to prevent overlapping buttons
         menu_spacing = (36 * prefs.menu_spacing) * prefs.gizmo_scale + prefs.gizmo_padding
         gizmo_scale = 18 * prefs.gizmo_scale
@@ -163,7 +160,7 @@ class GIZMO_GT_viewport_gizmo_group(GizmoGroup):
         self.__move_gizmo(gizmo, self.origin + offset * spacing)
 
     def __updateOrigin(self):
-        prefs = preferences()
+        prefs = widget_settings()
         safe_area = safe_area_3d(padding=90)
 
         # distance across viewport between menus
@@ -179,27 +176,6 @@ class GIZMO_GT_viewport_gizmo_group(GizmoGroup):
             (
                 safe_area[0].x + span.x * prefs.menu_position[0] * 0.01,
                 safe_area[0].y + span.y * prefs.menu_position[1] * 0.01,
-                0.0,
-            )
-        )
-
-    def __updateToggleOrigin(self):
-        prefs = preferences()
-        safe_area = safe_area_3d()
-
-        # distance across viewport between menus
-        span = Vector(
-            (
-                safe_area[1].x - safe_area[0].x,
-                safe_area[1].y - safe_area[0].y,
-            )
-        )
-
-        # apply position ratio to safe area
-        self.toggle_origin = Vector(
-            (
-                safe_area[0].x + span.x * prefs.toggle_position[0] * 0.01,
-                safe_area[0].y + span.y * prefs.toggle_position[1] * 0.01,
                 0.0,
             )
         )

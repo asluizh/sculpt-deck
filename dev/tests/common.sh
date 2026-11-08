@@ -14,11 +14,12 @@ blender() {
     org.blender.Blender "$@" 2>&1 | grep -v '^F: ' # flatpak's own sandbox notices
 }
 
-# fresh profile with the current code installed as the user_default extension
+# fresh profile with the current code installed as the user_default extension; arguments go to bundle.sh
+# (e.g. --without navigation)
 build_and_install() {
   rm -rf "$work/profile" "$root/bin/sculpt_deck.zip"
   mkdir -p "$work/profile"
-  (cd "$root" && ./bundle.sh >/dev/null)
+  (cd "$root" && ./bundle.sh "$@" >/dev/null)
   blender -- --background --factory-startup --command extension install-file -r user_default -e \
     "$root/bin/sculpt_deck.zip"
 }

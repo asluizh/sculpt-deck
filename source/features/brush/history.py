@@ -1,12 +1,10 @@
-"""The current and previous brush per paint mode, polled from a timer, and helpers to read and switch brushes.
-
-The same timer polls the tool history and the object history (utils/actions.py), which have no timer of their own.
-"""
+"""The current and previous brush per paint mode, polled with the tool and object histories (core/history.py), and
+helpers to read and switch brushes."""
 
 import bpy
 
-from ...utils.actions import object_history, tool_history
-from ...utils.constants import paint_settings_name, pen_brush_modes
+from ...core import history as histories
+from ...core.constants import paint_settings_name, pen_brush_modes
 
 # A brush is referenced the way Blender's asset system does it:
 # (asset_library_type, asset_library_identifier, relative_asset_identifier),
@@ -78,20 +76,9 @@ class BrushHistory:
 history = BrushHistory()
 
 
-def poll_history():
-    try:
-        history.update()
-        tool_history.update(bpy.context)
-        object_history.update(bpy.context)
-    except (AttributeError, ReferenceError, TypeError):
-        pass  # no scene while loading files
-    return 0.25
-
-
 def register():
-    bpy.app.timers.register(poll_history, first_interval=0.25, persistent=True)
+    histories.watch(history.update)
 
 
 def unregister():
-    if bpy.app.timers.is_registered(poll_history):
-        bpy.app.timers.unregister(poll_history)
+    histories.unwatch(history.update)

@@ -5,8 +5,8 @@ import math
 import bpy
 from bpy.types import Operator
 
-from ...utils.blender import preferences
-from ...utils.constants import CANCEL, FINISHED, paint_settings_name
+from ...core.constants import CANCEL, FINISHED, paint_settings_name
+from ...core.preferences import preferences
 
 
 class BrushRadialControl:
@@ -15,7 +15,7 @@ class BrushRadialControl:
     prop = ""
 
     def invoke(self, context, event):
-        prefs = preferences()
+        prefs = preferences().widget
         # move the cursor away from the bar so the radial control has room
         if prefs.menu_style in {"fixed.bar"}:
             if prefs.gizmo_position in ["LEFT", "RIGHT"]:

@@ -1,13 +1,16 @@
+"""UI helpers: region sizes, the UI scale, the viewport's safe area for gizmos, redrawing viewports."""
+
 import bpy
 from mathutils import Vector
 
-from ... import \
-    __package__ as package  # relative import from the root directory
 
-
-def preferences() -> dict:
-    """Get the addon preferences."""
-    return bpy.context.preferences.addons[package].preferences  # type: ignore
+# preference changes made outside the viewport (e.g. in the Preferences window)
+# don't redraw the viewport gizmos on their own; an update callback of the settings
+def redraw_viewports(_settings, _context):
+    for window in bpy.context.window_manager.windows:
+        for area in window.screen.areas:
+            if area.type == "VIEW_3D":
+                area.tag_redraw()
 
 
 def panel(type) -> tuple:
