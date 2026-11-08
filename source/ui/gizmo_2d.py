@@ -1,9 +1,10 @@
 import bpy
 from mathutils import Matrix, Vector
 
+from ..core.actions import find
 from ..utils.actions import TOOL_PREFIX, operator_exists
 from ..utils.blender import *
-from ..utils.constants import (action_toggles, multires_actions, pie_actions,
+from ..utils.constants import (action_toggles, multires_actions,
                                popup_actions, voxel_actions)
 from .gizmo_config import gizmo_colors, toggle_colors
 
@@ -206,8 +207,9 @@ def action_icon(context, idname: str) -> str:
         state = resolve_context_path(context, path)
         is_on = len(state) > 0 if isinstance(state, bpy.types.bpy_prop_collection) else bool(state)
         return on_icon if is_on else off_icon
-    if idname in pie_actions:
-        return pie_actions[idname][1]
+    known = find(idname)
+    if known is not None:
+        return known.icon
     return "COLLAPSEMENU" if "_MT_" in idname else "SCRIPT"
 
 

@@ -1,9 +1,10 @@
 import bpy
 
-# Running the shared pie/widget/pen actions. An idname is an operator, a menu
-# (_MT_; a pie when it ends in _pie, like the action pie), a brush asset shelf
-# (_AST_) or a tool (TOOL:).
-TOOL_PREFIX = "TOOL:"
+from ..core.actions import TOOL_PREFIX
+
+# Running an Action by idname (the catalog is in core/actions.py). An idname is
+# an operator, a menu (_MT_; a pie when it ends in _pie, like the action pie),
+# a brush asset shelf (_AST_) or a tool (TOOL:).
 
 
 def is_pie(idname: str) -> bool:

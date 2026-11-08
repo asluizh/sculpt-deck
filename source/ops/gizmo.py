@@ -5,9 +5,10 @@ from bpy.props import StringProperty
 from bpy.types import Operator
 from mathutils import Vector
 
+from ..core.actions import find
 from ..utils.actions import invoke_action
 from ..utils.blender import *
-from ..utils.constants import CANCEL, FINISHED, MODAL, PASSTHROUGH, pie_actions
+from ..utils.constants import CANCEL, FINISHED, MODAL, PASSTHROUGH
 
 # a widget press held this long opens its menu before the release
 MENU_HOLD_TIME = 0.3
@@ -191,7 +192,8 @@ class SCULPT_DECK_OT_widget_menu(Operator):
 
     @classmethod
     def description(cls, context, properties):
-        label = pie_actions.get(properties.name, (properties.name,))[0]
+        known = find(properties.name)
+        label = known.label if known else properties.name
         return f"Open {label}"
 
     # Opened right on press, a menu closes again on the release that follows.
