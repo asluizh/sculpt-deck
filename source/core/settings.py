@@ -37,10 +37,6 @@ def defaults_path(create: bool = False) -> str:
     return path.join(folder, FILE_NAME)
 
 
-# where versions before 4.5 kept the settings; replaced on every add-on update
-legacy_path = path.join(path.dirname(path.dirname(path.dirname(__file__))), FILE_NAME)
-
-
 def comparable(data: dict) -> dict:
     """Settings only, with values as JSON gives them back, so stored and live settings compare equal"""
     return json.loads(json.dumps({key: value for key, value in data.items() if key not in EXCLUDED_KEYS}))
@@ -74,7 +70,7 @@ def read(filename: str) -> dict | None:
 def load_defaults():
     """At startup: the saved defaults, or what Blender's preferences hold if there are none yet"""
     global _defaults, _loading
-    data = read(defaults_path()) or read(legacy_path)
+    data = read(defaults_path())
     prefs = preferences()
     if data is not None:
         _loading = True

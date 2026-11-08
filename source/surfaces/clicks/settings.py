@@ -30,8 +30,7 @@ class SCULPT_DECK_PG_ClickSettings(PropertyGroup):
 
     def from_dict(self, data: dict):
         self.enable_double_click = data.get("enable_double_click", True)
-        # before 4.5 right click was on by default, with its own short list of actions
-        self.enable_right_click = data.get("enable_right_click", False) and "right_click_source" not in data
+        self.enable_right_click = data.get("enable_right_click", False)
 
 
 def click_settings() -> SCULPT_DECK_PG_ClickSettings:

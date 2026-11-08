@@ -139,7 +139,6 @@ pivot_mode
 radius
 show_brush_dynamics
 show_control_gizmo
-show_float_menu
 show_gizmos
 show_is_enabled
 show_lock_rotation

@@ -160,11 +160,6 @@ class SCULPT_DECK_PG_PenSettings(PropertyGroup):
             pen_set = self.getPenSet(saved.get("mode"))
             if pen_set is not None:
                 pen_set.from_dict(saved)
-        # the old "pen" right click source becomes an upper pen button binding
-        if data.get("right_click_source") == "PEN" and "pen_sets" not in data:
-            for pen_set in self.pen_sets:
-                pen_set.upper_click.action = "CUSTOM"
-                pen_set.upper_click.operator = data.get("right_click_mode", "wm.window_fullscreen_toggle")
 
 
 def pen_settings() -> SCULPT_DECK_PG_PenSettings:

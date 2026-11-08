@@ -219,9 +219,6 @@ class SCULPT_DECK_PG_WidgetSettings(PropertyGroup):
         default=True,
     )
 
-    # the pie's old floating button, only read to give it a widget button instead
-    show_float_menu: BoolProperty(default=False)
-
     # widget buttons per mode, same actions as the pie
     widget_sets: CollectionProperty(type=SCULPT_DECK_PG_MenuModeGroup)
 
@@ -244,14 +241,6 @@ class SCULPT_DECK_PG_WidgetSettings(PropertyGroup):
 
     def ensure(self):
         ensure_mode_sets(self.widget_sets, widget_defaults, "WIDGET")
-
-        # the pie used to have a floating button of its own, now it's a widget button
-        if self.show_float_menu:
-            self.show_float_menu = False
-            for widget in self.widget_sets:
-                slots = widget.slots(WIDGET_SLOTS)
-                if "SCULPT_DECK_MT_floating" not in slots and "" in slots:
-                    widget.setSlot(slots.index("") + 1, "SCULPT_DECK_MT_floating")
 
     def to_dict(self):
         return {
@@ -276,7 +265,6 @@ class SCULPT_DECK_PG_WidgetSettings(PropertyGroup):
             "show_voxel_remesh": self.show_voxel_remesh,
             "show_brush_dynamics": self.show_brush_dynamics,
             "gizmo_position": self.gizmo_position,
-            "show_float_menu": self.show_float_menu,
             "widget_sets": [w.to_dict() for w in self.widget_sets],
             "active_widget": self.active_widget,
         }
@@ -303,7 +291,6 @@ class SCULPT_DECK_PG_WidgetSettings(PropertyGroup):
         self.show_voxel_remesh = data.get("show_voxel_remesh", True)
         self.show_brush_dynamics = data.get("show_brush_dynamics", True)
         self.gizmo_position = data.get("gizmo_position", "RIGHT")
-        self.show_float_menu = data.get("show_float_menu", False)
         self.widget_sets.clear()
         for widget in data.get("widget_sets", []):
             widget_set = self.widget_sets.add()

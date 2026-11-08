@@ -59,12 +59,7 @@ pie_mode_items = [
     ("OTHER", "Other Modes", "Every mode without its own pie"),
 ]
 
-# mode names from before Blender 5.x, as stored in older settings
-pie_mode_aliases = {"PAINT_GPENCIL": "PAINT_GREASE_PENCIL"}
-
-
 def pie_mode(mode: str) -> str:
-    mode = pie_mode_aliases.get(mode, mode)
     return mode if any(mode == item[0] for item in pie_mode_items) else "OTHER"
 
 

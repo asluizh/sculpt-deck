@@ -7,7 +7,7 @@ from bpy.props import EnumProperty, StringProperty
 from bpy.types import PropertyGroup, UILayout
 
 from ..core.actions import enum_items
-from ..core.constants import pie_mode, pie_mode_aliases, pie_mode_items
+from ..core.constants import pie_mode, pie_mode_items
 
 WIDGET_SLOTS = 12
 
@@ -53,7 +53,7 @@ class SCULPT_DECK_PG_MenuModeGroup(PropertyGroup):
     menu_choice_10: pie_choice(10)
     menu_choice_11: pie_choice(11)
     menu_choice_12: pie_choice(12)
-    # custom action of each slot (and the only setting in older versions)
+    # custom action of each slot
     menu_slot_1: pie_custom()
     menu_slot_2: pie_custom()
     menu_slot_3: pie_custom()
@@ -88,13 +88,6 @@ class SCULPT_DECK_PG_MenuModeGroup(PropertyGroup):
             setattr(self, f"menu_choice_{slot}", "CUSTOM")
             setattr(self, f"menu_slot_{slot}", idname)
 
-    # settings from older versions only have the text of each slot
-    def migrate(self):
-        for slot in ALL_SLOTS:
-            text = getattr(self, f"menu_slot_{slot}")
-            if getattr(self, f"menu_choice_{slot}") == "NONE" and text:
-                self.setSlot(slot, text)
-
     def slots(self, count: int) -> list[str]:
         return [self.slot(slot) for slot in range(1, count + 1)]
 
@@ -120,9 +113,6 @@ def ensure_mode_sets(collection, defaults: dict, kind: str):
     """A group of slots for every mode, the missing ones with the defaults of the kind (WIDGET or PIE)"""
     for mode_set in collection:
         mode_set.kind = kind
-        alias = pie_mode_aliases.get(mode_set.mode)
-        if alias is not None and find_mode_set(collection, alias) is None:
-            mode_set.mode = alias
     for mode, _, _ in pie_mode_items:
         if find_mode_set(collection, mode) is None:
             mode_set = collection.add()
@@ -130,8 +120,6 @@ def ensure_mode_sets(collection, defaults: dict, kind: str):
             mode_set.kind = kind
             for slot, idname in enumerate(defaults.get(mode, ()), 1):
                 mode_set.setSlot(slot, idname)
-    for mode_set in collection:
-        mode_set.migrate()
 
 
 # shared by the sidebar panels and the add-on preferences
