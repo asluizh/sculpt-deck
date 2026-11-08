@@ -24,10 +24,6 @@ def assign_keymaps():
     kmi = km.keymap_items.new("sculpt_deck.toggle_touch", type="T", value=PRESS, alt=True)
     modified_keymaps.append((km, kmi))
 
-    # make menus draggable
-    km = wm.keyconfigs.addon.keymaps.new(name="View2D Buttons List", space_type="EMPTY")
-    kmi = km.keymap_items.new("view2d.pan", LMOUSE, PRESS)
-    modified_keymaps.append((km, kmi))
 
     # add LEFT MOUSE ACTION for sculpt_deck.view_ops
     for kmap in wm.keyconfigs["Blender"].keymaps:

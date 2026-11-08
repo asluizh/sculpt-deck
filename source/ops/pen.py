@@ -3,7 +3,7 @@
 import bpy
 from bpy.types import Operator
 
-from ..utils.brush import activate_brush, brush_name, history
+from ..features.brush.history import activate_brush, brush_name, history
 from ..utils.constants import (CANCEL, FINISHED, brush_direction_pairs,
                                pen_brush_modes)
 

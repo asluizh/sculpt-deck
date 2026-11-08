@@ -491,6 +491,79 @@ def pen_hold_momentary_brush():
     check(brush() == before, f"pen release: expected {before} back, got {brush()}")
 
 
+def voxel_size() -> float:
+    return round(bpy.context.scene.objects["Cube"].data.remesh_voxel_size, 6)
+
+
+def vertex_count() -> int:
+    return len(bpy.context.scene.objects["Cube"].data.vertices)
+
+
+def resolution_density_up():
+    yield from reset()
+    bpy.context.scene.objects["Cube"].data.remesh_voxel_size = 0.2
+    before_size, before_count = voxel_size(), vertex_count()
+    call("sculpt_deck.density_up")
+    yield 0.5
+    check(voxel_size() == round(before_size * 0.8, 6), f"Voxel Density Up: expected voxel size {before_size * 0.8}, "
+          f"got {voxel_size()}")
+    check(vertex_count() > before_count, f"Voxel Density Up: expected more than {before_count} vertices, "
+          f"got {vertex_count()}")
+    check(mode() == "SCULPT", f"Voxel Density Up: expected Sculpt Mode, got {mode()}")
+    after_count = vertex_count()
+    yield undo()
+    check(vertex_count() == before_count, f"undo Voxel Density Up: expected {before_count} vertices, "
+          f"got {vertex_count()}")
+    check(mode() == "SCULPT", f"undo Voxel Density Up: expected Sculpt Mode, got {mode()}")
+    yield redo()
+    check(vertex_count() == after_count, f"redo Voxel Density Up: expected {after_count} vertices, "
+          f"got {vertex_count()}")
+
+
+def resolution_density_up_undo_voxel_size():
+    yield from reset()
+    bpy.context.scene.objects["Cube"].data.remesh_voxel_size = 0.2
+    call("sculpt_deck.density_up")
+    yield 0.5
+    yield undo()
+    check(voxel_size() == 0.2, f"undo Voxel Density Up: expected voxel size 0.2, got {voxel_size()}")
+
+
+def mask_values() -> list[float]:
+    attribute = bpy.context.scene.objects["Cube"].data.attributes.get(".sculpt_mask")
+    if attribute is None:
+        return [0.0] * vertex_count()
+    return [round(item.value, 4) for item in attribute.data]
+
+
+def masks_invert():
+    yield from reset()
+    check(set(mask_values()) == {0.0}, f"setup: expected no mask, got {mask_values()}")
+    call("sculpt_deck.mask_invert")
+    yield 0.5
+    check(set(mask_values()) == {1.0}, f"Invert Mask: expected a full mask, got {mask_values()}")
+    check(mode() == "SCULPT", f"Invert Mask: expected Sculpt Mode, got {mode()}")
+    yield undo()
+    check(set(mask_values()) == {0.0}, f"undo Invert Mask: expected no mask, got {mask_values()}")
+    check(mode() == "SCULPT", f"undo Invert Mask: expected Sculpt Mode, got {mode()}")
+    yield redo()
+    check(set(mask_values()) == {1.0}, f"redo Invert Mask: expected a full mask, got {mask_values()}")
+
+
+def sidebar_shown() -> bool:
+    _window, area, _region = view3d()
+    return area.spaces.active.show_region_ui
+
+
+def interface_toggle_sidebar():
+    yield from reset()
+    before = sidebar_shown()
+    call("sculpt_deck.toggle_n_panel")
+    yield 0.3
+    check(sidebar_shown() != before, f"Toggle Sidebar: expected the sidebar shown = {not before}")
+    call("sculpt_deck.toggle_n_panel")
+    yield 0.3
+    check(sidebar_shown() == before, f"Toggle Sidebar again: expected the sidebar shown = {before}")
 def widget_group():
     """The Widget's gizmo group in the viewport, caught on its next redraw"""
     module = sys.modules[PACKAGE + ".source.surfaces.widget.gizmo_group_2d"]
@@ -674,6 +747,10 @@ SCENARIOS = [
     hop_array_apply_dyntopo_undo,
     mirror_apply,
     pen_hold_momentary_brush,
+    resolution_density_up,
+    resolution_density_up_undo_voxel_size,
+    masks_invert,
+    interface_toggle_sidebar,
     widget_button_runs_action,
     widget_button_opens_action_pie,
     pen_click_brush,
@@ -688,6 +765,8 @@ KNOWN_FAILURES = {
     "hop_array_apply_dyntopo_undo": "#17: leaving and entering Sculpt Mode with Dyntopo on pushes Blender's own "
     "Dynamic topology disable and enable steps, so the Hop shows in the undo history: one undo leaves the array "
     "applied, the next brings it back with Dyntopo off",
+    "resolution_density_up_undo_voxel_size": "#21: a Sculpt Mode undo step restores the remeshed geometry but not the "
+    "mesh's voxel size, so undo leaves the finer size and the next step goes from there",
 }
 
 

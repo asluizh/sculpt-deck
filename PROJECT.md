@@ -68,6 +68,19 @@ source/
     mirror/                Mirror
       operators.py           node group (its inputs are the Mirror settings), apply/remove operators
       tools.py               toolbar tool, header and plane outlines
+    resolution/            Resolution Changes
+      voxel.py               Voxel Density Up and Down (voxel size, then voxel remesh)
+      multires.py            Multires Level Up and Down
+    brush/                 brushes
+      history.py             brush history, polled every 0.25 s along with the tool and object histories;
+                             reading and switching brushes
+      radial_control.py      Brush Size and Brush Strength
+      stroke_method.py       Stroke Method menu
+    masks/
+      mask_operators.py      Invert Mask and Reveal Hidden
+    interface/             what otherwise needs the keyboard
+      toggles.py             Toggle Sidebar, Tools Region Swap, next Pivot mode
+      list_drag.py           left-click drag scrolls UI lists and menus (View2D Buttons List keymap)
   surfaces/              Action Surfaces, each with its settings and sidebar panels
     action_slots.py        the per-mode Action slots shared by the Widget and the Action Pie (property group, drawing)
     widget/                the Widget: on-screen buttons and the floating touch toggle
@@ -88,7 +101,7 @@ source/
       action.py              the double click and right click operators and their keymap entries
       panel.py               Right Click and Double Click sidebar panels
   ops/                   operators
-    actions.py             general actions: remesh, Multires, masks, brush size/strength
+    actions.py             Recenter View, Rotation Lock, Toggle Touch Controls, Save/Revert Default Settings
     touch.py               touch navigation, tap/double tap/long press on objects
     gizmo.py               Cycle Control Gizmo (an Action for the object gizmos)
     pen.py                 Previous Brush and Invert Brush
@@ -99,8 +112,7 @@ source/
     local_transform.py     Local Transform toolbar tool, header and 3D gizmos
   utils/                 shared helpers
     constants.py           enums, defaults
-    actions.py             runs an Action by idname (operator, menu, pie, asset shelf, tool), tool history
-    brush.py               brush history, polled every 0.25 s along with the tool history
+    actions.py             runs an Action by idname (operator, menu, pie, asset shelf, tool), tool and object history
     undo.py                push_scene_undo: the Scene Checkpoint under its old name, for Local Transform
     settings.py            default settings (add-on user folder) and per-file settings (scene property), unsaved check
     keymaps.py             keymap registration of touch navigation (the surfaces register their own)
