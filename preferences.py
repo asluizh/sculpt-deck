@@ -3,7 +3,7 @@ import bpy
 from bpy.props import *
 from bpy.types import AddonPreferences, PropertyGroup, UILayout
 
-from .source.core.actions import enum_items
+from .source.core.actions import GESTURES, enum_items
 from .source.ui.panel import (draw_action_pie, draw_click_binding,
                               draw_default_settings, draw_pen_buttons,
                               draw_widget_buttons)
@@ -146,9 +146,11 @@ class SCULPT_DECK_PG_MenuModeGroup(PropertyGroup):
 ##
 # Pen Button Settings
 ##
-# the Action List of a pen button click or hold, a double click or a right click
+# the Action List of a pen button click or hold, a double click or a right click; a gesture
+# not set yet (ensurePenSets sets it) reads as a click
 def pen_actions(binding, _):
-    return enum_items(binding.gesture, binding.mode)
+    gesture = binding.gesture if binding.gesture in GESTURES else "PEN_CLICK"
+    return enum_items(gesture, binding.mode)
 
 
 class SCULPT_DECK_PG_PenBinding(PropertyGroup):

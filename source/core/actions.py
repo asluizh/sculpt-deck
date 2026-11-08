@@ -243,9 +243,16 @@ CATALOG: list[Action] = [
 ]
 
 
+# idname -> Action, built when first needed and again after clear_cache()
+_index: dict[str, Action] = {}
+
+
 def find(idname: str) -> Action | None:
     """The catalog's Action with this idname"""
-    return next((entry for entry in CATALOG if entry.idname == idname), None)
+    if not _index:
+        for entry in reversed(CATALOG):
+            _index[entry.idname] = entry
+    return _index.get(idname)
 
 
 def mode_actions(mode: str) -> list[Action]:
@@ -389,6 +396,7 @@ def enum_items(gesture: str, mode: str) -> list:
 def clear_cache():
     """After changing the catalog, so the lists are built again"""
     _enum_cache.clear()
+    _index.clear()
 
 
 def _check_catalog():
