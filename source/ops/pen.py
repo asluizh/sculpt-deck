@@ -4,6 +4,7 @@ import bpy
 from bpy.props import StringProperty
 from bpy.types import Operator
 
+from ..core.actions import is_momentary
 from ..utils.actions import TOOL_PREFIX, active_tool, invoke_action, set_tool
 from ..utils.blender import preferences, ui_scale
 from ..utils.brush import (activate_brush, brush_name, brush_ref, history,
@@ -11,7 +12,7 @@ from ..utils.brush import (activate_brush, brush_name, brush_ref, history,
 from ..utils.constants import (CANCEL, FINISHED, MODAL, PASSTHROUGH,
                                brush_direction_pairs, pen_brush_actions,
                                pen_brush_modes, pen_buttons,
-                               pen_default_context_menus, pen_hold_action)
+                               pen_default_context_menus)
 
 # a press becomes a hold after this long, or once it moves past Blender's
 # tablet drag threshold, or when the pen tip touches down while it's held
@@ -161,7 +162,7 @@ class SCULPT_DECK_OT_pen_button(BindingRunner, Operator):
     # returns an operator result when the hold hands over to something else
     def start_hold(self, context):
         action = self.hold.action
-        if pen_hold_action(action):
+        if is_momentary(action):
             target = self.switch_target(self.hold)
             if self.revert is None and target is not None:
                 self.switch_temporarily(context, target)
