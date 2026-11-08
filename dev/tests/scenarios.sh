@@ -35,7 +35,8 @@ if [[ -z "$display" ]]; then
 fi
 
 # --enable-event-simulate: Blender ignores real input and accepts window.event_simulate
-timeout 600 bash -c "$(declare -f blender); work='$work'; blender --socket=x11 --nosocket=wayland --env=DISPLAY=$display \
+# flatpak binds the X socket named by the host DISPLAY into the sandbox, so set it outside too
+DISPLAY="$display" timeout 600 bash -c "$(declare -f blender); work='$work'; blender --socket=x11 --nosocket=wayland --env=DISPLAY=$display \
   -- --enable-event-simulate --python '$root/dev/tests/scenarios.py' -- '$results' $*" >>"$log" || true
 
 if [[ ! -s "$results" ]]; then

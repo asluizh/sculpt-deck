@@ -2,14 +2,13 @@
 import bpy
 from bpy.types import Menu, Panel, UILayout
 
+from ..core import actions as catalog
 from ..utils import settings
 from ..utils.actions import TOOL_PREFIX, is_pie, operator_exists
 from ..utils.blender import preferences
 from ..utils.brush import brush_name
-from ..utils.constants import (WIDGET_SLOTS, pie_actions, pie_common_actions,
-                               pie_mode, pie_mode_actions, pie_mode_items,
-                               pie_slot_display_order, pie_slot_names,
-                               primitive_items)
+from ..utils.constants import (WIDGET_SLOTS, pie_mode, pie_mode_items,
+                               pie_slot_display_order, pie_slot_names)
 
 
 # shared by the sidebar panel and the add-on preferences
@@ -87,7 +86,8 @@ def draw_pie_slot(pie: UILayout, idname: str):
 
 # a button running an action, in a pie or a menu
 def draw_action(layout: UILayout, idname: str):
-    label, icon = pie_actions.get(idname, (None, "NONE"))
+    known = catalog.find(idname)
+    label, icon = (known.label, known.icon) if known else (None, "NONE")
     text = {"text": label} if label else {}
     # popup menus run their buttons with EXEC by default, which skips file
     # browsers and popups (Save, Search); invoke them like widget buttons do
@@ -441,11 +441,12 @@ class SCULPT_DECK_MT_all_actions(Menu):
     bl_label = "All Actions"
 
     def draw(self, context):
-        actions = pie_mode_actions.get(pie_mode(context.mode), [])
+        actions = catalog.mode_actions(pie_mode(context.mode))
         groups = (
-            ("Actions", [action for action in actions if not action[0].startswith(TOOL_PREFIX)]),
-            ("Tools", [action for action in actions if action[0].startswith(TOOL_PREFIX)]),
-            ("Common", [action for action in pie_common_actions if action[0] != "SCULPT_DECK_MT_all_actions"]),
+            ("Actions", [action for action in actions if not action.idname.startswith(TOOL_PREFIX)]),
+            ("Tools", [action for action in actions if action.idname.startswith(TOOL_PREFIX)]),
+            ("Common", [action for action in catalog.common_actions()
+                        if action.idname != "SCULPT_DECK_MT_all_actions"]),
         )
         row = self.layout.row()
         for title, group in groups:
@@ -454,18 +455,8 @@ class SCULPT_DECK_MT_all_actions(Menu):
             col = row.column()
             col.label(text=title)
             col.separator()
-            for idname, _, _ in group:
-                draw_action(col, idname)
-
-
-class SCULPT_DECK_MT_add_mesh(Menu):
-    """Add a mesh and keep working on it in the current mode"""
-
-    bl_label = "Add Mesh"
-
-    def draw(self, context):
-        for primitive, name, _, icon, _ in primitive_items:
-            self.layout.operator("sculpt_deck.add_primitive", text=name, icon=icon).primitive = primitive
+            for action in group:
+                draw_action(col, action.idname)
 
 
 classes = (
@@ -485,7 +476,6 @@ classes = (
     SCULPT_DECK_PT_node_editor_panel,
     SCULPT_DECK_PT_gizmo_display,
     SCULPT_DECK_MT_floating,
-    SCULPT_DECK_MT_add_mesh,
     SCULPT_DECK_MT_all_actions,
 )
 

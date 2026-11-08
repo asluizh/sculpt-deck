@@ -3,6 +3,7 @@
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 work="$root/bin/test"
+mkdir -p "$work"
 
 # run the Blender flatpak with the throwaway profile; extra flatpak options go before "--"
 blender() {

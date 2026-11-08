@@ -73,14 +73,20 @@ def redo():
     return 0.5
 
 
-def adjust_last(**props):
-    """Adjust Last Operation: change the last operator's settings and run it again from the step before it"""
+def adjust_last(undo: bool = True, **props):
+    """Adjust Last Operation: change the last operator's settings and run it again from the step before it.
+
+    With `undo` it runs with an undo step, like `call` and like the Adjust Last Operation panel. Without one, Blender
+    treats it as called from a script: the repeated operator stores no undo step (the history stays one step
+    behind) and runs before the mode of the step undone to is back, in Object Mode, which is how a Detour that
+    took its mode from the current one ended in the wrong mode (#13).
+    """
     with override():
         last = bpy.context.active_operator
         check(last is not None, "no last operation to adjust")
         for name, value in props.items():
             setattr(last.properties, name, value)
-        bpy.ops.ed.undo_redo()
+        bpy.ops.ed.undo_redo("EXEC_DEFAULT", undo)
     return 0.5
 
 
@@ -132,6 +138,28 @@ def detour_add_mesh_adjust_last():
     yield 0.5
     check(len(meshes()) == 2, f"Adjust Last Operation on Add Mesh: expected 2 meshes, got {meshes()}")
     check(mode() == "SCULPT", f"Adjust Last Operation on Add Mesh: expected Sculpt Mode, got {mode()}")
+    yield undo()
+    check(meshes() == ["Cube"], f"undo adjusted Add Mesh: expected only the Cube, got {meshes()}")
+    check(mode() == "SCULPT", f"undo adjusted Add Mesh: expected Sculpt Mode, got {mode()}")
+    yield redo()
+    check(len(meshes()) == 2, f"redo adjusted Add Mesh: expected 2 meshes, got {meshes()}")
+    check(mode() == "SCULPT", f"redo adjusted Add Mesh: expected Sculpt Mode, got {mode()}")
+
+
+def detour_repeat_from_object_mode():
+    """A Detour repeated while still in Object Mode keeps the mode it first started from (#13).
+
+    The only scenario that repeats before the mode is back: `adjust_last` with an undo step runs the repeat after
+    it. The undo history it leaves is one step behind, so it checks only the mode and the meshes."""
+    yield from reset()
+    call("sculpt_deck.add_primitive", primitive="CUBE")
+    yield 1.0
+    yield adjust_last(undo=False, primitive="SPHERE")
+    yield 0.5
+    yield adjust_last(undo=False, primitive="CYLINDER")
+    yield 0.5
+    check(len(meshes()) == 2, f"repeated Add Mesh: expected 2 meshes, got {meshes()}")
+    check(mode() == "SCULPT", f"repeated Add Mesh: expected Sculpt Mode, got {mode()}")
 
 
 def detour_join():
@@ -160,6 +188,73 @@ def detour_delete():
     check(mode() == "SCULPT", f"undo Delete: expected Sculpt Mode, got {mode()}")
     yield redo()
     check(meshes() == ["Cube.001"], f"redo Delete: expected only Cube.001 left, got {meshes()}")
+
+
+def original_mesh() -> bool:
+    """Whether the only mesh left is the startup Cube (8 vertices), not the remeshed cube Delete adds"""
+    objects = [obj for obj in bpy.context.scene.objects if obj.type == "MESH"]
+    return len(objects) == 1 and len(objects[0].data.vertices) == 8
+
+
+def detour_delete_last_mesh():
+    yield from reset()
+    call("sculpt_deck.delete_object")
+    yield 1.0
+    check(len(meshes()) == 1 and not original_mesh(), f"Delete last: expected a new cube instead, got {meshes()}")
+    check(mode() == "SCULPT", f"Delete last: expected to end in Sculpt Mode, got {mode()}")
+    yield undo()
+    check(original_mesh(), f"undo Delete last: expected the startup Cube back, got {meshes()}")
+    check(mode() == "SCULPT", f"undo Delete last: expected Sculpt Mode, got {mode()}")
+    yield redo()
+    check(len(meshes()) == 1 and not original_mesh(), f"redo Delete last: expected the new cube, got {meshes()}")
+    check(mode() == "SCULPT", f"redo Delete last: expected Sculpt Mode, got {mode()}")
+
+
+def detour_duplicate():
+    yield from reset()
+    call("sculpt_deck.duplicate_object")
+    yield 1.0
+    check(len(meshes()) == 2, f"Duplicate: expected 2 meshes, got {meshes()}")
+    check(mode() == "SCULPT", f"Duplicate: expected to end in Sculpt Mode, got {mode()}")
+    yield undo()
+    check(meshes() == ["Cube"], f"undo Duplicate: expected only the Cube, got {meshes()}")
+    check(mode() == "SCULPT", f"undo Duplicate: expected Sculpt Mode, got {mode()}")
+    yield redo()
+    check(len(meshes()) == 2, f"redo Duplicate: expected 2 meshes, got {meshes()}")
+    check(mode() == "SCULPT", f"redo Duplicate: expected Sculpt Mode, got {mode()}")
+
+
+def detour_fuse():
+    yield from reset(extra_cubes=1)
+    bpy.context.scene.objects["Cube.001"].select_set(True)
+    call("sculpt_deck.fuse_selected")
+    yield 1.0
+    check(meshes() == ["Cube"], f"Fuse: expected only the Cube, got {meshes()}")
+    check(mode() == "SCULPT", f"Fuse: expected to end in Sculpt Mode, got {mode()}")
+    yield adjust_last(voxel_size=0.2)
+    yield 0.5
+    check(meshes() == ["Cube"], f"Adjust Last Operation on Fuse: expected only the Cube, got {meshes()}")
+    check(mode() == "SCULPT", f"Adjust Last Operation on Fuse: expected Sculpt Mode, got {mode()}")
+    yield undo()
+    check(meshes() == ["Cube", "Cube.001"], f"undo Fuse: expected both cubes, got {meshes()}")
+    check(mode() == "SCULPT", f"undo Fuse: expected Sculpt Mode, got {mode()}")
+
+
+def detour_fuse_difference():
+    yield from reset(extra_cubes=1)
+    cutter = bpy.context.scene.objects["Cube.001"]
+    cutter.location.x = 1.0
+    cutter.select_set(True)
+    call("sculpt_deck.fuse_difference")
+    yield 1.0
+    check(meshes() == ["Cube"], f"Fuse (Difference): expected only the Cube, got {meshes()}")
+    check(mode() == "SCULPT", f"Fuse (Difference): expected to end in Sculpt Mode, got {mode()}")
+    yield undo()
+    check(meshes() == ["Cube", "Cube.001"], f"undo Fuse (Difference): expected both cubes, got {meshes()}")
+    check(mode() == "SCULPT", f"undo Fuse (Difference): expected Sculpt Mode, got {mode()}")
+    yield redo()
+    check(meshes() == ["Cube"], f"redo Fuse (Difference): expected only the Cube, got {meshes()}")
+    check(mode() == "SCULPT", f"redo Fuse (Difference): expected Sculpt Mode, got {mode()}")
 
 
 def local_transform_undo():
@@ -368,8 +463,13 @@ def pen_hold_momentary_brush():
 SCENARIOS = [
     detour_add_mesh,
     detour_add_mesh_adjust_last,
+    detour_repeat_from_object_mode,
     detour_join,
     detour_delete,
+    detour_delete_last_mesh,
+    detour_duplicate,
+    detour_fuse,
+    detour_fuse_difference,
     local_transform_undo,
     local_transform_adjust_last,
     hop_modes,
@@ -383,9 +483,7 @@ SCENARIOS = [
 # Scenarios that fail on purpose because of a known bug, with the reason. They report XFAIL and don't fail the
 # run; once the bug is fixed they report XPASS, which does, so the entry gets removed.
 KNOWN_FAILURES = {
-    "detour_add_mesh_adjust_last": "Add Mesh ends in Object Mode after Adjust Last Operation: the repeat runs before "
-    "Sculpt Mode is restored, and Add Mesh takes the mode it finishes in from the current one",
-    "hop_array_apply_dyntopo_undo": "leaving and entering Sculpt Mode with Dyntopo on pushes Blender's own "
+    "hop_array_apply_dyntopo_undo": "#17: leaving and entering Sculpt Mode with Dyntopo on pushes Blender's own "
     "Dynamic topology disable and enable steps, so the Hop shows in the undo history: one undo leaves the array "
     "applied, the next brings it back with Dyntopo off",
 }
