@@ -1,48 +1,49 @@
 # type: ignore
-"""The Control Zones sidebar panel: the touch navigation settings."""
+"""The touch navigation settings in the sidebar: the input mode at the top of the main panel, and the Control Zones
+panel."""
 
 import bpy
 from bpy.types import Panel
 
 from ..core.preferences import preferences
-from ..core.ui import SculptDeckPanel
+from ..core.ui import SCULPT_DECK_PT_view_3d_panel, SculptDeckPanel
+from .settings import draw_control_zones, draw_input_mode, navigation_settings
+
+
+def draw_main_panel(self, context):
+    self.layout.use_property_decorate = False
+    draw_input_mode(self.layout, navigation_settings(), description_as_label=True)
 
 
 class SCULPT_DECK_PT_control_zones(SculptDeckPanel, Panel):
     bl_label = "Control Zones"
-    bl_order = 10
+    bl_order = 10  # see SculptDeckPanel in core/ui.py
     bl_parent_id = "SCULPT_DECK_PT_view_3d_panel"
     bl_options = {"DEFAULT_CLOSED"}
 
     def draw_header(self, context):
-        prefs = preferences()
-
         layout = self.layout
         layout.use_property_decorate = False
 
-        layout.prop(prefs, "is_enabled", text="")
+        layout.prop(navigation_settings(), "is_enabled", text="")
 
     def draw(self, context):
         layout = self.layout
         layout.use_property_decorate = False
 
-        prefs = preferences()
+        settings = navigation_settings()
 
-        layout.active = prefs.is_enabled
+        layout.active = settings.is_enabled
         layout.use_property_split = True
 
-        col = layout.column(align=True)
-        col.prop(prefs, "isVisible", text="Show Overlay")
-        col.prop(prefs, "swap_panrotate")
-        col.prop(prefs, "tap_to_switch")
-        col.prop(prefs, "use_multiple_colors")
-
-        col = layout.column()
-        col.prop(prefs, "overlay_main_color", text="Main Color")
-        if prefs.use_multiple_colors:
-            col.prop(prefs, "overlay_secondary_color", text="Secondary Color")
-        col.prop(prefs, "width", slider=True)
-        col.prop(prefs, "radius", slider=True)
+        draw_control_zones(layout, settings, preferences().object_tap)
 
 
-register, unregister = bpy.utils.register_classes_factory((SCULPT_DECK_PT_control_zones,))
+def register():
+    bpy.utils.register_class(SCULPT_DECK_PT_control_zones)
+    SCULPT_DECK_PT_view_3d_panel.append(draw_main_panel)
+
+
+def unregister():
+    SCULPT_DECK_PT_view_3d_panel.remove(draw_main_panel)
+    bpy.utils.unregister_class(SCULPT_DECK_PT_control_zones)

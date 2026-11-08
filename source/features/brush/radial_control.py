@@ -15,7 +15,7 @@ class BrushRadialControl:
     prop = ""
 
     def invoke(self, context, event):
-        prefs = preferences()
+        prefs = preferences().widget
         # move the cursor away from the bar so the radial control has room
         if prefs.menu_style in {"fixed.bar"}:
             if prefs.gizmo_position in ["LEFT", "RIGHT"]:

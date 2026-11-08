@@ -60,8 +60,7 @@ def apply(data: dict):
         prefs.from_dict({**data, **kept})
     finally:
         _loading = False
-    prefs.ensureMenuSets()
-    prefs.ensurePenSets()
+    prefs.ensure()
 
 
 def read(filename: str) -> dict | None:
@@ -83,8 +82,7 @@ def load_defaults():
             prefs.from_dict(data)
         finally:
             _loading = False
-    prefs.ensureMenuSets()
-    prefs.ensurePenSets()
+    prefs.ensure()
     _defaults = current()
     update_state()
 

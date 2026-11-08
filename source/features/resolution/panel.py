@@ -4,8 +4,8 @@
 import bpy
 from bpy.types import Panel
 
-from ...core.preferences import preferences
 from ...core.ui import SculptDeckPanel
+from .settings import resolution_settings
 
 
 class SCULPT_DECK_PT_tool_settings(SculptDeckPanel, Panel):
@@ -15,13 +15,11 @@ class SCULPT_DECK_PT_tool_settings(SculptDeckPanel, Panel):
     bl_options = {"DEFAULT_CLOSED"}
 
     def draw(self, context):
-        prefs = preferences()
-
         layout = self.layout
         layout.use_property_decorate = False
         layout.use_property_split = True
 
-        layout.prop(prefs, "subdivision_limit", slider=True)
+        layout.prop(resolution_settings(), "subdivision_limit", slider=True)
 
 
 register, unregister = bpy.utils.register_classes_factory((SCULPT_DECK_PT_tool_settings,))

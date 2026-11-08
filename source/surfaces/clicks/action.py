@@ -4,8 +4,9 @@ import bpy
 from bpy.types import Operator
 
 from ...core.constants import FINISHED, LMOUSE, PASSTHROUGH, PEN, PRESS
-from ...core.preferences import preferences
 from ..pen.button import BindingRunner
+from ..pen.settings import pen_settings
+from .settings import click_settings
 
 RMOUSE = "RIGHTMOUSE"
 
@@ -25,10 +26,9 @@ def is_touch(event):
 
 def click_binding(context, slot: str):
     """The right click or double click action for the current mode, or None to leave the click to Blender"""
-    prefs = preferences()
-    if not getattr(prefs, "enable_" + slot):
+    if not getattr(click_settings(), "enable_" + slot):
         return None
-    pen_set = prefs.getPenSet(context.mode)
+    pen_set = pen_settings().getPenSet(context.mode)
     binding = getattr(pen_set, slot) if pen_set is not None else None
     if binding is None or binding.action == "DEFAULT":
         return None

@@ -16,6 +16,7 @@ from ..core.constants import FINISHED, PASSTHROUGH, PEN, PRESS, brush_modes
 from ..core.preferences import preferences
 from ..features.object_tap import tap
 from ..surfaces.clicks.action import is_touch
+from .settings import navigation_settings
 
 input_mode_items = [
     ("ORBIT", "Rotate", "Rotate the viewport"),
@@ -26,7 +27,7 @@ input_mode_items = [
 
 def zone_mode(context, x: float, y: float) -> str:
     """ORBIT, PAN or DOLLY for a touch at x, y of the region"""
-    prefs = preferences()
+    prefs = navigation_settings()
     region = context.region
     mid_point = Vector((region.width / 2, region.height / 2))
     dolly_wid = mid_point.x * prefs.getWidth()
@@ -49,7 +50,7 @@ def zone_mode(context, x: float, y: float) -> str:
 
 def navigate(context, mode: str, x: float, y: float):
     if context.mode == "SCULPT":
-        bpy.ops.sculpt.set_pivot_position(mode=preferences().pivot_mode)
+        bpy.ops.sculpt.set_pivot_position(mode=preferences().interface.pivot_mode)
     if mode == "DOLLY":
         bpy.ops.view3d.zoom("INVOKE_DEFAULT")  # type: ignore
     elif mode == "ORBIT":
@@ -62,7 +63,7 @@ def navigate(context, mode: str, x: float, y: float):
 
 def takes(context, event) -> bool:
     """Whether touch navigation takes this press"""
-    prefs = preferences()
+    prefs = navigation_settings()
 
     # experimental passthrough in drawing mode
     if (

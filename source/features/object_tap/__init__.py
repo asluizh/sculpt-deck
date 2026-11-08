@@ -4,10 +4,11 @@ workflow, not navigation (ADR 0001); see tap.py for how it shares a touch with n
 from types import ModuleType
 
 from ...core import register_parts, unregister_parts
-from . import tap
+from . import settings, tap
 
 # modules with register()/unregister(), registered in this order and unregistered in reverse
 PARTS: list[ModuleType] = [
+    settings,
     tap,
 ]
 

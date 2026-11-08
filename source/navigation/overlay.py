@@ -7,7 +7,7 @@ import gpu
 from gpu_extras.batch import batch_for_shader
 from mathutils import Vector
 
-from ..core.preferences import preferences
+from .settings import navigation_settings
 
 
 class Overlay:
@@ -27,7 +27,7 @@ class Overlay:
         return Vector((view.width * scalar, view.height * scalar))
 
     def __getColors(self, type: str):
-        prefs = preferences()
+        prefs = navigation_settings()
         if not prefs.is_enabled and not prefs.lazy_mode:
             return (0.0, 0.0, 0.0, 0.0)
         if type == "main" or not prefs.use_multiple_colors:
@@ -44,7 +44,7 @@ class Overlay:
         self.meshes.append(_handle)
 
     def __renderRailing(self):
-        prefs = preferences()
+        prefs = navigation_settings()
         if not prefs.isVisible:
             return
 
@@ -54,7 +54,7 @@ class Overlay:
                 self.__makeBox(region, self.__getColors("main"))
 
     def __makeBox(self, view: bpy.types.Region, color: tuple[float, float, float, float]):
-        prefs = preferences()
+        prefs = navigation_settings()
         mid = self.__getMidpoint(view)
         dimensions = self.__getSize(view)
         left_rail = (
@@ -76,7 +76,7 @@ class Overlay:
         self.__drawGeometry(vertices, indices, color, "TRIS")
 
     def __renderCircle(self):
-        prefs = preferences()
+        prefs = navigation_settings()
         if not prefs.isVisible:
             return
 
@@ -86,7 +86,7 @@ class Overlay:
                 self.__makeCircle(region, self.__getColors("secondary"))
 
     def __makeCircle(self, view: bpy.types.Region, color: tuple[float, float, float, float]):
-        prefs = preferences()
+        prefs = navigation_settings()
         mid = self.__getMidpoint(view)
         radius = math.dist((0, 0), mid) * (prefs.getRadius() * 0.5)  # type: ignore
         self.__drawCircle(mid, radius, color)

@@ -3,10 +3,9 @@
 bottom."""
 
 import bpy
-from bpy.types import Panel, UILayout
+from bpy.types import Panel
 
 from . import settings
-from .preferences import preferences
 
 
 # Every sidebar sub-panel of SCULPT_DECK_PT_view_3d_panel sets its place with bl_order, spaced in tens, wherever
@@ -20,29 +19,11 @@ class SculptDeckPanel:
     bl_category = "Sculpt Deck"
 
 
+# the parts draw into it with append (navigation's input mode) or as sub-panels
 class SCULPT_DECK_PT_view_3d_panel(SculptDeckPanel, Panel):
-    # bl_label = "Sculpt Deck Settings"
 
     def draw(self, context):
-        prefs = preferences()
-
-        layout = self.layout
-        layout.use_property_decorate = False
-
-        box = layout.box()
-        box.label(
-            text=UILayout.enum_item_description(prefs, "input_mode", prefs.input_mode),
-            icon_value=UILayout.enum_item_icon(prefs, "input_mode", prefs.input_mode),
-        )
-
-        row = box.row()
-        row.prop(prefs, "input_mode", expand=True)
-
-        col = box.column(align=True)
-        col.use_property_split = True
-        col.prop(prefs, "lazy_mode")
-        if prefs.input_mode == "FULL":
-            col.prop(prefs, "enable_floating_toggle")
+        self.layout.use_property_decorate = False
 
 
 def draw_default_settings(layout):

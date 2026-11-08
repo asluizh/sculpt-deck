@@ -5,7 +5,7 @@ import bpy
 from bpy.types import Operator
 
 from ...core.constants import CANCEL, FINISHED
-from ...core.preferences import preferences
+from .settings import resolution_settings
 
 
 class SCULPT_DECK_OT_increase_multires(Operator):
@@ -15,7 +15,7 @@ class SCULPT_DECK_OT_increase_multires(Operator):
     bl_idname = "sculpt_deck.increment_multires"
 
     def execute(self, context):
-        prefs = preferences()
+        prefs = resolution_settings()
         if not context.active_object or not len(context.active_object.modifiers):
             return CANCEL
         for mod in context.active_object.modifiers:

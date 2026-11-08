@@ -1,12 +1,15 @@
 # type: ignore
 """Pen button settings per mode: a click and a hold for each button, plus the mouse/touch right click and double
-click, which offer the actions of a pen button click. Saved with the add-on preferences (pen_sets)."""
+click, which offer the actions of a pen button click. Held by the add-on preferences as `preferences().pen`."""
 
 import bpy
-from bpy.props import EnumProperty, PointerProperty, StringProperty
-from bpy.types import PropertyGroup
+from bpy.props import CollectionProperty, EnumProperty, PointerProperty, StringProperty
+from bpy.types import PropertyGroup, UILayout
 
 from ...core.actions import GESTURES, enum_items
+from ...core.constants import pie_mode_items
+from ...core.preferences import add_section, preferences, remove_section
+from ..action_slots import find_mode_set
 
 # pen side buttons arrive as mouse buttons with event.is_tablet set
 pen_buttons = {
@@ -35,7 +38,7 @@ pen_defaults = {
 
 
 # the Action List of a pen button click or hold, a double click or a right click; a gesture
-# not set yet (ensurePenSets sets it) reads as a click
+# not set yet (SCULPT_DECK_PG_PenSettings.ensure sets it) reads as a click
 def pen_actions(binding, _):
     gesture = binding.gesture if binding.gesture in GESTURES else "PEN_CLICK"
     return enum_items(gesture, binding.mode)
@@ -108,11 +111,89 @@ class SCULPT_DECK_PG_PenModeSet(PropertyGroup):
             binding.from_dict(data.get(slot, {"action": click_defaults.get(slot, "DEFAULT")}))
 
 
-# registered before the add-on preferences, which hold them in pen_sets
+class SCULPT_DECK_PG_PenSettings(PropertyGroup):
+    pen_sets: CollectionProperty(type=SCULPT_DECK_PG_PenModeSet)
+
+    pen_mode_tab: EnumProperty(
+        name="Buttons for Mode",
+        items=pie_mode_items,
+        default="SCULPT",
+    )
+
+    # the pen set of a mode, e.g. context.mode; modes without their own share one
+    def getPenSet(self, mode: str):
+        return find_mode_set(self.pen_sets, mode)
+
+    def ensure(self):
+        # modes, not the sets: adding to a collection can move its items
+        new_modes = []
+        for mode, _, _ in pie_mode_items:
+            if self.getPenSet(mode) is None:
+                self.pen_sets.add().mode = mode
+                new_modes.append(mode)
+        for pen_set in self.pen_sets:
+            for slot, binding in pen_set.all_bindings():
+                binding.mode = pen_set.mode
+                binding.gesture = slot.upper() if slot in click_slots else "PEN_" + slot.rsplit("_", 1)[1].upper()
+                # actions no longer offered for this button/gesture
+                if binding.action == "":
+                    binding.action = "DEFAULT"
+        for mode in new_modes:
+            pen_set = self.getPenSet(mode)
+            for slot in click_slots:
+                getattr(pen_set, slot).action = click_defaults[slot]
+            for slot, action in pen_defaults.get(mode, {}).items():
+                binding = getattr(pen_set, slot)
+                if isinstance(action, tuple):
+                    binding.action, ref = action
+                    binding.setBrushRef(ref)
+                else:
+                    binding.action = action
+
+    # pen_mode_tab is only the open tab, not a setting
+    def to_dict(self):
+        return {"pen_sets": [p.to_dict() for p in self.pen_sets]}
+
+    def from_dict(self, data: dict):
+        self.ensure()
+        for saved in data.get("pen_sets", []):
+            pen_set = self.getPenSet(saved.get("mode"))
+            if pen_set is not None:
+                pen_set.from_dict(saved)
+        # the old "pen" right click source becomes an upper pen button binding
+        if data.get("right_click_source") == "PEN" and "pen_sets" not in data:
+            for pen_set in self.pen_sets:
+                pen_set.upper_click.action = "CUSTOM"
+                pen_set.upper_click.operator = data.get("right_click_mode", "wm.window_fullscreen_toggle")
+
+
+def pen_settings() -> SCULPT_DECK_PG_PenSettings:
+    return preferences().pen
+
+
+def draw_preferences(layout: UILayout, settings):
+    from .panel import draw_pen_buttons
+
+    col = layout.column()
+    col.prop(settings, "pen_mode_tab")
+    draw_pen_buttons(col, settings.pen_mode_tab)
+
+
+# the bindings and pen sets before the settings that hold them
 classes = (
     SCULPT_DECK_PG_PenBinding,
     SCULPT_DECK_PG_PenModeSet,
+    SCULPT_DECK_PG_PenSettings,
 )
 
 
-register, unregister = bpy.utils.register_classes_factory(classes)
+def register():
+    for cls in classes:
+        bpy.utils.register_class(cls)
+    add_section("pen", SCULPT_DECK_PG_PenSettings, draw_preferences, tab="PEN", order=60)
+
+
+def unregister():
+    remove_section("pen")
+    for cls in reversed(classes):
+        bpy.utils.unregister_class(cls)

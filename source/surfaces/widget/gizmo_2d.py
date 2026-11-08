@@ -3,8 +3,8 @@ from mathutils import Matrix, Vector
 
 from ...core.actions import TOOL_PREFIX, find
 from ...core.invoke import operator_exists
-from ...core.preferences import preferences
-from .gizmo_config import gizmo_colors, toggle_colors
+from .gizmo_config import gizmo_colors
+from .settings import widget_settings
 
 # toggles whose widget icon follows their state: context path, on icon, off icon
 action_toggles = {
@@ -49,7 +49,7 @@ class GizmoSet:
         self.primary = self.__buildGizmo(config["command"], config["icon"])
 
     def draw_prepare(self):
-        prefs = preferences()
+        prefs = widget_settings()
         self.hidden = not prefs.show_gizmos
         self.skip_draw = False
         self.__updatevisible()
@@ -69,12 +69,12 @@ class GizmoSet:
         self.primary.matrix_basis = Matrix.Translation(position)
 
     def __updatevisible(self):
-        if not preferences().show_menu and self.binding["name"] not in ["float_menu"]:
+        if not widget_settings().show_menu and self.binding["name"] not in ["float_menu"]:
             self.visible = False
             self.primary.hide = True
             return
         if self.binding["location"] == "prefs":
-            self.visible = getattr(preferences(), "show_" + self.binding["name"]) and self.binding["name"] in preferences().getGizmoSet(
+            self.visible = getattr(widget_settings(), "show_" + self.binding["name"]) and self.binding["name"] in widget_settings().getGizmoSet(
                 bpy.context.mode
             )
 
@@ -83,7 +83,7 @@ class GizmoSet:
         self.primary.hide = not self.visible
 
     def __visibilityLock(self) -> bool:
-        if preferences().menu_style == "fixed.bar":
+        if widget_settings().menu_style == "fixed.bar":
             return True
         return not self.hidden
 
@@ -135,66 +135,6 @@ class GizmoSet:
         gizmo.color_highlight = gizmo_colors["active"]["color_highlight"]
         gizmo.alpha = gizmo_colors["active"]["alpha"]
         gizmo.alpha_highlight = gizmo_colors["active"]["alpha_highlight"]
-
-
-class GizmoSetBoolean(GizmoSet):
-    def setup(self, group: bpy.types.GizmoGroup, config: dict):
-        self.visible = True
-        self.config = config
-        self.has_dependent = "has_dependent" in config or False
-        self.group = group
-        self.scale = config["scale"] if ("scale" in config) else 14
-        self.binding = config["binding"]
-        self.has_attribute_bind = self.binding["attribute"] if "attribute" in self.binding else False
-        self.onGizmo = self._GizmoSet__buildGizmo(config["command"], config["onIcon"])  # type: ignore
-        self.offGizmo = self._GizmoSet__buildGizmo(config["command"], config["offIcon"])  # type: ignore
-        self.__setActiveGizmo(True)
-
-    def __setActiveGizmo(self, state: bool):
-        self.onGizmo.hide = True
-        self.offGizmo.hide = True
-        self.primary = self.onGizmo if state else self.offGizmo
-
-    def draw_prepare(self):
-        prefs = preferences()
-        self.hidden = not prefs.show_gizmos
-        self.skip_draw = False
-        self.__updatevisible()
-        self.primary.scale_basis = 18 * prefs.gizmo_scale
-        self.primary.use_grab_cursor = False
-        if self.binding["name"] == "float_toggle":
-            self.__setToggleColors(self.primary)
-
-    def __updatevisible(self):
-        prefs = preferences()
-        bind = self.binding
-        # the floating toggle is a standalone button, independent of the gizmo menu
-        if bind["name"] == "float_toggle":
-            self.visible = prefs.input_mode != "FULL" or prefs.enable_floating_toggle
-            self.__setActiveGizmo(prefs.is_enabled)
-            self.primary.hide = not self.visible
-            return
-        if not preferences().show_menu and (bind["name"] not in ["float_menu"]):
-            self.visible = False
-            self.primary.hide = True
-            return
-        self.visible = getattr(preferences(), "show_" + self.binding["name"])
-
-        if self.visible:
-            self.visible = (
-                self._GizmoSet__visibilityLock()  # type: ignore
-                and not self._GizmoSet__checkAttributeBind()  # type: ignore
-            )  # type: ignore
-
-        self.__setActiveGizmo(self._GizmoSet__findAttribute(bind["location"], bind["name"]))  # type: ignore
-        self.primary.hide = not self.visible
-
-    def __setToggleColors(self, gizmo: bpy.types.Gizmo):
-        mode = "active" if preferences().is_enabled else "inactive"
-        gizmo.color = toggle_colors[mode]["color"]
-        gizmo.color_highlight = toggle_colors[mode]["color_highlight"]
-        gizmo.alpha = toggle_colors[mode]["alpha"]
-        gizmo.alpha_highlight = toggle_colors[mode]["alpha_highlight"]
 
 
 class GizmoSetEnum(GizmoSet):
@@ -272,7 +212,7 @@ class ActionGizmo:
             self.primary.target_set_operator(idname)
 
     def draw_prepare(self, context):
-        prefs = preferences()
+        prefs = widget_settings()
         self.skip_draw = False
         self.visible = (
             prefs.show_menu

@@ -7,7 +7,7 @@ from bpy.props import EnumProperty, StringProperty
 from bpy.types import PropertyGroup, UILayout
 
 from ..core.actions import enum_items
-from ..core.constants import pie_mode
+from ..core.constants import pie_mode, pie_mode_aliases, pie_mode_items
 
 WIDGET_SLOTS = 12
 
@@ -107,6 +107,33 @@ class SCULPT_DECK_PG_MenuModeGroup(PropertyGroup):
             self.setSlot(slot, data.get(f"menu_slot_{slot}", ""))
 
 
+def find_mode_set(collection, mode: str):
+    """The slots of a mode, e.g. context.mode, in a collection of mode groups; modes without their own share one"""
+    mode = pie_mode(mode)
+    for mode_set in collection:
+        if mode_set.mode == mode:
+            return mode_set
+    return None
+
+
+def ensure_mode_sets(collection, defaults: dict, kind: str):
+    """A group of slots for every mode, the missing ones with the defaults of the kind (WIDGET or PIE)"""
+    for mode_set in collection:
+        mode_set.kind = kind
+        alias = pie_mode_aliases.get(mode_set.mode)
+        if alias is not None and find_mode_set(collection, alias) is None:
+            mode_set.mode = alias
+    for mode, _, _ in pie_mode_items:
+        if find_mode_set(collection, mode) is None:
+            mode_set = collection.add()
+            mode_set.mode = mode
+            mode_set.kind = kind
+            for slot, idname in enumerate(defaults.get(mode, ()), 1):
+                mode_set.setSlot(slot, idname)
+    for mode_set in collection:
+        mode_set.migrate()
+
+
 # shared by the sidebar panels and the add-on preferences
 def draw_action_slots(layout: UILayout, mode_set, slots, labels):
     col = layout.column()
@@ -117,7 +144,7 @@ def draw_action_slots(layout: UILayout, mode_set, slots, labels):
             col.prop(mode_set, f"menu_slot_{slot}", text=" ", placeholder="e.g. object.shade_smooth or VIEW3D_MT_add")
 
 
-# registered before the add-on preferences, whose menu_sets and widget_sets hold it
+# registered before the pie and widget settings, whose menu_sets and widget_sets hold it
 classes = (SCULPT_DECK_PG_MenuModeGroup,)
 
 

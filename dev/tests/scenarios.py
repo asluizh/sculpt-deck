@@ -746,8 +746,8 @@ def pen_click_brush():
     """A click of a pen button bound to a brush switches to it for good"""
     yield from reset()
     pen_events()
-    upper = prefs().getPenSet("SCULPT").upper_click
-    hold = prefs().getPenSet("SCULPT").upper_hold
+    upper = prefs().pen.getPenSet("SCULPT").upper_click
+    hold = prefs().pen.getPenSet("SCULPT").upper_hold
     saved = bind({(upper, "action"): "BRUSH", (hold, "action"): "NONE"})
     old_ref = upper.brushRef()
     upper.setBrushRef(SMOOTH)
@@ -771,7 +771,7 @@ def pen_hold_momentary_tool():
     """A hold of a pen button bound to a Momentary tool uses it while held, and puts the brush tool back"""
     yield from reset()
     pen_events()
-    pen_set = prefs().getPenSet("SCULPT")
+    pen_set = prefs().pen.getPenSet("SCULPT")
     saved = bind({(pen_set.upper_click, "action"): "NONE", (pen_set.upper_hold, "action"): "TOOL:builtin.box_mask"})
     try:
         before = tool()
@@ -792,8 +792,8 @@ def right_click_action():
     """A mouse right click runs the right click action set for the mode, here a tool"""
     yield from reset()
     pen_events(pen=False)
-    pen_set = prefs().getPenSet("SCULPT")
-    saved = bind({(prefs(), "enable_right_click"): True, (pen_set.right_click, "action"): "TOOL:builtin.box_mask"})
+    pen_set = prefs().pen.getPenSet("SCULPT")
+    saved = bind({(prefs().clicks, "enable_right_click"): True, (pen_set.right_click, "action"): "TOOL:builtin.box_mask"})
     try:
         check(tool() == "builtin.brush", f"setup: expected the brush tool, got {tool()}")
         simulate("MOUSEMOVE", "NOTHING")
@@ -812,8 +812,8 @@ def double_click_action():
     DOUBLE_CLICK event, so this goes through the touch tap handling, which runs the double click action itself"""
     yield from reset()
     pen_events(pen=False)
-    pen_set = prefs().getPenSet("SCULPT")
-    saved = bind({(prefs(), "enable_double_click"): True, (pen_set.double_click, "action"): "TOOL:builtin.box_mask"})
+    pen_set = prefs().pen.getPenSet("SCULPT")
+    saved = bind({(prefs().clicks, "enable_double_click"): True, (pen_set.double_click, "action"): "TOOL:builtin.box_mask"})
     try:
         check(tool() == "builtin.brush", f"setup: expected the brush tool, got {tool()}")
         simulate("MOUSEMOVE", "NOTHING")
@@ -918,6 +918,92 @@ def navigation_touch_drag():
     check(after_vertices == before_vertices, "the drags sculpted the Cube")
 
 
+def navigation_floating_toggle():
+    """A tap on the floating toggle turns touch controls off, a second one back on, and the button stays put"""
+    yield from reset()
+    toggle = sys.modules[PACKAGE + ".source.navigation.toggle"]
+    group_class = toggle.SCULPT_DECK_GGT_touch_toggle
+    settings = prefs().navigation
+    saved = bind({(settings, "enable_floating_toggle"): True, (settings, "input_mode"): "FULL"})
+    found = []
+    original = group_class.draw_prepare
+
+    def draw_prepare(self, context):
+        original(self, context)
+        found.append(self)
+
+    group_class.draw_prepare = draw_prepare
+    try:
+        position = tuple(settings.toggle_position)
+        before = settings.is_enabled
+        for expected in (not before, before):
+            found.clear()
+            for _ in range(20):
+                _window, area, _region = view3d()
+                area.tag_redraw()
+                yield 0.1
+                if found:
+                    break
+            check(bool(found), "the floating toggle's gizmo group didn't draw")
+            group = found[-1]
+            button = group.on if settings.is_enabled else group.off
+            check(not button.hide, "the floating toggle is hidden")
+            window, _area, region = view3d()
+            point = button.matrix_basis.translation
+            x, y = region.x + round(point.x), region.y + round(point.y)
+            window.event_simulate("MOUSEMOVE", "NOTHING", x=x, y=y)
+            yield 0.3
+            window.event_simulate("LEFTMOUSE", "PRESS", x=x, y=y)
+            yield 0.05
+            window.event_simulate("LEFTMOUSE", "RELEASE", x=x, y=y)
+            yield 0.5
+            check(settings.is_enabled == expected, f"floating toggle tap: expected touch controls on = {expected}")
+            check(tuple(settings.toggle_position) == position, "floating toggle tap: the button moved")
+    finally:
+        group_class.draw_prepare = original
+        unbind(saved)
+
+
+def preferences_draw():
+    """The add-on's preferences draw every section, in each tab, without an error. Drawn the way the Preferences
+    window draws them, into the 3D View's header, which always draws"""
+    from bl_ui.space_userpref import USERPREF_PT_addons
+
+    prefs_class = type(prefs())
+    drawn, errors = [], []
+    original = prefs_class.draw
+
+    def draw(self, context):
+        try:
+            original(self, context)
+            drawn.append(self.gizmo_tabs)
+        except Exception as error:
+            errors.append(f"{self.gizmo_tabs}: {error!r}")
+            raise
+
+    def draw_in_header(header, context):
+        USERPREF_PT_addons.draw_addon_preferences(header.layout.column(), context, prefs())
+
+    prefs_class.draw = draw
+    bpy.types.VIEW3D_HT_header.append(draw_in_header)
+    saved = bind({(prefs(), "gizmo_tabs"): "GIZMO"})
+    try:
+        for tab in ("GIZMO", "ACTIONS", "PEN"):
+            prefs().gizmo_tabs = tab
+            _window, area, _region = view3d()
+            area.tag_redraw()
+            yield 0.3
+        check(not errors, f"the preferences failed to draw: {errors}")
+        check(set(drawn) == {"GIZMO", "ACTIONS", "PEN"}, f"the preferences drew only the tabs {sorted(set(drawn))}")
+    finally:
+        bpy.types.VIEW3D_HT_header.remove(draw_in_header)
+        prefs_class.draw = original
+        unbind(saved)
+        _window, area, _region = view3d()
+        area.tag_redraw()
+        yield 0.3
+
+
 SCENARIOS = [
     detour_add_mesh,
     detour_add_mesh_adjust_last,
@@ -954,6 +1040,8 @@ SCENARIOS = [
     object_tap_switches_object,
     object_tap_long_press_toggles_selection,
     navigation_touch_drag,
+    navigation_floating_toggle,
+    preferences_draw,
 ]
 
 # Scenarios that fail on purpose because of a known bug, with the reason. They report XFAIL and don't fail the

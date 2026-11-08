@@ -11,9 +11,8 @@ from ...core.actions import TOOL_PREFIX, is_momentary
 from ...core.blender import ui_scale
 from ...core.constants import CANCEL, FINISHED, MODAL, PASSTHROUGH, PRESS
 from ...core.invoke import active_tool, invoke_action, set_tool
-from ...core.preferences import preferences
 from ...features.brush.history import activate_brush, brush_name, brush_ref, history, paint_settings
-from .settings import pen_buttons
+from .settings import pen_buttons, pen_settings
 
 # the brush choices of a pen button, which switch brushes (see core/actions.py)
 pen_brush_actions = {"BRUSH_PREVIOUS", "BRUSH"}
@@ -109,7 +108,7 @@ class SCULPT_DECK_OT_pen_button(BindingRunner, Operator):
     def invoke(self, context, event):
         if not is_pen(event) or event.value != "PRESS" or event.type not in pen_buttons:
             return PASSTHROUGH
-        pen_set = preferences().getPenSet(context.mode)
+        pen_set = pen_settings().getPenSet(context.mode)
         if pen_set is None:
             return PASSTHROUGH
         self.button_type = event.type
@@ -254,7 +253,7 @@ class SCULPT_DECK_OT_pen_use_active_brush(Operator):
     slot: StringProperty()  # type: ignore
 
     def execute(self, context):
-        pen_set = preferences().getPenSet(self.mode)
+        pen_set = pen_settings().getPenSet(self.mode)
         ref = brush_ref(paint_settings(context, self.mode))
         if pen_set is None or ref is None:
             self.report({"WARNING"}, "No active brush to use")

@@ -1,5 +1,4 @@
-"""The Widget's operators: moving and folding the widget, opening a button's menu, and the floating touch toggle
-that shares its gizmo group."""
+"""The Widget's operators: moving and folding the widget, and opening a button's menu."""
 
 import time
 
@@ -12,7 +11,7 @@ from ...core.actions import find
 from ...core.blender import safe_area_3d
 from ...core.constants import FINISHED, MODAL, PASSTHROUGH
 from ...core.invoke import invoke_action
-from ...core.preferences import preferences
+from .settings import widget_settings
 
 # a widget press held this long opens its menu before the release
 MENU_HOLD_TIME = 0.3
@@ -26,7 +25,7 @@ class SCULPT_DECK_OT_move_float_menu(Operator):
 
     def invoke(self, context, event):
         self.has_moved = False
-        prefs = preferences()
+        prefs = widget_settings()
         fence = safe_area_3d(padding=90)
         span = Vector((fence[1].x - fence[0].x, fence[1].y - fence[0].y))
 
@@ -46,7 +45,7 @@ class SCULPT_DECK_OT_move_float_menu(Operator):
         return MODAL
 
     def execute(self, context):
-        prefs = preferences()
+        prefs = widget_settings()
         fence = safe_area_3d(padding=90)
         span = Vector((fence[1].x - fence[0].x, fence[1].y - fence[0].y))
 
@@ -55,7 +54,7 @@ class SCULPT_DECK_OT_move_float_menu(Operator):
         return FINISHED
 
     def modal(self, context, event):
-        prefs = preferences()
+        prefs = widget_settings()
         if event.type == "MOUSEMOVE" and event.value != "RELEASE":  # Apply
             context.region.tag_redraw()
             self.x = event.mouse_region_x
@@ -70,75 +69,7 @@ class SCULPT_DECK_OT_move_float_menu(Operator):
         return MODAL
 
     def __hasMoved(self) -> bool:
-        prefs = preferences()
-        init = Vector((self.mouse_init_x, self.mouse_init_y))
-        final = Vector((self.x, self.y))
-        if (final - init).length > prefs.menu_spacing / 2:
-            return True
-        return False
-
-
-class SCULPT_DECK_OT_float_controller(Operator):
-    """Tap to toggle touch controls, drag to move this button"""
-
-    bl_label = "Relocate Toggle Button"
-    bl_idname = "sculpt_deck.move_toggle_button"
-
-    def invoke(self, context, event):
-        self.has_moved = False
-        prefs = preferences()
-        fence = safe_area_3d()
-
-        span = Vector((fence[1].x - fence[0].x, fence[1].y - fence[0].y))
-        self.init_x = prefs.toggle_position[0]
-        self.init_y = prefs.toggle_position[1]
-        self.mouse_init_x = self.x = event.mouse_region_x
-        self.mouse_init_y = self.y = event.mouse_region_y
-        self.offset = Vector(
-            (
-                (span.x * self.init_x * 0.01 + fence[0].x) - self.x,
-                (span.y * self.init_y * 0.01 + fence[0].y) - self.y,
-            )
-        )
-        self.execute(context)
-
-        context.window_manager.modal_handler_add(self)
-        return MODAL
-
-    def execute(self, context):
-        prefs = preferences()
-        fence = safe_area_3d()
-        span = Vector((fence[1].x - fence[0].x, fence[1].y - fence[0].y))
-
-        prefs.toggle_position[0] = min(max((self.x - fence[0].x + self.offset.x) / (span.x) * 100.0, 0.0), 100.0)
-        prefs.toggle_position[1] = min(max((self.y - fence[0].y + self.offset.y) / (span.y) * 100.0, 0.0), 100.0)
-        return FINISHED
-
-    def modal(self, context, event):
-        prefs = preferences()
-        if (
-            event.mouse_region_x < 0
-            or event.mouse_region_y < 0
-            or event.mouse_region_x > context.region.width
-            or event.mouse_region_y > context.region.height
-        ):
-            # mouse out of region area broken in Blender 4.x, exit early
-            return FINISHED
-        if event.type == "MOUSEMOVE" and event.value != "RELEASE":  # Apply
-            context.region.tag_redraw()
-            self.x = event.mouse_region_x
-            self.y = event.mouse_region_y
-            self.execute(context)
-        elif event.value == "RELEASE":  # Confirm
-            if not self.__hasMoved():
-                prefs.toggle_position[0] = self.init_x
-                prefs.toggle_position[1] = self.init_y
-                prefs.is_enabled = not prefs.is_enabled
-            return FINISHED
-        return MODAL
-
-    def __hasMoved(self) -> bool:
-        prefs = preferences()
+        prefs = widget_settings()
         init = Vector((self.mouse_init_x, self.mouse_init_y))
         final = Vector((self.x, self.y))
         if (final - init).length > prefs.menu_spacing / 2:
@@ -186,7 +117,6 @@ class SCULPT_DECK_OT_widget_menu(Operator):
 
 classes = (
     SCULPT_DECK_OT_move_float_menu,
-    SCULPT_DECK_OT_float_controller,
     SCULPT_DECK_OT_widget_menu,
 )
 

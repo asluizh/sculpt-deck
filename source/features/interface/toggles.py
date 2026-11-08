@@ -6,29 +6,7 @@ from bpy.types import Operator
 
 from ...core.constants import CANCEL, FINISHED
 from ...core.preferences import preferences
-
-pivot_items = [
-    ("SURFACE", "Surface", "Sets the pivot position to the surface under the cursor."),
-    (
-        "ACTIVE",
-        "Active Vertex",
-        "Sets the pivot position to the active vertex position.",
-    ),
-    (
-        "UNMASKED",
-        "Unmasked",
-        """
-        Sets the pivot position to the average position of the unmasked
-        vertices.
-     """,
-    ),
-    ("ORIGIN", "Origin", "Sets the pivot to the origin of the sculpt."),
-    (
-        "BORDER",
-        "Mask Border",
-        "Sets the pivot position to the center of the border of the mask.",
-    ),
-]
+from .settings import pivot_items
 
 
 class SCULPT_DECK_OT_flip_tools(Operator):
@@ -64,7 +42,7 @@ class SCULPT_DECK_OT_next_pivot_mode(Operator):
         return context.area.type == "VIEW_3D" and context.region.type == "WINDOW"
 
     def execute(self, context):
-        prefs = preferences()
+        prefs = preferences().interface
         count = 0
         for enum, _, _ in pivot_items:
             if enum == prefs.pivot_mode:

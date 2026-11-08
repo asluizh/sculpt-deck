@@ -85,7 +85,7 @@ def takes_press(context, event) -> bool:
     these on, so the two don't depend on the order of their keymap entries"""
     if event.value != PRESS or event.is_tablet:
         return False
-    if not preferences().tap_to_switch or context.mode not in object_modes:
+    if not preferences().object_tap.tap_to_switch or context.mode not in object_modes:
         return False
     if drag_handoff is not None:
         return drag_handoff.claims(context, event)

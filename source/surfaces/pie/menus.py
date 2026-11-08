@@ -8,8 +8,8 @@ from ...core import actions as catalog
 from ...core.actions import TOOL_PREFIX
 from ...core.constants import pie_mode
 from ...core.invoke import is_pie, operator_exists
-from ...core.preferences import preferences
 from ..action_slots import PIE_SLOTS
+from .settings import pie_settings
 
 
 def draw_pie_slot(pie: UILayout, idname: str):
@@ -49,7 +49,7 @@ class SCULPT_DECK_MT_floating(Menu):
     bl_description = "Sculpt Deck action pie, set up per mode in the sidebar"
 
     def draw(self, context):
-        menu = preferences().getMenuSettings(context.mode)
+        menu = pie_settings().getMenuSettings(context.mode)
         pie = self.layout.menu_pie()
         for slot in PIE_SLOTS:
             draw_pie_slot(pie, menu.slot(slot) if menu else "")

@@ -1,7 +1,7 @@
 """Smoke check, run inside Blender by dev/tests/smoke.sh: enables, disables and re-enables Sculpt Deck, and prints
-what got registered (operators, classes, the sidebar panel order and every Action List) in a stable form. Then
-checks the Action List rules, that an Action added to the catalog appears where it fits, and that settings survive a
-save and load. Not part of the add-on."""
+what got registered (operators, classes, the sidebar panel order, the saved settings keys and every Action List) in
+a stable form. Then checks the Action List rules, that an Action added to the catalog appears where it fits, and
+that settings survive a save and load. Not part of the add-on."""
 
 import json
 import re
@@ -53,15 +53,18 @@ def report(lines: list[str]):
     lines += sorted(name for name in dir(bpy.types) if name.startswith("SCULPT_DECK_"))
     lines.append("# sidebar panels")
     lines += sidebar_panels()
+    # the keys settings are saved under in preferences.json and .blend files, so a moved setting keeps its key
+    lines.append("# settings keys")
+    lines += sorted(prefs.to_dict())
     lines.append("# action lists")
     for surface, sets, gestures in (
-        ("pie", prefs.menu_sets, ("menu_choice_1",)),
-        ("widget", prefs.widget_sets, ("menu_choice_1",)),
+        ("pie", prefs.pie.menu_sets, ("menu_choice_1",)),
+        ("widget", prefs.widget.widget_sets, ("menu_choice_1",)),
     ):
         for group in sorted(sets, key=lambda group: group.mode):
             for gesture in gestures:
                 lines.append(f"{surface} {group.mode}: {' '.join(enum_choices(group, gesture))}")
-    for pen_set in sorted(prefs.pen_sets, key=lambda pen_set: pen_set.mode):
+    for pen_set in sorted(prefs.pen.pen_sets, key=lambda pen_set: pen_set.mode):
         for gesture in ("upper_click", "upper_hold", "lower_click", "lower_hold", "right_click", "double_click"):
             lines.append(f"pen {pen_set.mode} {gesture}: {' '.join(enum_choices(getattr(pen_set, gesture), 'action'))}")
 
@@ -72,10 +75,10 @@ PEN_GESTURES = ("upper_click", "upper_hold", "lower_click", "lower_hold", "right
 def gesture_lists(prefs, mode: str) -> dict[str, list[str]]:
     """Every Action List of one mode, by Gesture, read from the enum properties themselves"""
     lists = {
-        "pie": enum_choices(prefs.getMenuSettings(mode), "menu_choice_1"),
-        "widget": enum_choices(prefs.getWidgetSettings(mode), "menu_choice_1"),
+        "pie": enum_choices(prefs.pie.getMenuSettings(mode), "menu_choice_1"),
+        "widget": enum_choices(prefs.widget.getWidgetSettings(mode), "menu_choice_1"),
     }
-    pen_set = prefs.getPenSet(mode)
+    pen_set = prefs.pen.getPenSet(mode)
     for gesture in PEN_GESTURES:
         lists[gesture] = enum_choices(getattr(pen_set, gesture), "action")
     return lists
@@ -85,7 +88,7 @@ def check_catalog_rules(prefs):
     """The rules hold in every list, and an Action added to the catalog with its traits shows up on every Gesture
     where it fits, with no other edit"""
     catalog = sys.modules[MODULE + ".source.core.actions"]
-    modes = sorted(pen_set.mode for pen_set in prefs.pen_sets)
+    modes = sorted(pen_set.mode for pen_set in prefs.pen.pen_sets)
     for mode in modes:
         for gesture, choices in gesture_lists(prefs, mode).items():
             for idname in choices:
@@ -129,7 +132,7 @@ def check_catalog_rules(prefs):
                 f"{idname}: missing on {sorted(where - found[idname])}, extra on {sorted(found[idname] - where)}"
             )
         # the mode's own Actions come before those of every mode
-        sculpt_pie = enum_choices(prefs.getMenuSettings("SCULPT"), "menu_choice_1")
+        sculpt_pie = enum_choices(prefs.pie.getMenuSettings("SCULPT"), "menu_choice_1")
         assert sculpt_pie.index("smoke.plain") < sculpt_pie.index("SCULPT_DECK_MT_all_actions") < sculpt_pie.index(
             "smoke.every_mode"
         ), "smoke actions out of order"
@@ -141,13 +144,13 @@ def check_catalog_rules(prefs):
 
 def check_round_trip(prefs):
     """Saving the settings and loading them back gives the same settings, choices stored by identifier"""
-    sculpt = prefs.getPenSet("SCULPT")
+    sculpt = prefs.pen.getPenSet("SCULPT")
     sculpt.upper_click.action = "SCULPT_DECK_MT_floating"
     sculpt.lower_hold.action = "TOOL:builtin.box_mask"
     sculpt.double_click.action = "CUSTOM"
     sculpt.double_click.operator = "object.shade_smooth"
-    prefs.getWidgetSettings("OBJECT").setSlot(3, "object.join")
-    prefs.getMenuSettings("SCULPT").setSlot(8, "my.custom_operator")
+    prefs.widget.getWidgetSettings("OBJECT").setSlot(3, "object.join")
+    prefs.pie.getMenuSettings("SCULPT").setSlot(8, "my.custom_operator")
     saved = json.loads(json.dumps(prefs.to_dict()))
     pen = next(pen_set for pen_set in saved["pen_sets"] if pen_set["mode"] == "SCULPT")
     assert pen["upper_click"]["action"] == "SCULPT_DECK_MT_floating", pen["upper_click"]
@@ -158,12 +161,12 @@ def check_round_trip(prefs):
     sculpt.upper_click.action = "DEFAULT"
     sculpt.lower_hold.action = "NONE"
     sculpt.double_click.action = "ed.undo"
-    prefs.getWidgetSettings("OBJECT").setSlot(3, "")
-    prefs.getMenuSettings("SCULPT").setSlot(8, "")
+    prefs.widget.getWidgetSettings("OBJECT").setSlot(3, "")
+    prefs.pie.getMenuSettings("SCULPT").setSlot(8, "")
     settings.apply(saved)
     assert json.loads(json.dumps(prefs.to_dict())) == saved, "settings changed on a save and load"
-    assert prefs.getMenuSettings("SCULPT").slot(8) == "my.custom_operator"
-    assert prefs.getWidgetSettings("OBJECT").slot(3) == "object.join"
+    assert prefs.pie.getMenuSettings("SCULPT").slot(8) == "my.custom_operator"
+    assert prefs.widget.getWidgetSettings("OBJECT").slot(3) == "object.join"
     print("settings round trip checked")
 
 

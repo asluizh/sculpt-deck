@@ -4,7 +4,7 @@ import bpy
 from bpy.types import Operator
 
 from ..core.constants import CANCEL, FINISHED
-from ..core.preferences import preferences
+from .settings import navigation_settings
 
 
 class SCULPT_DECK_OT_toggle_touch_controls(Operator):
@@ -14,7 +14,7 @@ class SCULPT_DECK_OT_toggle_touch_controls(Operator):
     bl_idname = "sculpt_deck.toggle_touch"
 
     def execute(self, context):
-        prefs = preferences()
+        prefs = navigation_settings()
         prefs.is_enabled = not prefs.is_enabled
         context.area.tag_redraw()
         return FINISHED

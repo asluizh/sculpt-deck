@@ -5,8 +5,8 @@ from mathutils import Vector
 
 
 # preference changes made outside the viewport (e.g. in the Preferences window)
-# don't redraw the viewport gizmos on their own
-def redraw_viewports(*_):
+# don't redraw the viewport gizmos on their own; an update callback of the settings
+def redraw_viewports(_settings, _context):
     for window in bpy.context.window_manager.windows:
         for area in window.screen.areas:
             if area.type == "VIEW_3D":
