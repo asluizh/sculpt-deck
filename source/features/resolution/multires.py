@@ -1,11 +1,29 @@
 """Multires Level Up and Down: step the active object's Multires level, subdividing past the highest level (up to
-the Subdivision Limit setting) and unsubdividing below the lowest."""
+the Subdivision Limit setting) and unsubdividing below the lowest.
+
+The levels are modifier settings, which a Sculpt undo step doesn't hold. In Sculpt Mode each press stores a Scene
+Checkpoint first, and its own step is then a whole scene step too (no Blender operator it runs stores a Sculpt
+step), so undo and redo bring back both the levels and the subdivided mesh.
+"""
 
 import bpy
 from bpy.types import Operator
 
+from ...core.checkpoint import store_scene_checkpoint
 from ...core.constants import CANCEL, FINISHED
 from .settings import resolution_settings
+
+
+def multires_modifier(context):
+    obj = context.active_object
+    if not obj:
+        return None
+    return next((mod for mod in obj.modifiers if isinstance(mod, bpy.types.MultiresModifier)), None)
+
+
+def level_name(context) -> str:
+    """The level the current mode shows and sculpts at"""
+    return "sculpt_levels" if context.mode == "SCULPT" else "levels"
 
 
 class SCULPT_DECK_OT_increase_multires(Operator):
@@ -13,27 +31,21 @@ class SCULPT_DECK_OT_increase_multires(Operator):
 
     bl_label = "Increment Multires modifier by 1 or add subdivision level"
     bl_idname = "sculpt_deck.increment_multires"
+    bl_options = {"REGISTER", "UNDO"}
 
     def execute(self, context):
-        prefs = resolution_settings()
-        if not context.active_object or not len(context.active_object.modifiers):
+        mod = multires_modifier(context)
+        if mod is None:
             return CANCEL
-        for mod in context.active_object.modifiers:
-            if isinstance(mod, bpy.types.MultiresModifier):
-                if context.mode == "SCULPT":
-                    if mod.sculpt_levels == mod.total_levels:
-                        if mod.sculpt_levels < prefs.subdivision_limit:
-                            bpy.ops.object.multires_subdivide(modifier=mod.name)
-                    else:
-                        mod.sculpt_levels += 1
-                else:
-                    if mod.levels == mod.total_levels:
-                        if mod.levels < prefs.subdivision_limit:
-                            bpy.ops.object.multires_subdivide(modifier=mod.name)
-                    else:
-                        mod.levels += 1
-                return FINISHED
-        return CANCEL
+        level = getattr(mod, level_name(context))
+        if level == mod.total_levels and level >= resolution_settings().subdivision_limit:
+            return CANCEL
+        store_scene_checkpoint(context, f"Before {self.bl_label}")
+        if level == mod.total_levels:
+            bpy.ops.object.multires_subdivide(modifier=mod.name)
+        else:
+            setattr(mod, level_name(context), level + 1)
+        return FINISHED
 
 
 class SCULPT_DECK_OT_decrease_multires(Operator):
@@ -41,25 +53,19 @@ class SCULPT_DECK_OT_decrease_multires(Operator):
 
     bl_label = "decrement Multires modifier by 1"
     bl_idname = "sculpt_deck.decrement_multires"
+    bl_options = {"REGISTER", "UNDO"}
 
     def execute(self, context):
-        if not context.active_object or not len(context.active_object.modifiers):
+        mod = multires_modifier(context)
+        if mod is None:
             return CANCEL
-        for mod in context.active_object.modifiers:
-            if not isinstance(mod, bpy.types.MultiresModifier):
-                continue
-            if context.mode == "SCULPT":
-                if mod.sculpt_levels == 0:
-                    bpy.ops.object.multires_unsubdivide(modifier=mod.name)
-                else:
-                    mod.sculpt_levels -= 1
-            else:
-                if mod.levels == 0:
-                    bpy.ops.object.multires_unsubdivide(modifier=mod.name)
-                else:
-                    mod.levels -= 1
-            return FINISHED
-        return CANCEL
+        store_scene_checkpoint(context, f"Before {self.bl_label}")
+        level = getattr(mod, level_name(context))
+        if level == 0:
+            bpy.ops.object.multires_unsubdivide(modifier=mod.name)
+        else:
+            setattr(mod, level_name(context), level - 1)
+        return FINISHED
 
 
 classes = (

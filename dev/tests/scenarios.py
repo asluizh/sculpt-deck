@@ -618,15 +618,99 @@ def resolution_density_up():
     yield redo()
     check(vertex_count() == after_count, f"redo Voxel Density Up: expected {after_count} vertices, "
           f"got {vertex_count()}")
+    check(voxel_size() == round(before_size * 0.8, 6), f"redo Voxel Density Up: expected voxel size "
+          f"{before_size * 0.8}, got {voxel_size()}")
+    check(mode() == "SCULPT", f"redo Voxel Density Up: expected Sculpt Mode, got {mode()}")
 
 
 def resolution_density_up_undo_voxel_size():
+    """Undo brings the voxel size back with the geometry (#21), so the next press starts from it"""
     yield from reset()
     bpy.context.scene.objects["Cube"].data.remesh_voxel_size = 0.2
     call("sculpt_deck.density_up")
     yield 0.5
     yield undo()
     check(voxel_size() == 0.2, f"undo Voxel Density Up: expected voxel size 0.2, got {voxel_size()}")
+    call("sculpt_deck.density_up")
+    yield 0.5
+    check(voxel_size() == 0.16, f"Voxel Density Up after undo: expected voxel size 0.16, got {voxel_size()}")
+
+
+def mask_full() -> bool:
+    return set(mask_values()) == {1.0}
+
+
+def resolution_density_down_undo():
+    """Undo and redo bring back both the geometry and the voxel size, and the press leaves one extra step: after
+    a mask, the first undo undoes the press, the second its Scene Checkpoint, and the third the mask"""
+    yield from reset()
+    bpy.context.scene.objects["Cube"].data.remesh_voxel_size = 0.2
+    call("sculpt_deck.mask_invert")
+    yield 0.5
+    before_count = vertex_count()
+    call("sculpt_deck.density_down")
+    yield 0.5
+    check(voxel_size() == 0.25, f"Voxel Density Down: expected voxel size 0.25, got {voxel_size()}")
+    check(vertex_count() != before_count, f"Voxel Density Down: expected a remesh, still {before_count} vertices")
+    check(mode() == "SCULPT", f"Voxel Density Down: expected Sculpt Mode, got {mode()}")
+    after_count = vertex_count()
+    yield undo()
+    check(voxel_size() == 0.2, f"undo Voxel Density Down: expected voxel size 0.2, got {voxel_size()}")
+    check(vertex_count() == before_count, f"undo Voxel Density Down: expected {before_count} vertices, "
+          f"got {vertex_count()}")
+    check(mode() == "SCULPT", f"undo Voxel Density Down: expected Sculpt Mode, got {mode()}")
+    yield redo()
+    check(voxel_size() == 0.25, f"redo Voxel Density Down: expected voxel size 0.25, got {voxel_size()}")
+    check(vertex_count() == after_count, f"redo Voxel Density Down: expected {after_count} vertices, "
+          f"got {vertex_count()}")
+    check(mode() == "SCULPT", f"redo Voxel Density Down: expected Sculpt Mode, got {mode()}")
+    yield undo()
+    yield undo()
+    check(mask_full() and voxel_size() == 0.2, f"second undo after Voxel Density Down: expected the mask and "
+          f"voxel size 0.2 kept, got mask {mask_values()[:4]}..., size {voxel_size()}")
+    yield undo()
+    check(not mask_full(), "third undo after Voxel Density Down: expected the mask undone")
+
+
+def multires_cube():
+    """The Cube with a Multires modifier subdivided twice in Object Mode, with undo steps as a user would, then in
+    Sculpt Mode"""
+    with override():
+        bpy.ops.wm.read_homefile("EXEC_DEFAULT")
+    yield 0.5
+    call("object.modifier_add", type="MULTIRES")
+    call("object.multires_subdivide", modifier="Multires", mode="CATMULL_CLARK")
+    call("object.multires_subdivide", modifier="Multires", mode="CATMULL_CLARK")
+    call("object.mode_set", mode="SCULPT")
+    yield 0.3
+    check(mode() == "SCULPT", f"setup: expected Sculpt Mode, got {mode()}")
+
+
+def multires_levels() -> tuple[int, int]:
+    mod = cube().modifiers["Multires"]
+    return mod.sculpt_levels, mod.total_levels
+
+
+def resolution_multires_undo():
+    """Multires Level Down and Up (a level change and a subdivision) in Sculpt Mode, each undone and redone"""
+    yield from multires_cube()
+    check(multires_levels() == (2, 2), f"setup: expected levels (2, 2), got {multires_levels()}")
+    for idname, label, expected in [
+        ("sculpt_deck.decrement_multires", "Multires Level Down", (1, 2)),
+        ("sculpt_deck.increment_multires", "Multires Level Up", (2, 2)),
+        ("sculpt_deck.increment_multires", "Multires Level Up (subdivide)", (3, 3)),
+    ]:
+        before = multires_levels()
+        call(idname)
+        yield 0.5
+        check(multires_levels() == expected, f"{label}: expected (sculpt, total) levels {expected}, "
+              f"got {multires_levels()}")
+        yield undo()
+        check(multires_levels() == before, f"undo {label}: expected levels {before}, got {multires_levels()}")
+        check(mode() == "SCULPT", f"undo {label}: expected Sculpt Mode, got {mode()}")
+        yield redo()
+        check(multires_levels() == expected, f"redo {label}: expected levels {expected}, got {multires_levels()}")
+        check(mode() == "SCULPT", f"redo {label}: expected Sculpt Mode, got {mode()}")
 
 
 def mask_values() -> list[float]:
@@ -1029,6 +1113,8 @@ SCENARIOS = [
     pen_hold_momentary_brush,
     resolution_density_up,
     resolution_density_up_undo_voxel_size,
+    resolution_density_down_undo,
+    resolution_multires_undo,
     masks_invert,
     interface_toggle_sidebar,
     widget_button_runs_action,
@@ -1052,8 +1138,6 @@ KNOWN_FAILURES = {
     "applied, the next brings it back with Dyntopo off",
     "hop_apply_scale_dyntopo_undo": "#17: the same with Apply Scale's Hop: one undo lands on Blender's "
     "Dynamic topology disable step, with the scale back but Dyntopo off and the Cube 2 wide instead of 4",
-    "resolution_density_up_undo_voxel_size": "#21: a Sculpt Mode undo step restores the remeshed geometry but not the "
-    "mesh's voxel size, so undo leaves the finer size and the next step goes from there",
 }
 
 
