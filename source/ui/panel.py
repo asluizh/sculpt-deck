@@ -6,50 +6,8 @@ from ..core import actions as catalog
 from ..utils import settings
 from ..utils.actions import TOOL_PREFIX, is_pie, operator_exists
 from ..utils.blender import preferences
-from ..utils.brush import brush_name
 from ..utils.constants import (WIDGET_SLOTS, pie_mode, pie_mode_items,
                                pie_slot_display_order, pie_slot_names)
-
-
-# shared by the sidebar panel and the add-on preferences
-def draw_pen_buttons(layout: UILayout, prefs, mode: str):
-    pen_set = prefs.getPenSet(mode)
-    if pen_set is None:
-        return
-    layout.label(text="Mouse and touch are not affected", icon="INFO")
-    for button, label in (("lower", "Button 1 (lower)"), ("upper", "Button 2 (upper)")):
-        box = layout.box()
-        box.label(text=label, icon="STYLUS_PRESSURE")
-        col = box.column()
-        col.use_property_split = True
-        for gesture, gesture_label in (("click", "Click"), ("hold", "Hold / Drag")):
-            draw_binding(col, pen_set, button + "_" + gesture, gesture_label)
-
-
-def draw_binding(col: UILayout, pen_set, slot: str, label: str):
-    binding = getattr(pen_set, slot)
-    col.prop(binding, "action", text=label)
-    if binding.action == "CUSTOM":
-        col.prop(binding, "operator", text=" ", placeholder="e.g. object.shade_smooth or VIEW3D_MT_add")
-    elif binding.action == "BRUSH":
-        split = col.split(factor=0.4)
-        split.label(text="")
-        row = split.row(align=True)
-        row.label(text=brush_name(binding.brushRef()) or "No brush set", icon="BRUSH_DATA")
-        op = row.operator("sculpt_deck.pen_use_active_brush", text="", icon="EYEDROPPER")
-        op.mode = pen_set.mode
-        op.slot = slot
-
-
-# right click and double click: the same actions as a pen button click, for each mode
-def draw_click_binding(layout: UILayout, prefs, mode: str, slot: str, enable: str):
-    pen_set = prefs.getPenSet(mode)
-    if pen_set is None:
-        return
-    col = layout.column()
-    col.use_property_split = True
-    col.active = getattr(prefs, enable)
-    draw_binding(col, pen_set, slot, "Action")
 
 
 # shared by the sidebar panels and the add-on preferences
@@ -140,6 +98,7 @@ class SCULPT_DECK_PT_view_3d_panel(SculptDeckPanel, Panel):
 
 class SCULPT_DECK_PT_control_zones(SculptDeckPanel, Panel):
     bl_label = "Control Zones"
+    bl_order = 10
     bl_parent_id = "SCULPT_DECK_PT_view_3d_panel"
     bl_options = {"DEFAULT_CLOSED"}
 
@@ -180,6 +139,7 @@ class SCULPT_DECK_PT_control_zones(SculptDeckPanel, Panel):
 
 class SCULPT_DECK_PT_gizmo_bar(SculptDeckPanel, Panel):
     bl_label = "Gizmo"
+    bl_order = 20
     bl_parent_id = "SCULPT_DECK_PT_view_3d_panel"
     bl_options = {"DEFAULT_CLOSED"}
 
@@ -202,43 +162,9 @@ class SCULPT_DECK_PT_gizmo_bar(SculptDeckPanel, Panel):
         col.prop(prefs, "gizmo_padding", slider=True)
 
 
-class ClickPanel(SculptDeckPanel):
-    bl_parent_id = "SCULPT_DECK_PT_view_3d_panel"
-    bl_options = {"DEFAULT_CLOSED"}
-    slot = ""
-    enable = ""
-    note = ""
-
-    def draw_header(self, context):
-        self.layout.prop(preferences(), self.enable, text="")
-
-    def draw(self, context):
-        prefs = preferences()
-        layout = self.layout
-        layout.use_property_decorate = False
-        mode = pie_mode(context.mode)
-        names = {item[0]: item[1] for item in pie_mode_items}
-        layout.label(text=f"Action for {names[mode]}", icon="TOOL_SETTINGS")
-        layout.label(text=self.note, icon="INFO")
-        draw_click_binding(layout, prefs, mode, self.slot, self.enable)
-
-
-class SCULPT_DECK_PT_right_click(ClickPanel, Panel):
-    bl_label = "Right Click"
-    slot = "right_click"
-    enable = "enable_right_click"
-    note = "Mouse and touch, not the pen"
-
-
-class SCULPT_DECK_PT_double_click(ClickPanel, Panel):
-    bl_label = "Double Click"
-    slot = "double_click"
-    enable = "enable_double_click"
-    note = "Double tap or mouse double click"
-
-
 class SCULPT_DECK_PT_widget_buttons(SculptDeckPanel, Panel):
     bl_label = "Widget Buttons"
+    bl_order = 50
     bl_parent_id = "SCULPT_DECK_PT_view_3d_panel"
     bl_options = {"DEFAULT_CLOSED"}
 
@@ -258,6 +184,7 @@ class SCULPT_DECK_PT_widget_buttons(SculptDeckPanel, Panel):
 
 class SCULPT_DECK_PT_action_pie(SculptDeckPanel, Panel):
     bl_label = "Action Pie"
+    bl_order = 60
     bl_parent_id = "SCULPT_DECK_PT_view_3d_panel"
     bl_options = {"DEFAULT_CLOSED"}
 
@@ -272,22 +199,9 @@ class SCULPT_DECK_PT_action_pie(SculptDeckPanel, Panel):
         draw_action_pie(layout, prefs, mode)
 
 
-class SCULPT_DECK_PT_pen_buttons(SculptDeckPanel, Panel):
-    bl_label = "Pen Buttons"
-    bl_parent_id = "SCULPT_DECK_PT_view_3d_panel"
-    bl_options = {"DEFAULT_CLOSED"}
-
-    def draw(self, context):
-        layout = self.layout
-        layout.use_property_decorate = False
-        mode = pie_mode(context.mode)
-        names = {item[0]: item[1] for item in pie_mode_items}
-        layout.label(text=f"Pen buttons for {names[mode]}", icon="STYLUS_PRESSURE")
-        draw_pen_buttons(layout, preferences(), mode)
-
-
 class SCULPT_DECK_PT_tool_settings(SculptDeckPanel, Panel):
     bl_label = "Tool Options"
+    bl_order = 80
     bl_parent_id = "SCULPT_DECK_PT_view_3d_panel"
     bl_options = {"DEFAULT_CLOSED"}
 
@@ -303,6 +217,7 @@ class SCULPT_DECK_PT_tool_settings(SculptDeckPanel, Panel):
 
 class SCULPT_DECK_PT_viewport_options(SculptDeckPanel, Panel):
     bl_label = "Viewport Options"
+    bl_order = 90
     bl_parent_id = "SCULPT_DECK_PT_view_3d_panel"
     bl_options = {"DEFAULT_CLOSED"}
 
@@ -343,6 +258,7 @@ def draw_default_settings(layout):
 
 class SCULPT_DECK_PT_default_settings(SculptDeckPanel, Panel):
     bl_label = "Default Settings"
+    bl_order = 100
     bl_parent_id = "SCULPT_DECK_PT_view_3d_panel"
     bl_options = {"HIDE_HEADER"}
 
@@ -463,14 +379,10 @@ classes = (
     SCULPT_DECK_PT_view_3d_panel,
     SCULPT_DECK_PT_control_zones,
     SCULPT_DECK_PT_gizmo_bar,
-    SCULPT_DECK_PT_right_click,
-    SCULPT_DECK_PT_double_click,
     SCULPT_DECK_PT_widget_buttons,
     SCULPT_DECK_PT_action_pie,
-    SCULPT_DECK_PT_pen_buttons,
     SCULPT_DECK_PT_tool_settings,
     SCULPT_DECK_PT_viewport_options,
-    # last, so it sits at the bottom
     SCULPT_DECK_PT_default_settings,
     SCULPT_DECK_PT_image_editor_panel,
     SCULPT_DECK_PT_node_editor_panel,

@@ -10,11 +10,11 @@ from bpy_extras.view3d_utils import (region_2d_to_origin_3d,
 from mathutils import Vector
 
 # Local modules
+from ..surfaces.clicks.action import click_binding, is_touch
 from ..utils.blender import preferences, ui_scale
 from ..utils.constants import (FINISHED, LMOUSE, MODAL, PASSTHROUGH, PEN,
-                               PRESS, RMOUSE, brush_modes, input_mode_items,
+                               PRESS, brush_modes, input_mode_items,
                                object_modes)
-from .pen import BindingRunner
 
 # a touch that lifts within TAP_TIME without moving TAP_SLOP pixels is a tap;
 # held for LONG_PRESS_TIME without moving it toggles the object's selection
@@ -24,82 +24,6 @@ LONG_PRESS_TIME = 0.5
 # a second tap this close to the first one makes a double tap; Blender's own
 # double click needs both clicks on almost the same pixel
 DOUBLE_TAP_DISTANCE = 40
-
-
-def is_touch(event):
-    return event.pressure in [0.0, 1.0]
-
-
-def click_binding(context, slot: str):
-    """The right click or double click action for the current mode, or None to leave the click to Blender"""
-    prefs = preferences()
-    if not getattr(prefs, "enable_" + slot):
-        return None
-    pen_set = prefs.getPenSet(context.mode)
-    binding = getattr(pen_set, slot) if pen_set is not None else None
-    if binding is None or binding.action == "DEFAULT":
-        return None
-    return binding
-
-
-class ClickAction(BindingRunner):
-    slot = ""
-
-    def run(self, context):
-        binding = click_binding(context, self.slot)
-        if binding is None:
-            return PASSTHROUGH
-        self.mode = context.mode
-        self.run_action(context, binding)
-        return FINISHED
-
-    def execute(self, context):
-        return self.run(context)
-
-
-class SCULPT_DECK_OT_right_click_action(ClickAction, Operator):
-    """Run the right click action set for this mode"""
-
-    bl_label = "Right Click Action"
-    bl_idname = "sculpt_deck.rc_action"
-    bl_options = {"INTERNAL"}
-    slot = "right_click"
-
-    @classmethod
-    def poll(cls, context):
-        return context.area.type in {"VIEW_2D", "VIEW_3D"} and context.region.type == "WINDOW"
-
-    def invoke(self, context, event):
-        if event.type not in [RMOUSE]:
-            return PASSTHROUGH
-        # pen buttons are handled by sculpt_deck.pen_button
-        if event.is_tablet:
-            return PASSTHROUGH
-        if event.value == "DOUBLE_CLICK":
-            return PASSTHROUGH
-        return self.run(context)
-
-
-class SCULPT_DECK_OT_double_click_action(ClickAction, Operator):
-    """Run the double click action set for this mode"""
-
-    bl_label = "Double Click Action"
-    bl_idname = "sculpt_deck.dt_action"
-    bl_options = {"INTERNAL"}
-    slot = "double_click"
-
-    @classmethod
-    def poll(cls, context):
-        return context.area.type in {"NODE_EDITOR", "VIEW_2D", "VIEW_3D", "IMAGE_EDITOR"} and context.region.type == "WINDOW"
-
-    def invoke(self, context, event):
-        if event.type not in [PEN, LMOUSE]:
-            return PASSTHROUGH
-        if not is_touch(event):
-            return PASSTHROUGH
-        if event.value != "DOUBLE_CLICK":
-            return PASSTHROUGH
-        return self.run(context)
 
 
 class SCULPT_DECK_OT_touch_input_2d(Operator):
@@ -425,8 +349,6 @@ class SCULPT_DECK_OT_touch_input_3d(Operator):
 
 
 classes = (
-    SCULPT_DECK_OT_right_click_action,
-    SCULPT_DECK_OT_double_click_action,
     SCULPT_DECK_OT_touch_input_2d,
     SCULPT_DECK_OT_touch_input_3d,
 )
