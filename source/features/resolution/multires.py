@@ -26,6 +26,17 @@ def level_name(context) -> str:
     return "sculpt_levels" if context.mode == "SCULPT" else "levels"
 
 
+def run_blender(operator: Operator, blender_operator, modifier: str) -> set[str]:
+    """Run Blender's (un)subdivide on the modifier, cancelling with its message when it fails. The checkpoint
+    already stored then stays, as the one extra step."""
+    try:
+        blender_operator(modifier=modifier)
+    except RuntimeError as error:
+        operator.report({"WARNING"}, str(error).strip())
+        return CANCEL
+    return FINISHED
+
+
 class SCULPT_DECK_OT_increase_multires(Operator):
     """Increase the Multires level, subdividing when at the highest level"""
 
@@ -41,11 +52,10 @@ class SCULPT_DECK_OT_increase_multires(Operator):
         if level == mod.total_levels and level >= resolution_settings().subdivision_limit:
             return CANCEL
         store_scene_checkpoint(context, f"Before {self.bl_label}")
-        if level == mod.total_levels:
-            bpy.ops.object.multires_subdivide(modifier=mod.name)
-        else:
+        if level < mod.total_levels:
             setattr(mod, level_name(context), level + 1)
-        return FINISHED
+            return FINISHED
+        return run_blender(self, bpy.ops.object.multires_subdivide, mod.name)
 
 
 class SCULPT_DECK_OT_decrease_multires(Operator):
@@ -61,11 +71,11 @@ class SCULPT_DECK_OT_decrease_multires(Operator):
             return CANCEL
         store_scene_checkpoint(context, f"Before {self.bl_label}")
         level = getattr(mod, level_name(context))
-        if level == 0:
-            bpy.ops.object.multires_unsubdivide(modifier=mod.name)
-        else:
+        if level > 0:
             setattr(mod, level_name(context), level - 1)
-        return FINISHED
+            return FINISHED
+        # fails when Blender finds no lower level to rebuild
+        return run_blender(self, bpy.ops.object.multires_unsubdivide, mod.name)
 
 
 classes = (

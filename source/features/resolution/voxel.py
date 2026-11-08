@@ -23,14 +23,22 @@ def remeshable(context) -> bool:
     return not any(isinstance(mod, bpy.types.MultiresModifier) for mod in obj.modifiers)
 
 
-def remesh(operator: Operator, context, factor: float):
-    """Scale the active mesh's voxel size by `factor` and voxel remesh it"""
+def remesh(operator: Operator, context, factor: float) -> set[str]:
+    """Scale the active mesh's voxel size by `factor` and voxel remesh it. When the remesher fails, the size is put
+    back and the checkpoint already stored stays, as the one extra step."""
     store_scene_checkpoint(context, f"Before {operator.bl_label}")
-    # in Sculpt Mode the remesher would store a Sculpt step (geometry only), which the press's step would become
-    with hop(context, "OBJECT"):
-        mesh = context.active_object.data
-        mesh.remesh_voxel_size *= factor
-        bpy.ops.object.voxel_remesh()
+    mesh = context.active_object.data
+    start = mesh.remesh_voxel_size
+    try:
+        # in Sculpt Mode the remesher would store a Sculpt step (geometry only), which the press's step would become
+        with hop(context, "OBJECT"):
+            mesh.remesh_voxel_size = start * factor
+            bpy.ops.object.voxel_remesh()
+    except RuntimeError as error:
+        mesh.remesh_voxel_size = start
+        operator.report({"WARNING"}, str(error).strip())
+        return CANCEL
+    return FINISHED
 
 
 class SCULPT_DECK_OT_density_up(Operator):
@@ -43,8 +51,7 @@ class SCULPT_DECK_OT_density_up(Operator):
     def execute(self, context):
         if not remeshable(context):
             return CANCEL
-        remesh(self, context, 0.8)
-        return FINISHED
+        return remesh(self, context, 0.8)
 
 
 class SCULPT_DECK_OT_density_down(Operator):
@@ -57,8 +64,7 @@ class SCULPT_DECK_OT_density_down(Operator):
     def execute(self, context):
         if not remeshable(context):
             return CANCEL
-        remesh(self, context, 1 / 0.8)
-        return FINISHED
+        return remesh(self, context, 1 / 0.8)
 
 
 classes = (

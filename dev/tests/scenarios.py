@@ -713,6 +713,23 @@ def resolution_multires_undo():
         check(mode() == "SCULPT", f"redo {label}: expected Sculpt Mode, got {mode()}")
 
 
+def resolution_multires_down_fails():
+    """Multires Level Down at level 0 of a mesh Blender can't unsubdivide cancels with a warning, raising nothing"""
+    with override():
+        bpy.ops.wm.read_homefile("EXEC_DEFAULT")
+    yield 0.5
+    call("object.modifier_add", type="MULTIRES")
+    call("object.mode_set", mode="SCULPT")
+    yield 0.3
+    with override():
+        result = bpy.ops.sculpt_deck.decrement_multires("EXEC_DEFAULT", True)
+    yield 0.5
+    check(result == {"CANCELLED"}, f"Multires Level Down at level 0: expected CANCELLED, got {result}")
+    check(multires_levels() == (0, 0), f"Multires Level Down at level 0: expected levels (0, 0), "
+          f"got {multires_levels()}")
+    check(mode() == "SCULPT", f"Multires Level Down at level 0: expected Sculpt Mode, got {mode()}")
+
+
 def mask_values() -> list[float]:
     attribute = bpy.context.scene.objects["Cube"].data.attributes.get(".sculpt_mask")
     if attribute is None:
@@ -1115,6 +1132,7 @@ SCENARIOS = [
     resolution_density_up_undo_voxel_size,
     resolution_density_down_undo,
     resolution_multires_undo,
+    resolution_multires_down_fails,
     masks_invert,
     interface_toggle_sidebar,
     widget_button_runs_action,
