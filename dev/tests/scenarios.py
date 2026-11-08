@@ -591,6 +591,157 @@ def pen_hold_momentary_brush():
     check(brush() == before, f"pen release: expected {before} back, got {brush()}")
 
 
+def voxel_size() -> float:
+    return round(bpy.context.scene.objects["Cube"].data.remesh_voxel_size, 6)
+
+
+def vertex_count() -> int:
+    return len(bpy.context.scene.objects["Cube"].data.vertices)
+
+
+def resolution_density_up():
+    yield from reset()
+    bpy.context.scene.objects["Cube"].data.remesh_voxel_size = 0.2
+    before_size, before_count = voxel_size(), vertex_count()
+    call("sculpt_deck.density_up")
+    yield 0.5
+    check(voxel_size() == round(before_size * 0.8, 6), f"Voxel Density Up: expected voxel size {before_size * 0.8}, "
+          f"got {voxel_size()}")
+    check(vertex_count() > before_count, f"Voxel Density Up: expected more than {before_count} vertices, "
+          f"got {vertex_count()}")
+    check(mode() == "SCULPT", f"Voxel Density Up: expected Sculpt Mode, got {mode()}")
+    after_count = vertex_count()
+    yield undo()
+    check(vertex_count() == before_count, f"undo Voxel Density Up: expected {before_count} vertices, "
+          f"got {vertex_count()}")
+    check(mode() == "SCULPT", f"undo Voxel Density Up: expected Sculpt Mode, got {mode()}")
+    yield redo()
+    check(vertex_count() == after_count, f"redo Voxel Density Up: expected {after_count} vertices, "
+          f"got {vertex_count()}")
+
+
+def resolution_density_up_undo_voxel_size():
+    yield from reset()
+    bpy.context.scene.objects["Cube"].data.remesh_voxel_size = 0.2
+    call("sculpt_deck.density_up")
+    yield 0.5
+    yield undo()
+    check(voxel_size() == 0.2, f"undo Voxel Density Up: expected voxel size 0.2, got {voxel_size()}")
+
+
+def mask_values() -> list[float]:
+    attribute = bpy.context.scene.objects["Cube"].data.attributes.get(".sculpt_mask")
+    if attribute is None:
+        return [0.0] * vertex_count()
+    return [round(item.value, 4) for item in attribute.data]
+
+
+def masks_invert():
+    yield from reset()
+    check(set(mask_values()) == {0.0}, f"setup: expected no mask, got {mask_values()}")
+    call("sculpt_deck.mask_invert")
+    yield 0.5
+    check(set(mask_values()) == {1.0}, f"Invert Mask: expected a full mask, got {mask_values()}")
+    check(mode() == "SCULPT", f"Invert Mask: expected Sculpt Mode, got {mode()}")
+    yield undo()
+    check(set(mask_values()) == {0.0}, f"undo Invert Mask: expected no mask, got {mask_values()}")
+    check(mode() == "SCULPT", f"undo Invert Mask: expected Sculpt Mode, got {mode()}")
+    yield redo()
+    check(set(mask_values()) == {1.0}, f"redo Invert Mask: expected a full mask, got {mask_values()}")
+
+
+def sidebar_shown() -> bool:
+    _window, area, _region = view3d()
+    return area.spaces.active.show_region_ui
+
+
+def interface_toggle_sidebar():
+    yield from reset()
+    before = sidebar_shown()
+    call("sculpt_deck.toggle_n_panel")
+    yield 0.3
+    check(sidebar_shown() != before, f"Toggle Sidebar: expected the sidebar shown = {not before}")
+    call("sculpt_deck.toggle_n_panel")
+    yield 0.3
+    check(sidebar_shown() == before, f"Toggle Sidebar again: expected the sidebar shown = {before}")
+def widget_group():
+    """The Widget's gizmo group in the viewport, caught on its next redraw"""
+    module = sys.modules[PACKAGE + ".source.surfaces.widget.gizmo_group_2d"]
+    group_class = module.GIZMO_GT_viewport_gizmo_group
+    found = []
+    original = group_class.draw_prepare
+
+    def draw_prepare(self, context):
+        found.append(self)
+        return original(self, context)
+
+    group_class.draw_prepare = draw_prepare
+    try:
+        for _ in range(20):
+            _window, area, _region = view3d()
+            area.tag_redraw()
+            yield 0.1
+            if found:
+                break
+    finally:
+        group_class.draw_prepare = original
+    check(bool(found), "the Widget's gizmo group didn't draw")
+    return found[-1]
+
+
+def click_widget_button(group, idname: str):
+    """Tap the Widget button set to `idname`, at the place the Widget drew it"""
+    button = next((action for action in group.actions if action.idname == idname), None)
+    check(button is not None, f"no Widget button for {idname}: {[action.idname for action in group.actions]}")
+    check(button.visible, f"the Widget button for {idname} is hidden")
+    window, _area, region = view3d()
+    position = button.primary.matrix_basis.translation
+    x, y = region.x + round(position.x), region.y + round(position.y)
+    window.event_simulate("MOUSEMOVE", "NOTHING", x=x, y=y)
+    yield 0.3
+    window.event_simulate("LEFTMOUSE", "PRESS", x=x, y=y)
+    yield 0.05
+    window.event_simulate("LEFTMOUSE", "RELEASE", x=x, y=y)
+    yield 0.5
+
+
+def widget_button_runs_action():
+    yield from reset()
+    _window, area, _region = view3d()
+    space = area.spaces.active
+    before = space.show_region_ui
+    group = yield from widget_group()
+    # a Sculpt Mode default: an operator Action, run by the button itself
+    yield from click_widget_button(group, "sculpt_deck.toggle_n_panel")
+    check(space.show_region_ui != before, f"Widget N Panel button: sidebar still {'shown' if before else 'hidden'}")
+    check(mode() == "SCULPT", f"Widget N Panel button: expected Sculpt Mode, got {mode()}")
+
+
+def widget_button_opens_action_pie():
+    yield from reset()
+    menus = sys.modules[PACKAGE + ".source.surfaces.pie.menus"]
+    pie_class = menus.SCULPT_DECK_MT_floating
+    drawn = []
+    original = pie_class.draw
+
+    def draw(self, context):
+        drawn.append(context.mode)
+        return original(self, context)
+
+    pie_class.draw = draw
+    try:
+        group = yield from widget_group()
+        # a menu Action: the button runs sculpt_deck.widget_menu, which opens the pie after the release
+        yield from click_widget_button(group, "SCULPT_DECK_MT_floating")
+        yield 0.5
+    finally:
+        pie_class.draw = original
+    check(bool(drawn), "Widget Action Pie button: the pie didn't open")
+    check(set(drawn) == {"SCULPT"}, f"Widget Action Pie button: the pie drew in modes {sorted(set(drawn))}")
+    window, area, _region = view3d()
+    window.event_simulate("ESC", "PRESS", x=area.x + 5, y=area.y + 5)
+    window.event_simulate("ESC", "RELEASE", x=area.x + 5, y=area.y + 5)
+    yield 0.3
 def pen_click_brush():
     """A click of a pen button bound to a brush switches to it for good"""
     yield from reset()
@@ -701,6 +852,12 @@ SCENARIOS = [
     hop_apply_scale_dyntopo_undo,
     mirror_apply,
     pen_hold_momentary_brush,
+    resolution_density_up,
+    resolution_density_up_undo_voxel_size,
+    masks_invert,
+    interface_toggle_sidebar,
+    widget_button_runs_action,
+    widget_button_opens_action_pie,
     pen_click_brush,
     pen_hold_momentary_tool,
     right_click_action,
@@ -715,6 +872,8 @@ KNOWN_FAILURES = {
     "applied, the next brings it back with Dyntopo off",
     "hop_apply_scale_dyntopo_undo": "#17: the same with Apply Scale's Hop: one undo lands on Blender's "
     "Dynamic topology disable step, with the scale back but Dyntopo off and the Cube 2 wide instead of 4",
+    "resolution_density_up_undo_voxel_size": "#21: a Sculpt Mode undo step restores the remeshed geometry but not the "
+    "mesh's voxel size, so undo leaves the finer size and the next step goes from there",
 }
 
 

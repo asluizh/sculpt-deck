@@ -103,6 +103,17 @@ SCULPT_DECK_PT_tool_settings
 SCULPT_DECK_PT_view_3d_panel
 SCULPT_DECK_PT_viewport_options
 SCULPT_DECK_PT_widget_buttons
+# sidebar panels
+10 SCULPT_DECK_PT_control_zones (Control Zones)
+20 SCULPT_DECK_PT_gizmo_bar (Gizmo)
+30 SCULPT_DECK_PT_right_click (Right Click)
+40 SCULPT_DECK_PT_double_click (Double Click)
+50 SCULPT_DECK_PT_widget_buttons (Widget Buttons)
+60 SCULPT_DECK_PT_action_pie (Action Pie)
+70 SCULPT_DECK_PT_pen_buttons (Pen Buttons)
+80 SCULPT_DECK_PT_tool_settings (Tool Options)
+90 SCULPT_DECK_PT_viewport_options (Viewport Options)
+100 SCULPT_DECK_PT_default_settings (Default Settings)
 # action lists
 pie EDIT_MESH: NONE VIEW3D_MT_edit_mesh_select_mode SCULPT_DECK_MT_add_mesh sculpt_deck.cycle_control_gizmo mesh.select_all mesh.select_linked mesh.select_more mesh.select_less view3d.edit_mesh_extrude_move_normal mesh.inset mesh.bevel mesh.loopcut_slide mesh.knife_tool mesh.subdivide mesh.edge_face_add VIEW3D_MT_edit_mesh_merge VIEW3D_MT_edit_mesh_delete mesh.hide mesh.reveal VIEW3D_MT_edit_mesh_context_menu TOOL:builtin.select_box TOOL:builtin.cursor TOOL:builtin.move TOOL:builtin.rotate TOOL:builtin.scale TOOL:builtin.extrude_region TOOL:builtin.inset_faces TOOL:builtin.bevel TOOL:builtin.loop_cut TOOL:builtin.knife TOOL:builtin.poly_build TOOL:builtin.smooth TOOL:builtin.shrink_fatten TOOL:builtin.edge_slide SCULPT_DECK_MT_all_actions ed.undo ed.redo sculpt_deck.viewport_recenter sculpt_deck.toggle_n_panel sculpt_deck.viewport_lock screen.region_quadview sculpt_deck.toggle_touch ed.undo_history screen.repeat_last screen.redo_last VIEW3D_MT_object_mode_pie object.editmode_toggle VIEW3D_MT_view_pie VIEW3D_MT_shading_pie VIEW3D_MT_pivot_pie VIEW3D_MT_snap_pie VIEW3D_MT_orientations_pie view3d.view_selected view3d.view_all view3d.localview view3d.toggle_xray screen.screen_full_area wm.toolbar SCREEN_MT_user_menu wm.search_menu wm.save_mainfile CUSTOM
 pie OBJECT: NONE VIEW3D_MT_add object.delete object.duplicate_move object.duplicate_move_linked object.join sculpt_deck.fuse_selected sculpt_deck.fuse_difference sculpt_deck.cycle_control_gizmo sculpt_deck.increment_multires sculpt_deck.decrement_multires object.select_all object.hide_view_set object.hide_view_clear object.shade_smooth object.shade_auto_smooth object.shade_flat VIEW3D_MT_object_apply VIEW3D_MT_object_parent VIEW3D_MT_snap object.origin_set VIEW3D_MT_object_context_menu TOOL:builtin.select_box TOOL:builtin.cursor TOOL:builtin.move TOOL:builtin.rotate TOOL:builtin.scale TOOL:builtin.transform TOOL:builtin.measure TOOL:builtin.annotate SCULPT_DECK_MT_all_actions ed.undo ed.redo sculpt_deck.viewport_recenter sculpt_deck.toggle_n_panel sculpt_deck.viewport_lock screen.region_quadview sculpt_deck.toggle_touch ed.undo_history screen.repeat_last screen.redo_last VIEW3D_MT_object_mode_pie object.editmode_toggle VIEW3D_MT_view_pie VIEW3D_MT_shading_pie VIEW3D_MT_pivot_pie VIEW3D_MT_snap_pie VIEW3D_MT_orientations_pie view3d.view_selected view3d.view_all view3d.localview view3d.toggle_xray screen.screen_full_area wm.toolbar SCREEN_MT_user_menu wm.search_menu wm.save_mainfile CUSTOM

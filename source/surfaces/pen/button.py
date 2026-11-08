@@ -10,8 +10,8 @@ from bpy.types import Operator
 from ...core.actions import is_momentary
 from ...utils.actions import TOOL_PREFIX, active_tool, invoke_action, set_tool
 from ...utils.blender import preferences, ui_scale
-from ...utils.brush import (activate_brush, brush_name, brush_ref, history,
-                            paint_settings)
+from ...features.brush.history import (activate_brush, brush_name, brush_ref, history,
+                                       paint_settings)
 from ...utils.constants import (CANCEL, FINISHED, MODAL, PASSTHROUGH, PRESS,
                                 pen_brush_actions, pen_buttons,
                                 pen_default_context_menus)

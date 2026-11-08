@@ -4,7 +4,7 @@ from bpy.types import Panel, UILayout
 
 from ...ui.panel import SculptDeckPanel
 from ...utils.blender import preferences
-from ...utils.brush import brush_name
+from ...features.brush.history import brush_name
 from ...utils.constants import pie_mode, pie_mode_items
 
 

@@ -3,7 +3,8 @@
 from types import ModuleType
 
 from ..core import register_parts, unregister_parts
-from . import array, local_transform, mirror, objects
+from . import (array, brush, interface, local_transform, masks, mirror, objects,
+               resolution)
 
 # modules with register()/unregister(), registered in this order and unregistered in reverse
 PARTS: list[ModuleType] = [
@@ -13,6 +14,10 @@ PARTS: list[ModuleType] = [
     local_transform,
     mirror,
     array,
+    resolution,
+    brush,
+    masks,
+    interface,
 ]
 
 
