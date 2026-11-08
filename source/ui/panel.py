@@ -8,8 +8,7 @@ from ..utils.actions import TOOL_PREFIX, is_pie, operator_exists
 from ..utils.blender import preferences
 from ..utils.brush import brush_name
 from ..utils.constants import (WIDGET_SLOTS, pie_mode, pie_mode_items,
-                               pie_slot_display_order, pie_slot_names,
-                               primitive_items)
+                               pie_slot_display_order, pie_slot_names)
 
 
 # shared by the sidebar panel and the add-on preferences
@@ -460,16 +459,6 @@ class SCULPT_DECK_MT_all_actions(Menu):
                 draw_action(col, action.idname)
 
 
-class SCULPT_DECK_MT_add_mesh(Menu):
-    """Add a mesh and keep working on it in the current mode"""
-
-    bl_label = "Add Mesh"
-
-    def draw(self, context):
-        for primitive, name, _, icon, _ in primitive_items:
-            self.layout.operator("sculpt_deck.add_primitive", text=name, icon=icon).primitive = primitive
-
-
 classes = (
     SCULPT_DECK_PT_view_3d_panel,
     SCULPT_DECK_PT_control_zones,
@@ -487,7 +476,6 @@ classes = (
     SCULPT_DECK_PT_node_editor_panel,
     SCULPT_DECK_PT_gizmo_display,
     SCULPT_DECK_MT_floating,
-    SCULPT_DECK_MT_add_mesh,
     SCULPT_DECK_MT_all_actions,
 )
 
