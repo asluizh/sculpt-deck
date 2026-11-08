@@ -13,12 +13,13 @@ source "$(dirname "$0")/common.sh"
 expected="$root/dev/tests/smoke_expected.txt"
 actual="$work/smoke_actual.txt"
 navigation="$work/smoke_navigation.json"
-log="$work/smoke.log"
 
 # runs smoke_check.py on a fresh install of the given build (bundle.sh arguments), failing on errors in the log
 run_check() {
   local name="$1"
   shift
+  # one log per build, so a passing full-build log survives the run without navigation
+  local log="$work/smoke-${name// /-}.log"
   local bundle_args=() check_args=()
   while [[ $# -gt 0 && "$1" != "--" ]]; do bundle_args+=("$1"); shift; done
   [[ "${1:-}" == "--" ]] && shift
