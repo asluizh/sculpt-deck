@@ -281,6 +281,153 @@ def local_transform_adjust_last():
     check(mode() == "SCULPT", f"Adjust Last Operation: expected Sculpt Mode, got {mode()}")
 
 
+def cube():
+    return bpy.context.scene.objects["Cube"]
+
+
+def modifier_names() -> list[str]:
+    return [modifier.name for modifier in cube().modifiers]
+
+
+def vertex_count() -> int:
+    """Vertices of the Cube's evaluated mesh, so it reads right with Dyntopo on too. Instances (array copies and the
+    mirror image before they are applied) aren't counted."""
+    with override():
+        obj = cube().evaluated_get(bpy.context.evaluated_depsgraph_get())
+        mesh = obj.to_mesh()
+        count = len(mesh.vertices)
+        obj.to_mesh_clear()
+    return count
+
+
+def start_tool(idname: str, modifier: str):
+    """Switch to a tool that adds its modifier when it starts, as the toolbar does, and wait for the modifier"""
+    call("wm.tool_set_by_id", name=idname, space_type="VIEW_3D")
+    for _ in range(10):
+        yield 0.3
+        if modifier in modifier_names():
+            break
+    check(modifier_names() == [modifier], f"{idname}: expected a {modifier} modifier, got {modifier_names()}")
+    check(mode() == "SCULPT", f"{idname}: expected Sculpt Mode, got {mode()}")
+
+
+def count_hops() -> list[str]:
+    """Record the target mode of every Hop Array's apply makes from now on, in the returned list"""
+    hops: list[str] = []
+    module = sys.modules[PACKAGE + ".source.features.array.operators"]
+    original = sys.modules[PACKAGE + ".source.core.hop"].hop
+
+    def recording(context, target):
+        hops.append(target)
+        return original(context, target)
+
+    module.hop = recording
+    return hops
+
+
+def add_and_apply_array(dyntopo: bool):
+    """Add a Linear Array from its tool and apply it, staying in Sculpt Mode. With Dyntopo, Blender only applies
+    properly in Object Mode, so Apply Array makes a Hop there."""
+    yield from reset()
+    if dyntopo:
+        call("sculpt.dynamic_topology_toggle")
+        yield 0.3
+        check(cube().use_dynamic_topology_sculpting, "setup: Dyntopo didn't turn on")
+    yield from start_tool("sculpt_deck.linear_array", "Linear Array")
+    # the copies are instances until applied, so the evaluated mesh is the Cube's alone
+    check(vertex_count() == 8, f"Linear Array: expected 8 real vertices, got {vertex_count()}")
+    hops = count_hops()
+    call("sculpt_deck.array_apply", kind="LINEAR")
+    yield 0.5
+    check(modifier_names() == [], f"Apply Array: expected no modifiers left, got {modifier_names()}")
+    check(vertex_count() == 24, f"Apply Array: expected the copies in the mesh (24 vertices), got {vertex_count()}")
+    check(mode() == "SCULPT", f"Apply Array: expected Sculpt Mode, got {mode()}")
+    check(cube().use_dynamic_topology_sculpting == dyntopo, "Apply Array: Dyntopo changed")
+    expected = ["OBJECT"] if dyntopo else []
+    check(hops == expected, f"Apply Array: expected Hops to {expected}, got {hops}")
+
+
+def check_applied_array_kept():
+    """With Dyntopo, Sculpt Mode sculpts its own copy of the mesh and writes it back when it ends: the copies must
+    be in that one too"""
+    call("object.mode_set", undo=False, mode="OBJECT")
+    yield 0.3
+    count = len(cube().data.vertices)
+    check(count == 24, f"leaving Sculpt Mode after Apply Array: expected the copies kept (24 vertices), got {count}")
+
+
+def array_apply():
+    yield from add_and_apply_array(dyntopo=False)
+    yield undo()
+    check(modifier_names() == ["Linear Array"], f"undo Apply Array: expected the array back, got {modifier_names()}")
+    check(vertex_count() == 8, f"undo Apply Array: expected the copies as instances again (8 vertices), got "
+          f"{vertex_count()}")
+    check(mode() == "SCULPT", f"undo Apply Array: expected Sculpt Mode, got {mode()}")
+    yield redo()
+    check(modifier_names() == [], f"redo Apply Array: expected no modifiers left, got {modifier_names()}")
+    check(vertex_count() == 24, f"redo Apply Array: expected 24 vertices, got {vertex_count()}")
+    check(mode() == "SCULPT", f"redo Apply Array: expected Sculpt Mode, got {mode()}")
+    yield from check_applied_array_kept()
+
+
+def hop_array_apply_dyntopo():
+    yield from add_and_apply_array(dyntopo=True)
+    yield from check_applied_array_kept()
+
+
+def hop_array_apply_dyntopo_undo():
+    yield from add_and_apply_array(dyntopo=True)
+    yield undo()
+    check(modifier_names() == ["Linear Array"], f"undo Apply Array: expected the array back, got {modifier_names()}")
+    check(mode() == "SCULPT", f"undo Apply Array: expected Sculpt Mode, got {mode()}")
+    check(cube().use_dynamic_topology_sculpting, "undo Apply Array: expected Dyntopo still on")
+    yield redo()
+    check(modifier_names() == [], f"redo Apply Array: expected no modifiers left, got {modifier_names()}")
+    check(mode() == "SCULPT", f"redo Apply Array: expected Sculpt Mode, got {mode()}")
+
+
+def hop_modes():
+    """The Hop on its own: to Edit and Object Mode and back, also when the body raises, with no undo step"""
+    hop = sys.modules[PACKAGE + ".source.core.hop"].hop
+    yield from reset()
+    call("sculpt_deck.local_transform", mode="MOVE", axis="X", distance=1.0)
+    yield 0.5
+    for target, inside in (("EDIT", "EDIT_MESH"), ("OBJECT", "OBJECT")):
+        with override():
+            with hop(bpy.context, target):
+                check(bpy.context.mode == inside, f"Hop to {target}: expected {inside} inside, got {bpy.context.mode}")
+        yield 0.2
+        check(mode() == "SCULPT", f"Hop to {target}: expected Sculpt Mode back, got {mode()}")
+        try:
+            with override():
+                with hop(bpy.context, target):
+                    raise ValueError("body failed")
+        except ValueError:
+            pass
+        yield 0.2
+        check(mode() == "SCULPT", f"Hop to {target} that raised: expected Sculpt Mode back, got {mode()}")
+    # nothing in the undo history: one undo takes back the move from before the Hops
+    yield undo()
+    check(location_x() == 0.0, f"undo after the Hops: expected the move undone (x = 0), got {location_x()}")
+    check(mode() == "SCULPT", f"undo after the Hops: expected Sculpt Mode, got {mode()}")
+
+
+def mirror_apply():
+    yield from reset()
+    # off the mirror plane, so the two halves stay apart: 16 vertices, none merged
+    cube().location.x = 2.0
+    yield from start_tool("sculpt_deck.mirror", "Mirror")
+    call("sculpt_deck.mirror_apply")
+    yield 0.5
+    check(modifier_names() == [], f"Apply Mirror: expected no modifiers left, got {modifier_names()}")
+    check(vertex_count() == 16, f"Apply Mirror: expected both halves in the mesh (16 vertices), got {vertex_count()}")
+    check(mode() == "SCULPT", f"Apply Mirror: expected Sculpt Mode, got {mode()}")
+    yield undo()
+    check(modifier_names() == ["Mirror"], f"undo Apply Mirror: expected the mirror back, got {modifier_names()}")
+    check(vertex_count() == 8, f"undo Apply Mirror: expected 8 vertices, got {vertex_count()}")
+    check(mode() == "SCULPT", f"undo Apply Mirror: expected Sculpt Mode, got {mode()}")
+
+
 def pen_events():
     """Make the add-on take simulated button presses for pen presses"""
     for name, module in list(sys.modules.items()):
@@ -325,12 +472,21 @@ SCENARIOS = [
     detour_fuse_difference,
     local_transform_undo,
     local_transform_adjust_last,
+    hop_modes,
+    array_apply,
+    hop_array_apply_dyntopo,
+    hop_array_apply_dyntopo_undo,
+    mirror_apply,
     pen_hold_momentary_brush,
 ]
 
 # Scenarios that fail on purpose because of a known bug, with the reason. They report XFAIL and don't fail the
 # run; once the bug is fixed they report XPASS, which does, so the entry gets removed.
-KNOWN_FAILURES: dict[str, str] = {}
+KNOWN_FAILURES = {
+    "hop_array_apply_dyntopo_undo": "#17: leaving and entering Sculpt Mode with Dyntopo on pushes Blender's own "
+    "Dynamic topology disable and enable steps, so the Hop shows in the undo history: one undo leaves the array "
+    "applied, the next brings it back with Dyntopo off",
+}
 
 
 # --- runner ------------------------------------------------------------------------------------------------------

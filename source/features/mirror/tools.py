@@ -4,11 +4,11 @@ import bpy
 from bpy.types import Gizmo, GizmoGroup, WorkSpaceTool
 from mathutils import Matrix, Vector
 
-from ..ops.array import input_socket, leave_tool_later
-from ..ops.local_transform import TOOL_ID as LOCAL_TRANSFORM_ID
-from ..ops.mirror import (AXES, MIRROR_TOOL_ID, current_mirror, enabled_axes,
-                          ensure_mirror, mirror_frame)
-from .local_transform import AXIS_ALIGN
+from ...ops.local_transform import TOOL_ID as LOCAL_TRANSFORM_ID
+from ...ui.local_transform import AXIS_ALIGN
+from ..array.operators import input_socket, leave_tool_later
+from .operators import (AXES, MIRROR_TOOL_ID, current_mirror, enabled_axes,
+                        ensure_mirror, mirror_frame)
 
 ###
 # Mirror tool
@@ -18,7 +18,9 @@ from .local_transform import AXIS_ALIGN
 #  axis color, around the mesh's reflection point.
 ###
 
-ICON = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "..", "icons", "ops.sculpt_deck.mirror"))
+ICON = os.path.normpath(
+    os.path.join(os.path.dirname(__file__), "..", "..", "..", "icons", "ops.sculpt_deck.mirror")
+)
 
 # the outline's half size, in parts of the mesh's largest dimension
 PLANE_SIZE = 0.75
@@ -130,7 +132,7 @@ class SCULPT_DECK_TOOL_mirror(WorkSpaceTool):
 def register():
     bpy.utils.register_class(SCULPT_DECK_GT_mirror_plane)
     bpy.utils.register_class(SCULPT_DECK_GGT_mirror)
-    # right after Local Transform, before the array tools (see ui/__init__.py)
+    # right after Local Transform, before the array tools (see features/__init__.py)
     bpy.utils.register_tool(SCULPT_DECK_TOOL_mirror, after={LOCAL_TRANSFORM_ID}, group=True)
 
 

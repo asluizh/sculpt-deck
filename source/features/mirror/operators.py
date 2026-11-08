@@ -2,9 +2,10 @@ import bpy
 from bpy.types import Operator
 from mathutils import Matrix
 
-from ..utils.constants import CANCEL, FINISHED
-from .array import (active_tool, apply_modifier, array_poll, get_input,
-                    leave_tool, modifier_tools, set_input)
+from ...utils.constants import CANCEL, FINISHED
+from ..array.operators import (active_tool, apply_modifier, array_poll,
+                               get_input, leave_tool, modifier_tools,
+                               set_input)
 
 ###
 # Mirror

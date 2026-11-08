@@ -1,5 +1,6 @@
 # The add-on is moving from the layered packages (ops, ui, utils) to parts grouped by feature (core, features,
-# surfaces, navigation); both are registered until the move is done.
+# surfaces, navigation); both are registered until the move is done. features is imported before ops on purpose,
+# see features/array/__init__.py.
 from . import core, features, navigation, ops, surfaces, ui, utils
 
 
