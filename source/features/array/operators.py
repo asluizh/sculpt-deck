@@ -469,10 +469,12 @@ def apply_modifier(context, modifier):
         # gets the copies, but the dynamic topology mesh being sculpted doesn't, and overwrites them when Sculpt
         # Mode ends, so the copies are lost. In Object Mode it applies properly, but the new mesh doesn't keep
         # dynamic topology on, so it's turned back on (an operator called from Python, so no extra undo step).
-        with hop(context, "OBJECT"):
-            bpy.ops.object.modifier_apply(modifier=modifier.name)
-        if not obj.use_dynamic_topology_sculpting:
-            bpy.ops.sculpt.dynamic_topology_toggle()
+        try:
+            with hop(context, "OBJECT"):
+                bpy.ops.object.modifier_apply(modifier=modifier.name)
+        finally:
+            if obj.mode == "SCULPT" and not obj.use_dynamic_topology_sculpting:
+                bpy.ops.sculpt.dynamic_topology_toggle()
         return
     try:
         bpy.ops.object.modifier_apply(modifier=modifier.name)

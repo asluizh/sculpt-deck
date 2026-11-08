@@ -2,7 +2,10 @@
 
 Unlike a Detour, a Hop adds or removes no objects, so it stores no Scene Checkpoint, and the mode switches push no
 undo steps of their own: the action's own undo step is the only one the user sees, saved in the mode the action
-started and ended in.
+started and ended in. The exception is Sculpt Mode with Dyntopo on: Blender itself pushes "Dynamic topology
+disable/enable" steps when it's left and entered (see PROJECT.md, known limitations).
+
+The switches act on the active object of the current context (`bpy.ops`), so `context` should be that one.
 """
 
 from contextlib import contextmanager

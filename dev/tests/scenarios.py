@@ -217,17 +217,16 @@ def start_tool(idname: str, modifier: str):
 
 
 def count_hops() -> list[str]:
-    """Record the target mode of every Hop the add-on makes from now on, in the returned list"""
+    """Record the target mode of every Hop Array's apply makes from now on, in the returned list"""
     hops: list[str] = []
-    for name, module in list(sys.modules.items()):
-        if name.startswith(PACKAGE) and getattr(module, "hop", None) is not None and not name.endswith(".hop"):
-            original = module.hop
+    module = sys.modules[PACKAGE + ".source.features.array.operators"]
+    original = sys.modules[PACKAGE + ".source.core.hop"].hop
 
-            def recording(context, target, original=original):
-                hops.append(target)
-                return original(context, target)
+    def recording(context, target):
+        hops.append(target)
+        return original(context, target)
 
-            module.hop = recording
+    module.hop = recording
     return hops
 
 
