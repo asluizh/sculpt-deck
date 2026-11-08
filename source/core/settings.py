@@ -85,8 +85,10 @@ def load_defaults():
 
 def save_defaults():
     global _defaults
+    # keys of parts not registered now (navigation removed) are kept, so adding the part back brings its settings
+    data = {**(read(defaults_path()) or {}), **preferences().to_dict()}
     with open(defaults_path(create=True), "w") as file:
-        json.dump(preferences().to_dict(), file)
+        json.dump(data, file)
     _defaults = current()
     update_state()
 

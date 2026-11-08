@@ -9,9 +9,15 @@ from . import core, features, surfaces
 # when it's there.
 OPTIONAL = ("navigation",)
 
-PARTS = [core, features, surfaces] + [
-    import_module(f"{__name__}.{name}") for name in OPTIONAL if find_spec(f"{__name__}.{name}") is not None
-]
+
+
+def present(name: str) -> bool:
+    """The part's package is there: a folder left with only __pycache__ is a namespace package, without an origin"""
+    spec = find_spec(f"{__name__}.{name}")
+    return spec is not None and spec.origin is not None
+
+
+PARTS = [core, features, surfaces] + [import_module(f"{__name__}.{name}") for name in OPTIONAL if present(name)]
 
 
 def register():

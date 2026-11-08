@@ -258,7 +258,8 @@ def without(expected: list[str], names: set[str], actions: set[str]) -> list[str
         if in_lists and ": " in line:
             head, choices = line.split(": ", 1)
             kept.append(f"{head}: {' '.join(choice for choice in choices.split() if choice not in actions)}")
-        elif not set(line.split()) & names:
+        # a whole line (an operator, class or settings key), or a sidebar panel line ("10 CLASS (Label)")
+        elif line not in names and not (line[:1].isdigit() and line.split()[1] in names):
             kept.append(line)
     return kept
 
