@@ -3,18 +3,18 @@ import bpy
 from bpy.props import *
 from bpy.types import AddonPreferences, PropertyGroup, UILayout
 
-from .source.core.actions import GESTURES, enum_items
 from .source.surfaces.action_slots import SCULPT_DECK_PG_MenuModeGroup
+from .source.surfaces.clicks.panel import draw_click_binding
+from .source.surfaces.pen.panel import draw_pen_buttons
+from .source.surfaces.pen.settings import SCULPT_DECK_PG_PenModeSet
 from .source.surfaces.pie.panels import draw_action_pie
 from .source.surfaces.widget.panels import draw_widget_buttons
-from .source.ui.panel import (draw_click_binding, draw_default_settings,
-                              draw_pen_buttons)
+from .source.ui.panel import draw_default_settings
 from .source.utils import settings
 from .source.utils.constants import (WIDGET_SLOTS, click_defaults, click_slots,
                                      gizmo_sets, menu_defaults,
                                      menu_orientation_items, menu_style_items,
-                                     pen_buttons, pen_defaults, pen_gestures,
-                                     pie_mode, pie_mode_aliases,
+                                     pen_defaults, pie_mode, pie_mode_aliases,
                                      pie_mode_items, pivot_items,
                                      position_items, widget_defaults)
 
@@ -45,83 +45,6 @@ def redraw_viewports(_, c):
         for area in window.screen.areas:
             if area.type == "VIEW_3D":
                 area.tag_redraw()
-
-
-##
-# Pen Button Settings
-##
-# the Action List of a pen button click or hold, a double click or a right click; a gesture
-# not set yet (ensurePenSets sets it) reads as a click
-def pen_actions(binding, _):
-    gesture = binding.gesture if binding.gesture in GESTURES else "PEN_CLICK"
-    return enum_items(gesture, binding.mode)
-
-
-class SCULPT_DECK_PG_PenBinding(PropertyGroup):
-    mode: StringProperty(name="mode", default="OBJECT")
-    # the Gesture, as named in core/actions.py: PEN_CLICK, PEN_HOLD, DOUBLE_CLICK or RIGHT_CLICK
-    gesture: StringProperty(name="gesture", default="PEN_CLICK")
-    action: EnumProperty(name="Action", items=pen_actions)
-    operator: StringProperty(
-        name="Custom Action",
-        description="Operator (e.g. object.shade_smooth) or menu (e.g. VIEW3D_MT_add) to run",
-    )
-    brush_library_type: StringProperty()
-    brush_library: StringProperty()
-    brush_asset: StringProperty()
-
-    def brushRef(self) -> tuple | None:
-        if not self.brush_asset:
-            return None
-        return (self.brush_library_type, self.brush_library, self.brush_asset)
-
-    def setBrushRef(self, ref: tuple):
-        self.brush_library_type, self.brush_library, self.brush_asset = ref
-
-    def to_dict(self):
-        return {
-            "action": self.action,
-            "operator": self.operator,
-            "brush": list(self.brushRef() or ()),
-        }
-
-    def from_dict(self, data: dict):
-        try:
-            self.action = data.get("action", "DEFAULT")
-        except TypeError:
-            self.action = "DEFAULT"
-        self.operator = data.get("operator", "")
-        brush = data.get("brush", [])
-        if len(brush) == 3:
-            self.setBrushRef(tuple(brush))
-
-
-class SCULPT_DECK_PG_PenModeSet(PropertyGroup):
-    mode: StringProperty(name="mode", default="OBJECT")
-    upper_click: PointerProperty(type=SCULPT_DECK_PG_PenBinding)
-    upper_hold: PointerProperty(type=SCULPT_DECK_PG_PenBinding)
-    lower_click: PointerProperty(type=SCULPT_DECK_PG_PenBinding)
-    lower_hold: PointerProperty(type=SCULPT_DECK_PG_PenBinding)
-    # mouse/touch right click and double tap, with the actions of a pen button click
-    right_click: PointerProperty(type=SCULPT_DECK_PG_PenBinding)
-    double_click: PointerProperty(type=SCULPT_DECK_PG_PenBinding)
-
-    def bindings(self):
-        for button in pen_buttons.values():
-            for gesture in pen_gestures:
-                yield button + "_" + gesture, getattr(self, button + "_" + gesture)
-
-    def all_bindings(self):
-        yield from self.bindings()
-        for slot in click_slots:
-            yield slot, getattr(self, slot)
-
-    def to_dict(self):
-        return {"mode": self.mode, **{slot: binding.to_dict() for slot, binding in self.all_bindings()}}
-
-    def from_dict(self, data: dict):
-        for slot, binding in self.all_bindings():
-            binding.from_dict(data.get(slot, {"action": click_defaults.get(slot, "DEFAULT")}))
 
 
 class SCULPT_DECK_AP_OverlaySettings(AddonPreferences):
@@ -784,10 +707,8 @@ class SCULPT_DECK_AP_OverlaySettings(AddonPreferences):
         return self.radius / 100
 
 
-# SCULPT_DECK_PG_MenuModeGroup, which menu_sets and widget_sets hold, is registered with the surfaces
+# the property groups menu_sets, widget_sets and pen_sets hold are registered by the surfaces, before these
 classes = (
-    SCULPT_DECK_PG_PenBinding,
-    SCULPT_DECK_PG_PenModeSet,
     SCULPT_DECK_AP_OverlaySettings,
 )
 

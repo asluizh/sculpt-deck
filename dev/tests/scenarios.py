@@ -428,11 +428,11 @@ def mirror_apply():
     check(mode() == "SCULPT", f"undo Apply Mirror: expected Sculpt Mode, got {mode()}")
 
 
-def pen_events():
-    """Make the add-on take simulated button presses for pen presses"""
+def pen_events(pen: bool = True):
+    """Make the add-on take simulated button presses for pen presses, or, with pen=False, for mouse presses again"""
     for name, module in list(sys.modules.items()):
         if name.startswith(PACKAGE) and hasattr(module, "is_pen"):
-            module.is_pen = lambda event: True
+            module.is_pen = (lambda event: True) if pen else (lambda event: event.is_tablet)
 
 
 def simulate(event_type: str, value: str):
@@ -442,6 +442,37 @@ def simulate(event_type: str, value: str):
 
 def brush() -> str:
     return bpy.context.tool_settings.sculpt.brush.name
+
+
+def tool() -> str:
+    with override():
+        active = bpy.context.workspace.tools.from_space_view3d_mode("SCULPT", create=False)
+    return active.idname if active else ""
+
+
+def prefs():
+    return bpy.context.preferences.addons[PACKAGE].preferences
+
+
+SMOOTH = ("ESSENTIALS", "", "brushes/essentials_brushes-mesh_sculpt.blend/Brush/Smooth")
+
+
+def bind(settings: dict):
+    """Change the add-on settings, given as {(owner, property): value}; returns the old values for unbind"""
+    saved = {}
+    try:
+        for (owner, prop), value in settings.items():
+            saved[(owner, prop)] = getattr(owner, prop)
+            setattr(owner, prop, value)
+    except Exception:
+        unbind(saved)
+        raise
+    return saved
+
+
+def unbind(saved: dict):
+    for (owner, prop), value in saved.items():
+        setattr(owner, prop, value)
 
 
 def pen_hold_momentary_brush():
@@ -538,6 +569,91 @@ def widget_button_opens_action_pie():
     window.event_simulate("ESC", "PRESS", x=area.x + 5, y=area.y + 5)
     window.event_simulate("ESC", "RELEASE", x=area.x + 5, y=area.y + 5)
     yield 0.3
+def pen_click_brush():
+    """A click of a pen button bound to a brush switches to it for good"""
+    yield from reset()
+    pen_events()
+    upper = prefs().getPenSet("SCULPT").upper_click
+    hold = prefs().getPenSet("SCULPT").upper_hold
+    saved = bind({(upper, "action"): "BRUSH", (hold, "action"): "NONE"})
+    old_ref = upper.brushRef()
+    upper.setBrushRef(SMOOTH)
+    try:
+        check(brush() != "Smooth", "setup: the starting brush is already Smooth")
+        simulate("MOUSEMOVE", "NOTHING")
+        yield 0.2
+        simulate("RIGHTMOUSE", "PRESS")
+        yield 0.05
+        simulate("RIGHTMOUSE", "RELEASE")
+        yield 0.5
+        check(brush() == "Smooth", f"pen click: expected the Smooth brush, got {brush()}")
+        yield 0.5
+        check(brush() == "Smooth", f"after the pen click: expected the Smooth brush to stay, got {brush()}")
+    finally:
+        unbind(saved)
+        upper.setBrushRef(old_ref or ("", "", ""))
+
+
+def pen_hold_momentary_tool():
+    """A hold of a pen button bound to a Momentary tool uses it while held, and puts the brush tool back"""
+    yield from reset()
+    pen_events()
+    pen_set = prefs().getPenSet("SCULPT")
+    saved = bind({(pen_set.upper_click, "action"): "NONE", (pen_set.upper_hold, "action"): "TOOL:builtin.box_mask"})
+    try:
+        before = tool()
+        check(before == "builtin.brush", f"setup: expected the brush tool, got {before}")
+        simulate("MOUSEMOVE", "NOTHING")
+        yield 0.2
+        simulate("RIGHTMOUSE", "PRESS")
+        yield 0.8
+        check(tool() == "builtin.box_mask", f"pen hold: expected the Box Mask tool while held, got {tool()}")
+        simulate("RIGHTMOUSE", "RELEASE")
+        yield 0.5
+        check(tool() == before, f"pen release: expected {before} back, got {tool()}")
+    finally:
+        unbind(saved)
+
+
+def right_click_action():
+    """A mouse right click runs the right click action set for the mode, here a tool"""
+    yield from reset()
+    pen_events(pen=False)
+    pen_set = prefs().getPenSet("SCULPT")
+    saved = bind({(prefs(), "enable_right_click"): True, (pen_set.right_click, "action"): "TOOL:builtin.box_mask"})
+    try:
+        check(tool() == "builtin.brush", f"setup: expected the brush tool, got {tool()}")
+        simulate("MOUSEMOVE", "NOTHING")
+        yield 0.2
+        simulate("RIGHTMOUSE", "PRESS")
+        yield 0.1
+        simulate("RIGHTMOUSE", "RELEASE")
+        yield 0.5
+        check(tool() == "builtin.box_mask", f"right click: expected the Box Mask tool, got {tool()}")
+    finally:
+        unbind(saved)
+
+
+def double_click_action():
+    """A double tap runs the double click action set for the mode, here a tool. event_simulate can't make a
+    DOUBLE_CLICK event, so this goes through the touch tap handling, which runs the double click action itself"""
+    yield from reset()
+    pen_events(pen=False)
+    pen_set = prefs().getPenSet("SCULPT")
+    saved = bind({(prefs(), "enable_double_click"): True, (pen_set.double_click, "action"): "TOOL:builtin.box_mask"})
+    try:
+        check(tool() == "builtin.brush", f"setup: expected the brush tool, got {tool()}")
+        simulate("MOUSEMOVE", "NOTHING")
+        yield 0.2
+        for _ in range(2):
+            simulate("LEFTMOUSE", "PRESS")
+            yield 0.05
+            simulate("LEFTMOUSE", "RELEASE")
+            yield 0.05
+        yield 0.5
+        check(tool() == "builtin.box_mask", f"double click: expected the Box Mask tool, got {tool()}")
+    finally:
+        unbind(saved)
 
 
 SCENARIOS = [
@@ -560,6 +676,10 @@ SCENARIOS = [
     pen_hold_momentary_brush,
     widget_button_runs_action,
     widget_button_opens_action_pie,
+    pen_click_brush,
+    pen_hold_momentary_tool,
+    right_click_action,
+    double_click_action,
 ]
 
 # Scenarios that fail on purpose because of a known bug, with the reason. They report XFAIL and don't fail the
