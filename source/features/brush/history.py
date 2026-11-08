@@ -1,7 +1,12 @@
+"""The current and previous brush per paint mode, polled from a timer, and helpers to read and switch brushes.
+
+The same timer polls the tool history and the object history (utils/actions.py), which have no timer of their own.
+"""
+
 import bpy
 
-from .actions import object_history, tool_history
-from .constants import paint_settings_name, pen_brush_modes
+from ...utils.actions import object_history, tool_history
+from ...utils.constants import paint_settings_name, pen_brush_modes
 
 # A brush is referenced the way Blender's asset system does it:
 # (asset_library_type, asset_library_identifier, relative_asset_identifier),

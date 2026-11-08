@@ -68,8 +68,21 @@ source/
     mirror/                Mirror
       operators.py           node group (its inputs are the Mirror settings), apply/remove operators
       tools.py               toolbar tool, header and plane outlines
+    resolution/            Resolution Changes
+      voxel.py               Voxel Density Up and Down (voxel size, then voxel remesh)
+      multires.py            Multires Level Up and Down
+    brush/                 brushes
+      history.py             brush history, polled every 0.25 s along with the tool and object histories;
+                             reading and switching brushes
+      radial_control.py      Brush Size and Brush Strength
+      stroke_method.py       Stroke Method menu
+    masks/
+      mask_operators.py      Invert Mask and Reveal Hidden
+    interface/             what otherwise needs the keyboard
+      toggles.py             Toggle Sidebar, Tools Region Swap, next Pivot mode
+      list_drag.py           left-click drag scrolls UI lists and menus (View2D Buttons List keymap)
   ops/                   operators
-    actions.py             general actions: remesh, Multires, masks, brush size/strength
+    actions.py             Recenter View, Rotation Lock, Toggle Touch Controls, Save/Revert Default Settings
     touch.py               touch navigation, tap/double tap/long press on objects, double click and right click actions
     gizmo.py               widget and action pie operators
     pen.py                 pen button bindings (click and hold, temporary brushes and tools), BindingRunner shared with clicks
@@ -82,8 +95,7 @@ source/
     local_transform.py     Local Transform toolbar tool, header and 3D gizmos
   utils/                 shared helpers
     constants.py           enums, defaults
-    actions.py             runs an Action by idname (operator, menu, pie, asset shelf, tool), tool history
-    brush.py               brush history, polled every 0.25 s along with the tool history
+    actions.py             runs an Action by idname (operator, menu, pie, asset shelf, tool), tool and object history
     undo.py                push_scene_undo: the Scene Checkpoint under its old name, for Local Transform
     settings.py            default settings (add-on user folder) and per-file settings (scene property), unsaved check
     keymaps.py             keymap registration

@@ -3,10 +3,10 @@ import bpy
 from bpy.types import Menu, Panel, UILayout
 
 from ..core import actions as catalog
+from ..features.brush.history import brush_name
 from ..utils import settings
 from ..utils.actions import TOOL_PREFIX, is_pie, operator_exists
 from ..utils.blender import preferences
-from ..utils.brush import brush_name
 from ..utils.constants import (WIDGET_SLOTS, pie_mode, pie_mode_items,
                                pie_slot_display_order, pie_slot_names)
 
