@@ -6,19 +6,15 @@
 # layout (vertical, horizontal, etc)
 # to be managed through inheritance.
 ###
-from . import array, local_transform, mirror, panel
+from . import local_transform, panel
 
 
 def register():
     panel.register()
+    # the Mirror and array tools (features/) join the end of Local Transform's toolbar section
     local_transform.register()
-    # tools join the end of Local Transform's toolbar section, in this order
-    mirror.register()
-    array.register()
 
 
 def unregister():
-    mirror.unregister()
-    array.unregister()
     local_transform.unregister()
     panel.unregister()

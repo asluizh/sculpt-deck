@@ -5,12 +5,12 @@ import bpy
 from bpy.types import Gizmo, GizmoGroup, WorkSpaceTool
 from mathutils import Matrix, Vector
 
-from ..ops.array import (AXES, CIRCULAR_TOOL_ID, LINEAR_TOOL_ID,
-                         SCULPT_DECK_OT_array_edit, axes_basis, circle_step,
-                         copy_matrix, current_array, ensure_array, get_input,
-                         leave_tool_later, settings)
-from ..ops.local_transform import TOOL_ID as LOCAL_TRANSFORM_ID
-from .local_transform import AXIS_ALIGN
+from ...ops.local_transform import TOOL_ID as LOCAL_TRANSFORM_ID
+from ...ui.local_transform import AXIS_ALIGN
+from .operators import (AXES, CIRCULAR_TOOL_ID, LINEAR_TOOL_ID,
+                        SCULPT_DECK_OT_array_edit, axes_basis, circle_step,
+                        copy_matrix, current_array, ensure_array, get_input,
+                        leave_tool_later, settings)
 
 ###
 # Array tools
@@ -26,7 +26,7 @@ from .local_transform import AXIS_ALIGN
 #     while the arc is dragged, a filled sector and marks show its steps
 ###
 
-ICON_DIR = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "..", "icons"))
+ICON_DIR = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "..", "..", "icons"))
 
 ARROW_START = 0.25
 ARROW_LENGTH = 0.35
