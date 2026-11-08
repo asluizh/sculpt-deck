@@ -1,7 +1,6 @@
 import bpy
 
-from .constants import (DCLICK, LMOUSE, PRESS, RMOUSE, flat_modes, pen_buttons,
-                        top_level_names)
+from .constants import LMOUSE, PRESS, flat_modes, top_level_names
 
 default_keymaps = []
 modified_keymaps = []
@@ -25,13 +24,6 @@ def assign_keymaps():
     kmi = km.keymap_items.new("sculpt_deck.toggle_touch", type="T", value=PRESS, alt=True)
     modified_keymaps.append((km, kmi))
 
-    # pen buttons, in the "Grease Pencil" keymap: the 3D View checks it before
-    # every mode keymap, so the buttons run before Blender's own mode actions
-    # (e.g. the sculpt context menu)
-    km = wm.keyconfigs.addon.keymaps.new(name="Grease Pencil", space_type="EMPTY")
-    for button in pen_buttons:
-        kmi = km.keymap_items.new("sculpt_deck.pen_button", button, PRESS)
-        modified_keymaps.append((km, kmi))
 
     # add LEFT MOUSE ACTION for sculpt_deck.view_ops
     for kmap in wm.keyconfigs["Blender"].keymaps:
@@ -43,12 +35,7 @@ def assign_keymaps():
                 main_action = "sculpt_deck.view_ops_3d"
             kmi = km.keymap_items.new(main_action, LMOUSE, PRESS)
             modified_keymaps.append((km, kmi))
-
-            kmi = km.keymap_items.new("sculpt_deck.dt_action", LMOUSE, DCLICK)
-            modified_keymaps.append((km, kmi))
-
-            kmi = km.keymap_items.new("sculpt_deck.rc_action", RMOUSE, PRESS)
-            modified_keymaps.append((km, kmi))
+            # the double click and right click actions add theirs in surfaces/clicks
 
 
 # unset MOUSE viewport control, reset PEN to MOUSE input

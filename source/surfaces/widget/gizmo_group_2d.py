@@ -4,8 +4,8 @@ import bpy
 from bpy.types import GizmoGroup
 from mathutils import Vector
 
-from ..utils.blender import *
-from ..utils.constants import WIDGET_SLOTS, action_toggles
+from ...utils.blender import *
+from ...utils.constants import WIDGET_SLOTS, action_toggles
 from .gizmo_2d import ActionGizmo, GizmoSet, GizmoSetBoolean, action_icon
 from .gizmo_config import controllerConfig, floatingToggleConfig
 

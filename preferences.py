@@ -3,16 +3,18 @@ import bpy
 from bpy.props import *
 from bpy.types import AddonPreferences, PropertyGroup, UILayout
 
-from .source.core.actions import GESTURES, enum_items
-from .source.ui.panel import (draw_action_pie, draw_click_binding,
-                              draw_default_settings, draw_pen_buttons,
-                              draw_widget_buttons)
+from .source.surfaces.action_slots import SCULPT_DECK_PG_MenuModeGroup
+from .source.surfaces.clicks.panel import draw_click_binding
+from .source.surfaces.pen.panel import draw_pen_buttons
+from .source.surfaces.pen.settings import SCULPT_DECK_PG_PenModeSet
+from .source.surfaces.pie.panels import draw_action_pie
+from .source.surfaces.widget.panels import draw_widget_buttons
+from .source.ui.panel import draw_default_settings
 from .source.utils import settings
 from .source.utils.constants import (WIDGET_SLOTS, click_defaults, click_slots,
                                      gizmo_sets, menu_defaults,
                                      menu_orientation_items, menu_style_items,
-                                     pen_buttons, pen_defaults, pen_gestures,
-                                     pie_mode, pie_mode_aliases,
+                                     pen_defaults, pie_mode, pie_mode_aliases,
                                      pie_mode_items, pivot_items,
                                      position_items, widget_defaults)
 
@@ -43,181 +45,6 @@ def redraw_viewports(_, c):
         for area in window.screen.areas:
             if area.type == "VIEW_3D":
                 area.tag_redraw()
-
-
-##
-# Action Menu Settings
-##
-# the pie uses the first 8 slots, the widget all of them
-PIE_SLOTS = range(1, 9)
-ALL_SLOTS = range(1, WIDGET_SLOTS + 1)
-
-# the Action List of a Widget button or an Action Pie slot (kind WIDGET or PIE)
-def pie_choices(group, _):
-    return enum_items(group.kind, group.mode)
-
-
-def pie_choice(slot: int):
-    return EnumProperty(
-        name="Pie Slot",
-        description="Action for this position of the pie",
-        items=pie_choices,
-        update=lambda group, _: group.choiceChanged(slot),
-    )
-
-
-def pie_custom():
-    return StringProperty(
-        name="Custom Action",
-        description="Operator (e.g. object.shade_smooth) or menu (e.g. VIEW3D_MT_add) to show in this slot",
-        default="",
-    )
-
-
-class SCULPT_DECK_PG_MenuModeGroup(PropertyGroup):
-    mode: StringProperty(name="mode", default="OBJECT")
-    kind: StringProperty(name="kind", default="PIE")  # PIE or WIDGET
-    menu_choice_1: pie_choice(1)
-    menu_choice_2: pie_choice(2)
-    menu_choice_3: pie_choice(3)
-    menu_choice_4: pie_choice(4)
-    menu_choice_5: pie_choice(5)
-    menu_choice_6: pie_choice(6)
-    menu_choice_7: pie_choice(7)
-    menu_choice_8: pie_choice(8)
-    menu_choice_9: pie_choice(9)
-    menu_choice_10: pie_choice(10)
-    menu_choice_11: pie_choice(11)
-    menu_choice_12: pie_choice(12)
-    # custom action of each slot (and the only setting in older versions)
-    menu_slot_1: pie_custom()
-    menu_slot_2: pie_custom()
-    menu_slot_3: pie_custom()
-    menu_slot_4: pie_custom()
-    menu_slot_5: pie_custom()
-    menu_slot_6: pie_custom()
-    menu_slot_7: pie_custom()
-    menu_slot_8: pie_custom()
-    menu_slot_9: pie_custom()
-    menu_slot_10: pie_custom()
-    menu_slot_11: pie_custom()
-    menu_slot_12: pie_custom()
-
-    def choiceChanged(self, slot: int):
-        if getattr(self, f"menu_choice_{slot}") != "CUSTOM":
-            setattr(self, f"menu_slot_{slot}", "")
-
-    # the operator or menu shown in a slot, "" when empty
-    def slot(self, slot: int) -> str:
-        choice = getattr(self, f"menu_choice_{slot}")
-        if choice == "CUSTOM":
-            return getattr(self, f"menu_slot_{slot}").strip()
-        return "" if choice == "NONE" else choice
-
-    def setSlot(self, slot: int, idname: str):
-        known = {item[0] for item in pie_choices(self, None) if item}
-        if not idname:
-            setattr(self, f"menu_choice_{slot}", "NONE")
-        elif idname in known:
-            setattr(self, f"menu_choice_{slot}", idname)
-        else:
-            setattr(self, f"menu_choice_{slot}", "CUSTOM")
-            setattr(self, f"menu_slot_{slot}", idname)
-
-    # settings from older versions only have the text of each slot
-    def migrate(self):
-        for slot in ALL_SLOTS:
-            text = getattr(self, f"menu_slot_{slot}")
-            if getattr(self, f"menu_choice_{slot}") == "NONE" and text:
-                self.setSlot(slot, text)
-
-    def slots(self, count: int) -> list[str]:
-        return [self.slot(slot) for slot in range(1, count + 1)]
-
-    def to_dict(self):
-        return {"mode": self.mode, **{f"menu_slot_{slot}": self.slot(slot) for slot in ALL_SLOTS}}
-
-    def from_dict(self, data: dict):
-        self.mode = pie_mode(data.get("mode", "OBJECT"))
-        for slot in ALL_SLOTS:
-            self.setSlot(slot, data.get(f"menu_slot_{slot}", ""))
-
-
-##
-# Pen Button Settings
-##
-# the Action List of a pen button click or hold, a double click or a right click; a gesture
-# not set yet (ensurePenSets sets it) reads as a click
-def pen_actions(binding, _):
-    gesture = binding.gesture if binding.gesture in GESTURES else "PEN_CLICK"
-    return enum_items(gesture, binding.mode)
-
-
-class SCULPT_DECK_PG_PenBinding(PropertyGroup):
-    mode: StringProperty(name="mode", default="OBJECT")
-    # the Gesture, as named in core/actions.py: PEN_CLICK, PEN_HOLD, DOUBLE_CLICK or RIGHT_CLICK
-    gesture: StringProperty(name="gesture", default="PEN_CLICK")
-    action: EnumProperty(name="Action", items=pen_actions)
-    operator: StringProperty(
-        name="Custom Action",
-        description="Operator (e.g. object.shade_smooth) or menu (e.g. VIEW3D_MT_add) to run",
-    )
-    brush_library_type: StringProperty()
-    brush_library: StringProperty()
-    brush_asset: StringProperty()
-
-    def brushRef(self) -> tuple | None:
-        if not self.brush_asset:
-            return None
-        return (self.brush_library_type, self.brush_library, self.brush_asset)
-
-    def setBrushRef(self, ref: tuple):
-        self.brush_library_type, self.brush_library, self.brush_asset = ref
-
-    def to_dict(self):
-        return {
-            "action": self.action,
-            "operator": self.operator,
-            "brush": list(self.brushRef() or ()),
-        }
-
-    def from_dict(self, data: dict):
-        try:
-            self.action = data.get("action", "DEFAULT")
-        except TypeError:
-            self.action = "DEFAULT"
-        self.operator = data.get("operator", "")
-        brush = data.get("brush", [])
-        if len(brush) == 3:
-            self.setBrushRef(tuple(brush))
-
-
-class SCULPT_DECK_PG_PenModeSet(PropertyGroup):
-    mode: StringProperty(name="mode", default="OBJECT")
-    upper_click: PointerProperty(type=SCULPT_DECK_PG_PenBinding)
-    upper_hold: PointerProperty(type=SCULPT_DECK_PG_PenBinding)
-    lower_click: PointerProperty(type=SCULPT_DECK_PG_PenBinding)
-    lower_hold: PointerProperty(type=SCULPT_DECK_PG_PenBinding)
-    # mouse/touch right click and double tap, with the actions of a pen button click
-    right_click: PointerProperty(type=SCULPT_DECK_PG_PenBinding)
-    double_click: PointerProperty(type=SCULPT_DECK_PG_PenBinding)
-
-    def bindings(self):
-        for button in pen_buttons.values():
-            for gesture in pen_gestures:
-                yield button + "_" + gesture, getattr(self, button + "_" + gesture)
-
-    def all_bindings(self):
-        yield from self.bindings()
-        for slot in click_slots:
-            yield slot, getattr(self, slot)
-
-    def to_dict(self):
-        return {"mode": self.mode, **{slot: binding.to_dict() for slot, binding in self.all_bindings()}}
-
-    def from_dict(self, data: dict):
-        for slot, binding in self.all_bindings():
-            binding.from_dict(data.get(slot, {"action": click_defaults.get(slot, "DEFAULT")}))
 
 
 class SCULPT_DECK_AP_OverlaySettings(AddonPreferences):
@@ -880,10 +707,8 @@ class SCULPT_DECK_AP_OverlaySettings(AddonPreferences):
         return self.radius / 100
 
 
+# the property groups menu_sets, widget_sets and pen_sets hold are registered by the surfaces, before these
 classes = (
-    SCULPT_DECK_PG_MenuModeGroup,
-    SCULPT_DECK_PG_PenBinding,
-    SCULPT_DECK_PG_PenModeSet,
     SCULPT_DECK_AP_OverlaySettings,
 )
 

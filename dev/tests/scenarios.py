@@ -428,11 +428,11 @@ def mirror_apply():
     check(mode() == "SCULPT", f"undo Apply Mirror: expected Sculpt Mode, got {mode()}")
 
 
-def pen_events():
-    """Make the add-on take simulated button presses for pen presses"""
+def pen_events(pen: bool = True):
+    """Make the add-on take simulated button presses for pen presses, or, with pen=False, for mouse presses again"""
     for name, module in list(sys.modules.items()):
         if name.startswith(PACKAGE) and hasattr(module, "is_pen"):
-            module.is_pen = lambda event: True
+            module.is_pen = (lambda event: True) if pen else (lambda event: event.is_tablet)
 
 
 def simulate(event_type: str, value: str):
@@ -442,6 +442,37 @@ def simulate(event_type: str, value: str):
 
 def brush() -> str:
     return bpy.context.tool_settings.sculpt.brush.name
+
+
+def tool() -> str:
+    with override():
+        active = bpy.context.workspace.tools.from_space_view3d_mode("SCULPT", create=False)
+    return active.idname if active else ""
+
+
+def prefs():
+    return bpy.context.preferences.addons[PACKAGE].preferences
+
+
+SMOOTH = ("ESSENTIALS", "", "brushes/essentials_brushes-mesh_sculpt.blend/Brush/Smooth")
+
+
+def bind(settings: dict):
+    """Change the add-on settings, given as {(owner, property): value}; returns the old values for unbind"""
+    saved = {}
+    try:
+        for (owner, prop), value in settings.items():
+            saved[(owner, prop)] = getattr(owner, prop)
+            setattr(owner, prop, value)
+    except Exception:
+        unbind(saved)
+        raise
+    return saved
+
+
+def unbind(saved: dict):
+    for (owner, prop), value in saved.items():
+        setattr(owner, prop, value)
 
 
 def pen_hold_momentary_brush():
@@ -533,6 +564,169 @@ def interface_toggle_sidebar():
     call("sculpt_deck.toggle_n_panel")
     yield 0.3
     check(sidebar_shown() == before, f"Toggle Sidebar again: expected the sidebar shown = {before}")
+def widget_group():
+    """The Widget's gizmo group in the viewport, caught on its next redraw"""
+    module = sys.modules[PACKAGE + ".source.surfaces.widget.gizmo_group_2d"]
+    group_class = module.GIZMO_GT_viewport_gizmo_group
+    found = []
+    original = group_class.draw_prepare
+
+    def draw_prepare(self, context):
+        found.append(self)
+        return original(self, context)
+
+    group_class.draw_prepare = draw_prepare
+    try:
+        for _ in range(20):
+            _window, area, _region = view3d()
+            area.tag_redraw()
+            yield 0.1
+            if found:
+                break
+    finally:
+        group_class.draw_prepare = original
+    check(bool(found), "the Widget's gizmo group didn't draw")
+    return found[-1]
+
+
+def click_widget_button(group, idname: str):
+    """Tap the Widget button set to `idname`, at the place the Widget drew it"""
+    button = next((action for action in group.actions if action.idname == idname), None)
+    check(button is not None, f"no Widget button for {idname}: {[action.idname for action in group.actions]}")
+    check(button.visible, f"the Widget button for {idname} is hidden")
+    window, _area, region = view3d()
+    position = button.primary.matrix_basis.translation
+    x, y = region.x + round(position.x), region.y + round(position.y)
+    window.event_simulate("MOUSEMOVE", "NOTHING", x=x, y=y)
+    yield 0.3
+    window.event_simulate("LEFTMOUSE", "PRESS", x=x, y=y)
+    yield 0.05
+    window.event_simulate("LEFTMOUSE", "RELEASE", x=x, y=y)
+    yield 0.5
+
+
+def widget_button_runs_action():
+    yield from reset()
+    _window, area, _region = view3d()
+    space = area.spaces.active
+    before = space.show_region_ui
+    group = yield from widget_group()
+    # a Sculpt Mode default: an operator Action, run by the button itself
+    yield from click_widget_button(group, "sculpt_deck.toggle_n_panel")
+    check(space.show_region_ui != before, f"Widget N Panel button: sidebar still {'shown' if before else 'hidden'}")
+    check(mode() == "SCULPT", f"Widget N Panel button: expected Sculpt Mode, got {mode()}")
+
+
+def widget_button_opens_action_pie():
+    yield from reset()
+    menus = sys.modules[PACKAGE + ".source.surfaces.pie.menus"]
+    pie_class = menus.SCULPT_DECK_MT_floating
+    drawn = []
+    original = pie_class.draw
+
+    def draw(self, context):
+        drawn.append(context.mode)
+        return original(self, context)
+
+    pie_class.draw = draw
+    try:
+        group = yield from widget_group()
+        # a menu Action: the button runs sculpt_deck.widget_menu, which opens the pie after the release
+        yield from click_widget_button(group, "SCULPT_DECK_MT_floating")
+        yield 0.5
+    finally:
+        pie_class.draw = original
+    check(bool(drawn), "Widget Action Pie button: the pie didn't open")
+    check(set(drawn) == {"SCULPT"}, f"Widget Action Pie button: the pie drew in modes {sorted(set(drawn))}")
+    window, area, _region = view3d()
+    window.event_simulate("ESC", "PRESS", x=area.x + 5, y=area.y + 5)
+    window.event_simulate("ESC", "RELEASE", x=area.x + 5, y=area.y + 5)
+    yield 0.3
+def pen_click_brush():
+    """A click of a pen button bound to a brush switches to it for good"""
+    yield from reset()
+    pen_events()
+    upper = prefs().getPenSet("SCULPT").upper_click
+    hold = prefs().getPenSet("SCULPT").upper_hold
+    saved = bind({(upper, "action"): "BRUSH", (hold, "action"): "NONE"})
+    old_ref = upper.brushRef()
+    upper.setBrushRef(SMOOTH)
+    try:
+        check(brush() != "Smooth", "setup: the starting brush is already Smooth")
+        simulate("MOUSEMOVE", "NOTHING")
+        yield 0.2
+        simulate("RIGHTMOUSE", "PRESS")
+        yield 0.05
+        simulate("RIGHTMOUSE", "RELEASE")
+        yield 0.5
+        check(brush() == "Smooth", f"pen click: expected the Smooth brush, got {brush()}")
+        yield 0.5
+        check(brush() == "Smooth", f"after the pen click: expected the Smooth brush to stay, got {brush()}")
+    finally:
+        unbind(saved)
+        upper.setBrushRef(old_ref or ("", "", ""))
+
+
+def pen_hold_momentary_tool():
+    """A hold of a pen button bound to a Momentary tool uses it while held, and puts the brush tool back"""
+    yield from reset()
+    pen_events()
+    pen_set = prefs().getPenSet("SCULPT")
+    saved = bind({(pen_set.upper_click, "action"): "NONE", (pen_set.upper_hold, "action"): "TOOL:builtin.box_mask"})
+    try:
+        before = tool()
+        check(before == "builtin.brush", f"setup: expected the brush tool, got {before}")
+        simulate("MOUSEMOVE", "NOTHING")
+        yield 0.2
+        simulate("RIGHTMOUSE", "PRESS")
+        yield 0.8
+        check(tool() == "builtin.box_mask", f"pen hold: expected the Box Mask tool while held, got {tool()}")
+        simulate("RIGHTMOUSE", "RELEASE")
+        yield 0.5
+        check(tool() == before, f"pen release: expected {before} back, got {tool()}")
+    finally:
+        unbind(saved)
+
+
+def right_click_action():
+    """A mouse right click runs the right click action set for the mode, here a tool"""
+    yield from reset()
+    pen_events(pen=False)
+    pen_set = prefs().getPenSet("SCULPT")
+    saved = bind({(prefs(), "enable_right_click"): True, (pen_set.right_click, "action"): "TOOL:builtin.box_mask"})
+    try:
+        check(tool() == "builtin.brush", f"setup: expected the brush tool, got {tool()}")
+        simulate("MOUSEMOVE", "NOTHING")
+        yield 0.2
+        simulate("RIGHTMOUSE", "PRESS")
+        yield 0.1
+        simulate("RIGHTMOUSE", "RELEASE")
+        yield 0.5
+        check(tool() == "builtin.box_mask", f"right click: expected the Box Mask tool, got {tool()}")
+    finally:
+        unbind(saved)
+
+
+def double_click_action():
+    """A double tap runs the double click action set for the mode, here a tool. event_simulate can't make a
+    DOUBLE_CLICK event, so this goes through the touch tap handling, which runs the double click action itself"""
+    yield from reset()
+    pen_events(pen=False)
+    pen_set = prefs().getPenSet("SCULPT")
+    saved = bind({(prefs(), "enable_double_click"): True, (pen_set.double_click, "action"): "TOOL:builtin.box_mask"})
+    try:
+        check(tool() == "builtin.brush", f"setup: expected the brush tool, got {tool()}")
+        simulate("MOUSEMOVE", "NOTHING")
+        yield 0.2
+        for _ in range(2):
+            simulate("LEFTMOUSE", "PRESS")
+            yield 0.05
+            simulate("LEFTMOUSE", "RELEASE")
+            yield 0.05
+        yield 0.5
+        check(tool() == "builtin.box_mask", f"double click: expected the Box Mask tool, got {tool()}")
+    finally:
+        unbind(saved)
 
 
 SCENARIOS = [
@@ -557,6 +751,12 @@ SCENARIOS = [
     resolution_density_up_undo_voxel_size,
     masks_invert,
     interface_toggle_sidebar,
+    widget_button_runs_action,
+    widget_button_opens_action_pie,
+    pen_click_brush,
+    pen_hold_momentary_tool,
+    right_click_action,
+    double_click_action,
 ]
 
 # Scenarios that fail on purpose because of a known bug, with the reason. They report XFAIL and don't fail the
@@ -565,7 +765,7 @@ KNOWN_FAILURES = {
     "hop_array_apply_dyntopo_undo": "#17: leaving and entering Sculpt Mode with Dyntopo on pushes Blender's own "
     "Dynamic topology disable and enable steps, so the Hop shows in the undo history: one undo leaves the array "
     "applied, the next brings it back with Dyntopo off",
-    "resolution_density_up_undo_voxel_size": "a Sculpt Mode undo step restores the remeshed geometry but not the "
+    "resolution_density_up_undo_voxel_size": "#21: a Sculpt Mode undo step restores the remeshed geometry but not the "
     "mesh's voxel size, so undo leaves the finer size and the next step goes from there",
 }
 

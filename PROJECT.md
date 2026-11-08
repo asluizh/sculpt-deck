@@ -49,7 +49,7 @@ dev/                     development tools, not shipped
   make_array_icons.py      builds the Linear/Circular Array icons
   make_mirror_icon.py      builds the Mirror icon
   tests/                   smoke.sh: headless register check (expected output in smoke_expected.txt)
-                           scenarios.sh: UI scenarios (undo, Adjust Last Operation, pen hold) on headless weston
+                           scenarios.sh: UI scenarios (undo, Adjust Last Operation, pen buttons, clicks) on headless weston
 source/
   core/                  shared mechanisms every part builds on (see the glossary)
     actions.py             the Action catalog (each Action's modes, Momentary, Resolution Change) and the rules
@@ -81,24 +81,41 @@ source/
     interface/             what otherwise needs the keyboard
       toggles.py             Toggle Sidebar, Tools Region Swap, next Pivot mode
       list_drag.py           left-click drag scrolls UI lists and menus (View2D Buttons List keymap)
+  surfaces/              Action Surfaces, each with its settings and sidebar panels
+    action_slots.py        the per-mode Action slots shared by the Widget and the Action Pie (property group, drawing)
+    widget/                the Widget: on-screen buttons and the floating touch toggle
+      operators.py           moving/folding the widget, opening a button's menu, moving the floating toggle
+      gizmo_group_2d.py      the gizmo group, building one button per Action of the current mode
+      gizmo_2d.py, gizmo_config.py  widget button types and layout
+      panels.py              Gizmo and Widget Buttons sidebar panels, Gizmos popover entry
+    pie/                   the Action Pie
+      menus.py               the pie and the All Actions popup, draw_action
+      panels.py              Action Pie sidebar panel
+    pen/                   pen buttons (click and hold per mode)
+      settings.py            the pen set of each mode (PropertyGroups held in the preferences' pen_sets), with the
+                             right click and double click bindings
+      button.py              the pen button operator (hold engages a Momentary brush or tool, put back on release),
+                             BindingRunner shared with the clicks, Use Active Brush, the pen keymap entries
+      panel.py               Pen Buttons sidebar panel; draws a binding for the clicks too
+    clicks/                double click and right click (mouse and touch)
+      action.py              the double click and right click operators and their keymap entries
+      panel.py               Right Click and Double Click sidebar panels
   ops/                   operators
     actions.py             Recenter View, Rotation Lock, Toggle Touch Controls, Save/Revert Default Settings
-    touch.py               touch navigation, tap/double tap/long press on objects, double click and right click actions
-    gizmo.py               widget and action pie operators
-    pen.py                 pen button bindings (click and hold, temporary brushes and tools), BindingRunner shared with clicks
+    touch.py               touch navigation, tap/double tap/long press on objects
+    gizmo.py               Cycle Control Gizmo (an Action for the object gizmos)
+    pen.py                 Previous Brush and Invert Brush
     drag.py                shared modal drag for tool gizmos (confirm on release, tap keeps running)
     local_transform.py     Local Transform tool operator, settings, Apply Scale
   ui/                    drawing
-    gizmo_group_2d.py      on-screen widget
-    gizmo_2d.py, gizmo_config.py  widget button types and layout
-    panel.py               sidebar panels and menus (action pie, All Actions)
+    panel.py               sidebar panels
     local_transform.py     Local Transform toolbar tool, header and 3D gizmos
   utils/                 shared helpers
     constants.py           enums, defaults
     actions.py             runs an Action by idname (operator, menu, pie, asset shelf, tool), tool and object history
     undo.py                push_scene_undo: the Scene Checkpoint under its old name, for Local Transform
     settings.py            default settings (add-on user folder) and per-file settings (scene property), unsaved check
-    keymaps.py             keymap registration
+    keymaps.py             keymap registration of touch navigation (the surfaces register their own)
     overlay.py             touch region overlay
     blender.py             preferences access, safe area and other UI helpers
 ```
@@ -112,7 +129,7 @@ How the tools fit together:
 
 Development notes (Blender 5.2):
 
-- Run `dev/tests/smoke.sh` after every change: it builds the zip, installs it into a throwaway profile in `bin/test/` (the flatpak can't see `/tmp`), enables, disables and re-enables the add-on, and fails on any error or warning, or when the registered operators, classes or Action Lists differ from `dev/tests/smoke_expected.txt`. It also checks the Action List rules (a pen hold offers only Momentary choices, no pen button or click offers a Resolution Change), that Actions added to the catalog appear on every Gesture where they fit, and that the settings survive a save and load. When a difference is intended, accept it with `--update` and commit the new expected file with the change.
+- Run `dev/tests/smoke.sh` after every change: it builds the zip, installs it into a throwaway profile in `bin/test/` (the flatpak can't see `/tmp`), enables, disables and re-enables the add-on, and fails on any error or warning, or when the registered operators, classes, sidebar panel order or Action Lists differ from `dev/tests/smoke_expected.txt`. It also checks the Action List rules (a pen hold offers only Momentary choices, no pen button or click offers a Resolution Change), that Actions added to the catalog appear on every Gesture where they fit, and that the settings survive a save and load. When a difference is intended, accept it with `--update` and commit the new expected file with the change.
 
 - Geometry Nodes modifier inputs are read and written through `modifier.properties.inputs.<socket id>.value`, not `modifier["Socket_N"]`.
 - Gizmo offsets (`matrix_offset`) are in scene units unless `use_draw_offset_scale` is set, which makes them follow the gizmo's screen size.
@@ -122,9 +139,9 @@ Development notes (Blender 5.2):
 - Sculpt and Edit Mode undo steps can't add or remove objects. Operators that do (Add Mesh, Duplicate, Delete, Join, Fuse) are Detours (`core/detour.py`): a subclass supplies only `object_mode_work`, and the `Detour` base stores a Scene Checkpoint first (`core/checkpoint.py`, which hides the active object so Blender picks a whole scene step), finishes in Object Mode so the operator's own step is a whole scene step too, and returns to the starting mode from a timer. Those steps are saved in Object Mode, so the object carries a `sculpt_deck_return_mode` property and undo/redo handlers switch it back. The Detour records its starting mode once, in a hidden property, so a repeat from Adjust Last Operation, which can run before that mode is back, still ends there; and it stores the checkpoint once, so each Detour leaves exactly one extra "Before ..." undo step. A Detour run by another one (Delete adding a cube when no mesh is left) gets `checkpoint=False` and the caller's `start_mode`.
 - Sculpt Mode undo steps don't hold object transforms (or modifier settings), so undoing a move to a Sculpt step leaves the objects moved. Outside Object Mode, Local Transform stores a Scene Checkpoint (`push_scene_undo`, re-exported from `core/checkpoint.py` by `utils/undo.py`) of the objects at their start right before its own step, when the drag is confirmed, so undo moves them back and Adjust Last Operation goes back to that state. Each move leaves that extra "Before Local Transform" step. It also stores each object's starting matrix, array vectors and mesh size (and its children's matrices) in a hidden property, and starts from them when run again.
 - Operators called from Python push no undo steps, but `object.transfer_mode` still saves its "Change Active" step (with the new object still in Object Mode) and then skips the step of entering the mode, so undo lands in Object Mode. The tap calls it with `undo=True`.
-- Run `dev/tests/scenarios.sh` (or `dev/tests/scenarios.sh <name> ...`) after changes to undo, modes, Detours or pen buttons. Its `adjust_last` runs `ed.undo_redo` with an undo step: called from Python without one, the repeated operator stores no step of its own and runs while still in Object Mode (`detour_repeat_from_object_mode` uses that on purpose). Real Sculpt undo steps only exist in the full UI, so it starts `weston --backend=headless --renderer=gl --xwayland` and runs Blender's flatpak on its Xwayland display with `--enable-event-simulate`, driving it from a timer under a `temp_override` of the 3D viewport. A scenario is a generator in `dev/tests/scenarios.py` that calls operators with an undo step, checks the result and yields seconds to wait; add it to `SCENARIOS`. A scenario failing because of a known bug goes in `KNOWN_FAILURES` with the reason. `window.event_simulate` can't make tablet events, so the pen scenario makes the add-on take simulated presses for pen presses.
+- Run `dev/tests/scenarios.sh` (or `dev/tests/scenarios.sh <name> ...`) after changes to undo, modes, Detours or pen buttons. Its `adjust_last` runs `ed.undo_redo` with an undo step: called from Python without one, the repeated operator stores no step of its own and runs while still in Object Mode (`detour_repeat_from_object_mode` uses that on purpose). Real Sculpt undo steps only exist in the full UI, so it starts `weston --backend=headless --renderer=gl --xwayland` and runs Blender's flatpak on its Xwayland display with `--enable-event-simulate`, driving it from a timer under a `temp_override` of the 3D viewport. A scenario is a generator in `dev/tests/scenarios.py` that calls operators with an undo step, checks the result and yields seconds to wait; add it to `SCENARIOS`. A scenario failing because of a known bug goes in `KNOWN_FAILURES` with the reason. `window.event_simulate` can't make tablet events, so the pen scenarios make the add-on take simulated presses for pen presses (`is_pen` in `surfaces/pen/button.py`), and the click scenarios turn that back off.
 - Undo can be tested in the UI with operators called from a timer as `bpy.ops.<op>("EXEC_DEFAULT", True, ...)` (the `True` pushes an undo step) and `bpy.context.window_manager.print_undo_steps()`.
-- `bpy.utils.register_tool(after=...)` puts a tool at the end of the separator section holding `after`, so the order inside a section is the registration order (`ui/__init__.py`, then `features/__init__.py`).
+- `bpy.utils.register_tool(after=...)` puts a tool at the end of the separator section holding `after`, so the order inside a section is the registration order (`ui/__init__.py`, then `features/__init__.py`). Sidebar sub-panels each set a `bl_order`, spaced in tens (`ui/panel.py`), so their order doesn't depend on which package registers them.
 - Popup menus opened with `wm.call_menu` run their operator buttons with `EXEC_REGION_WIN`, so operators that need `invoke` (Save's file browser, Search) fail or vanish. `draw_action` sets `operator_context = "INVOKE_REGION_WIN"`.
 - Add-on `unregister()` runs when Blender quits normally, but not after a crash. Changing add-on preferences from Python or the sidebar doesn't mark Blender's preferences as unsaved.
 - Headless tests run with `flatpak run --filesystem=home org.blender.Blender -b --factory-startup --python <script>`, with the add-on linked into a scripts folder through `BLENDER_USER_SCRIPTS`. Gizmos, drags and headers need testing in the UI.
