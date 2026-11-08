@@ -1,5 +1,5 @@
-"""Shared mechanisms every part builds on: the Action catalog and Action Lists, Detour, Hop, Scene Checkpoint,
-settings and preferences. See GLOSSARY.md for the terms."""
+"""Shared mechanisms every part builds on: the Action catalog and Action Lists, Detour, Hop, Scene Checkpoint, the
+modal drag the tool gizmos share, settings and preferences. See GLOSSARY.md for the terms."""
 
 from types import ModuleType
 

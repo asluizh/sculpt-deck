@@ -4,9 +4,9 @@ import bpy
 from bpy.types import Gizmo, GizmoGroup, WorkSpaceTool
 from mathutils import Matrix, Vector
 
-from ...ops.local_transform import TOOL_ID as LOCAL_TRANSFORM_ID
-from ...ui.local_transform import AXIS_ALIGN
 from ..array.operators import input_socket, leave_tool_later
+from ..local_transform.operators import TOOL_ID as LOCAL_TRANSFORM_ID
+from ..local_transform.tools import AXIS_ALIGN
 from .operators import (AXES, MIRROR_TOOL_ID, current_mirror, enabled_axes,
                         ensure_mirror, mirror_frame)
 
