@@ -17,7 +17,7 @@ weston_log="$work/weston.log"
 build_and_install >"$log"
 rm -f "$results"
 
-weston --backend=headless --renderer=gl --xwayland --socket=sculpt-deck-test --width=1600 --height=1000 \
+weston --backend=headless --renderer=gl --xwayland --socket="sculpt-deck-test-$$" --width=1600 --height=1000 \
   >"$weston_log" 2>&1 &
 weston_pid=$!
 trap 'kill "$weston_pid" 2>/dev/null || true' EXIT
