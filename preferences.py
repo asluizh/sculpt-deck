@@ -1,10 +1,9 @@
 # type: ignore
-import zlib
-
 import bpy
 from bpy.props import *
 from bpy.types import AddonPreferences, PropertyGroup, UILayout
 
+from .source.core.actions import GESTURES, enum_items
 from .source.ui.panel import (draw_action_pie, draw_click_binding,
                               draw_default_settings, draw_pen_buttons,
                               draw_widget_buttons)
@@ -12,16 +11,10 @@ from .source.utils import settings
 from .source.utils.constants import (WIDGET_SLOTS, click_defaults, click_slots,
                                      gizmo_sets, menu_defaults,
                                      menu_orientation_items, menu_style_items,
-                                     pen_action_aliases, pen_action_numbers,
-                                     pen_brush_items, pen_brush_modes,
-                                     pen_button_items, pen_buttons,
-                                     pen_defaults, pen_gestures,
-                                     pen_hold_action, pen_resolution_actions,
-                                     pie_common_actions, pie_mode,
-                                     pie_mode_actions, pie_mode_aliases,
+                                     pen_buttons, pen_defaults, pen_gestures,
+                                     pie_mode, pie_mode_aliases,
                                      pie_mode_items, pivot_items,
-                                     position_items, widget_defaults,
-                                     widget_only_actions)
+                                     position_items, widget_defaults)
 
 
 def NODE_HT_sculpt_deck_header(s, c):
@@ -59,27 +52,9 @@ def redraw_viewports(_, c):
 PIE_SLOTS = range(1, 9)
 ALL_SLOTS = range(1, WIDGET_SLOTS + 1)
 
-# dynamic enum items must stay referenced while Blender uses them
-_pie_choice_cache: dict[tuple, list] = {}
-
-
-# stable numbers keep stored choices valid when the catalog changes
-def pie_choice_number(idname: str) -> int:
-    return 2 + zlib.crc32(idname.encode()) % 1_000_000
-
-
+# the Action List of a Widget button or an Action Pie slot (kind WIDGET or PIE)
 def pie_choices(group, _):
-    key = (group.mode, group.kind)
-    if key not in _pie_choice_cache:
-        items = [("NONE", "Empty", "Leave this slot empty", "BLANK1", 0)]
-        widget_actions = widget_only_actions if group.kind == "WIDGET" else []
-        for actions in (widget_actions, pie_mode_actions.get(group.mode, []), pie_common_actions):
-            if actions:
-                items.append(None)
-            items += [(idname, label, idname, icon, pie_choice_number(idname)) for idname, label, icon in actions]
-        items += [None, ("CUSTOM", "Custom...", "Type the name of an operator or menu", "SCRIPT", 1)]
-        _pie_choice_cache[key] = items
-    return _pie_choice_cache[key]
+    return enum_items(group.kind, group.mode)
 
 
 def pie_choice(slot: int):
@@ -171,41 +146,17 @@ class SCULPT_DECK_PG_MenuModeGroup(PropertyGroup):
 ##
 # Pen Button Settings
 ##
-_pen_action_cache: dict[tuple, list] = {}
-
-
-# Button-only actions (Blender default, nothing, brush switching, the action
-# pie), then the actions shared with the pie and the widget. A click can use
-# most of them (not resolution changes); a hold only brushes and tools, used
-# until the button is released
+# the Action List of a pen button click or hold, a double click or a right click; a gesture
+# not set yet (ensurePenSets sets it) reads as a click
 def pen_actions(binding, _):
-    key = (binding.mode, binding.gesture)
-    if key not in _pen_action_cache:
-        is_brush_mode = binding.mode in pen_brush_modes
-        items = list(pen_button_items) + (pen_brush_items if is_brush_mode else [])
-        for actions in (widget_only_actions, pie_mode_actions.get(binding.mode, []), pie_common_actions):
-            # Previous Brush is already above, with hold support
-            actions = [
-                action
-                for action in actions
-                if action[0] != "sculpt_deck.brush_previous"
-                and action[0] not in pen_resolution_actions
-                and (binding.gesture == "click" or pen_hold_action(action[0]))
-            ]
-            if actions:
-                items.append(None)
-            items += [
-                (idname, label, idname, icon, pen_action_numbers.get(idname, 100 + pie_choice_number(idname)))
-                for idname, label, icon in actions
-            ]
-        items += [None, ("CUSTOM", "Custom...", "Type the name of an operator or menu", "SCRIPT", 4)]
-        _pen_action_cache[key] = items
-    return _pen_action_cache[key]
+    gesture = binding.gesture if binding.gesture in GESTURES else "PEN_CLICK"
+    return enum_items(gesture, binding.mode)
 
 
 class SCULPT_DECK_PG_PenBinding(PropertyGroup):
     mode: StringProperty(name="mode", default="OBJECT")
-    gesture: StringProperty(name="gesture", default="click")  # click or hold
+    # the Gesture, as named in core/actions.py: PEN_CLICK, PEN_HOLD, DOUBLE_CLICK or RIGHT_CLICK
+    gesture: StringProperty(name="gesture", default="PEN_CLICK")
     action: EnumProperty(name="Action", items=pen_actions)
     operator: StringProperty(
         name="Custom Action",
@@ -231,9 +182,8 @@ class SCULPT_DECK_PG_PenBinding(PropertyGroup):
         }
 
     def from_dict(self, data: dict):
-        action = data.get("action", "DEFAULT")
         try:
-            self.action = pen_action_aliases.get(action, action)
+            self.action = data.get("action", "DEFAULT")
         except TypeError:
             self.action = "DEFAULT"
         self.operator = data.get("operator", "")
@@ -896,7 +846,7 @@ class SCULPT_DECK_AP_OverlaySettings(AddonPreferences):
         for pen_set in self.pen_sets:
             for slot, binding in pen_set.all_bindings():
                 binding.mode = pen_set.mode
-                binding.gesture = "click" if slot in click_slots else slot.rsplit("_", 1)[1]
+                binding.gesture = slot.upper() if slot in click_slots else "PEN_" + slot.rsplit("_", 1)[1].upper()
                 # actions no longer offered for this button/gesture
                 if binding.action == "":
                     binding.action = "DEFAULT"

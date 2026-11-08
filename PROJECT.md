@@ -51,7 +51,9 @@ dev/                     development tools, not shipped
   tests/                   smoke.sh: headless register check (expected output in smoke_expected.txt)
                            scenarios.sh: UI scenarios (undo, Adjust Last Operation, pen hold) on headless weston
 source/
-  core/                  shared mechanisms (see the glossary)
+  core/                  shared mechanisms every part builds on (see the glossary)
+    actions.py             the Action catalog (each Action's modes, Momentary, Resolution Change) and the rules
+                           that build every Gesture's Action List from it
     checkpoint.py          Scene Checkpoint: a whole scene undo step in Sculpt and Edit Mode
     detour.py              Detour: base for operators that go through Object Mode, return mode on undo and redo
   features/              sculpt workflow features, one sub-package each
@@ -76,8 +78,8 @@ source/
     array.py               Linear/Circular Array toolbar tools, headers and 3D gizmos
     mirror.py              Mirror toolbar tool, header and plane outlines
   utils/                 shared helpers
-    constants.py           action lists per mode, enums, defaults
-    actions.py             runs an action by idname (operator, menu, pie, asset shelf, tool), tool history
+    constants.py           enums, defaults
+    actions.py             runs an Action by idname (operator, menu, pie, asset shelf, tool), tool history
     brush.py               brush history, polled every 0.25 s along with the tool history
     undo.py                push_scene_undo: the Scene Checkpoint under its old name, for Local Transform
     settings.py            default settings (add-on user folder) and per-file settings (scene property), unsaved check
@@ -95,7 +97,7 @@ How the tools fit together:
 
 Development notes (Blender 5.2):
 
-- Run `dev/tests/smoke.sh` after every change: it builds the zip, installs it into a throwaway profile in `bin/test/` (the flatpak can't see `/tmp`), enables, disables and re-enables the add-on, and fails on any error or warning, or when the registered operators, classes or Action Lists differ from `dev/tests/smoke_expected.txt`. When a difference is intended, accept it with `--update` and commit the new expected file with the change.
+- Run `dev/tests/smoke.sh` after every change: it builds the zip, installs it into a throwaway profile in `bin/test/` (the flatpak can't see `/tmp`), enables, disables and re-enables the add-on, and fails on any error or warning, or when the registered operators, classes or Action Lists differ from `dev/tests/smoke_expected.txt`. It also checks the Action List rules (a pen hold offers only Momentary choices, no pen button or click offers a Resolution Change), that Actions added to the catalog appear on every Gesture where they fit, and that the settings survive a save and load. When a difference is intended, accept it with `--update` and commit the new expected file with the change.
 
 - Geometry Nodes modifier inputs are read and written through `modifier.properties.inputs.<socket id>.value`, not `modifier["Socket_N"]`.
 - Gizmo offsets (`matrix_offset`) are in scene units unless `use_draw_offset_scale` is set, which makes them follow the gizmo's screen size.
