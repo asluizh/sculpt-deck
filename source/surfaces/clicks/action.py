@@ -5,7 +5,7 @@ from bpy.types import Operator
 
 from ...utils.blender import preferences
 from ...utils.constants import (DCLICK, FINISHED, LMOUSE, PASSTHROUGH, PEN,
-                                PRESS, RMOUSE, top_level_names)
+                                PRESS, RMOUSE, viewport_keymaps)
 from ..pen.button import BindingRunner
 
 
@@ -50,7 +50,7 @@ class SCULPT_DECK_OT_right_click_action(ClickAction, Operator):
 
     @classmethod
     def poll(cls, context):
-        return context.area.type in {"VIEW_2D", "VIEW_3D"} and context.region.type == "WINDOW"
+        return context.area.type == "VIEW_3D" and context.region.type == "WINDOW"
 
     def invoke(self, context, event):
         if event.type not in [RMOUSE]:
@@ -73,7 +73,8 @@ class SCULPT_DECK_OT_double_click_action(ClickAction, Operator):
 
     @classmethod
     def poll(cls, context):
-        return context.area.type in {"NODE_EDITOR", "VIEW_2D", "VIEW_3D", "IMAGE_EDITOR"} and context.region.type == "WINDOW"
+        # its actions are the 3D View's, per object mode
+        return context.area.type == "VIEW_3D" and context.region.type == "WINDOW"
 
     def invoke(self, context, event):
         if event.type not in [PEN, LMOUSE]:
@@ -96,10 +97,10 @@ keymap_items = []
 def register():
     for cls in classes:
         bpy.utils.register_class(cls)
-    # in every top level keymap, after the touch navigation of utils/keymaps.py
+    # in the 3D View keymaps, beside the touch press of the object tap (features/) and navigation
     wm = bpy.context.window_manager
     for kmap in wm.keyconfigs["Blender"].keymaps:
-        if kmap.name not in top_level_names:
+        if kmap.name not in viewport_keymaps:
             continue
         km = wm.keyconfigs.addon.keymaps.new(name=kmap.name, space_type=kmap.space_type, region_type=kmap.region_type)
         keymap_items.append((km, km.keymap_items.new("sculpt_deck.dt_action", LMOUSE, DCLICK)))

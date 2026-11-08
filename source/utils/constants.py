@@ -15,22 +15,10 @@ CANCEL = {"CANCELLED"}
 PASSTHROUGH = {"PASS_THROUGH"}
 
 # DICTIONARIES
-flat_modes = [
-    "Node Editor",
-    "Image",
-    "Image Paint",
-    "UV Editor",
-    "View2D",
-]
-
-top_level_names = (
-    "Node Editor",
-    "UV Editor",
-    "Image Editor",
-    "Image Paint",
+# the 3D View keymaps the double click and right click actions join ("Image Paint" is Texture Paint Mode's)
+viewport_keymaps = (
     "3D View",
-    "Image",
-    "View2D",
+    "Image Paint",
     "Grease Pencil",
 )
 
@@ -265,7 +253,6 @@ gizmo_sets = {
     "OBJECT": {"control_gizmo", "multires"},
     "EDIT_MESH": {"control_gizmo"},
     "POSE": {},
-    "NODE_EDITOR": {"control_gizmo"},
     "PAINT_TEXTURE": {"brush_dynamics"},
     "PAINT_VERTEX": {"brush_dynamics"},
     "PAINT_WEIGHT": {"brush_dynamics"},

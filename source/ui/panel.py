@@ -8,9 +8,9 @@ from ..utils.constants import pie_mode, pie_mode_items
 
 
 # Every sidebar sub-panel of SCULPT_DECK_PT_view_3d_panel sets its place with bl_order, spaced in tens, wherever
-# it's defined (here, the surfaces, the features), so the order users see doesn't depend on which package registers
-# first: Control Zones 10, Gizmo 20, Right Click 30, Double Click 40, Widget Buttons 50, Action Pie 60,
-# Pen Buttons 70, Tool Options 80, Viewport Options 90, Default Settings 100.
+# it's defined (here, navigation, the surfaces, the features), so the order users see doesn't depend on which
+# package registers first: Control Zones 10, Gizmo 20, Right Click 30, Double Click 40, Widget Buttons 50,
+# Action Pie 60, Pen Buttons 70, Tool Options 80, Viewport Options 90, Default Settings 100.
 class SculptDeckPanel:
     bl_label = "Sculpt Deck Settings"
     bl_space_type = "VIEW_3D"
@@ -41,47 +41,6 @@ class SCULPT_DECK_PT_view_3d_panel(SculptDeckPanel, Panel):
         col.prop(prefs, "lazy_mode")
         if prefs.input_mode == "FULL":
             col.prop(prefs, "enable_floating_toggle")
-
-
-class SCULPT_DECK_PT_control_zones(SculptDeckPanel, Panel):
-    bl_label = "Control Zones"
-    bl_order = 10
-    bl_parent_id = "SCULPT_DECK_PT_view_3d_panel"
-    bl_options = {"DEFAULT_CLOSED"}
-
-    def draw_header(self, context):
-        prefs = preferences()
-
-        layout = self.layout
-        layout.use_property_decorate = False
-
-        layout.prop(prefs, "is_enabled", text="")
-
-    def draw(self, context):
-        layout = self.layout
-        layout.use_property_decorate = False
-
-        prefs = preferences()
-
-        layout.active = prefs.is_enabled
-
-        row = layout.row()
-        row.prop(prefs, "header_toggle_position", expand=True)
-
-        layout.use_property_split = True
-
-        col = layout.column(align=True)
-        col.prop(prefs, "isVisible", text="Show Overlay")
-        col.prop(prefs, "swap_panrotate")
-        col.prop(prefs, "tap_to_switch")
-        col.prop(prefs, "use_multiple_colors")
-
-        col = layout.column()
-        col.prop(prefs, "overlay_main_color", text="Main Color")
-        if prefs.use_multiple_colors:
-            col.prop(prefs, "overlay_secondary_color", text="Secondary Color")
-        col.prop(prefs, "width", slider=True)
-        col.prop(prefs, "radius", slider=True)
 
 
 class SCULPT_DECK_PT_tool_settings(SculptDeckPanel, Panel):
@@ -155,67 +114,12 @@ class SCULPT_DECK_PT_default_settings(SculptDeckPanel, Panel):
         draw_default_settings(self.layout)
 
 
-class SCULPT_DECK_PT_image_editor_panel(SculptDeckPanel, Panel):
-    bl_space_type = "IMAGE_EDITOR"
-
-    def draw(self, context):
-        prefs = preferences()
-
-        layout = self.layout
-        layout.use_property_decorate = False
-
-        box = layout.box()
-        box.label(
-            text=UILayout.enum_item_description(prefs, "input_mode", prefs.input_mode),
-            icon_value=UILayout.enum_item_icon(prefs, "input_mode", prefs.input_mode),
-        )
-
-        row = box.row()
-        row.prop(prefs, "input_mode", expand=True)
-
-        col = box.column(align=True)
-        col.use_property_split = True
-        col.prop(prefs, "is_enabled")
-        subcol = col.column(align=True)
-        subcol.active = prefs.is_enabled
-        subcol.prop(prefs, "header_toggle_position", expand=True)
-
-
-class SCULPT_DECK_PT_node_editor_panel(SculptDeckPanel, Panel):
-    bl_space_type = "NODE_EDITOR"
-
-    def draw(self, context):
-        prefs = preferences()
-
-        layout = self.layout
-        layout.use_property_decorate = False
-
-        box = layout.box()
-        box.label(
-            text=UILayout.enum_item_description(prefs, "input_mode", prefs.input_mode),
-            icon_value=UILayout.enum_item_icon(prefs, "input_mode", prefs.input_mode),
-        )
-
-        row = box.row()
-        row.prop(prefs, "input_mode", expand=True)
-
-        col = box.column(align=True)
-        col.use_property_split = True
-        col.prop(prefs, "is_enabled")
-        subcol = col.column(align=True)
-        subcol.active = prefs.is_enabled
-        subcol.prop(prefs, "header_toggle_position", expand=True)
-
-
 classes = (
     SCULPT_DECK_PT_view_3d_panel,
-    SCULPT_DECK_PT_control_zones,
     SCULPT_DECK_PT_tool_settings,
     SCULPT_DECK_PT_viewport_options,
     # last, so it sits at the bottom
     SCULPT_DECK_PT_default_settings,
-    SCULPT_DECK_PT_image_editor_panel,
-    SCULPT_DECK_PT_node_editor_panel,
 )
 
 

@@ -19,25 +19,6 @@ from .source.utils.constants import (WIDGET_SLOTS, click_defaults, click_slots,
                                      position_items, widget_defaults)
 
 
-def NODE_HT_sculpt_deck_header(s, c):
-    prefs = c.preferences.addons[__package__].preferences
-    layout = s.layout
-    layout.separator()
-    layout.prop(prefs, "is_enabled", toggle=True)
-
-
-def update_header_toggle_position(c):
-    prefs = c.preferences.addons[__package__].preferences
-    bpy.types.NODE_HT_header.remove(NODE_HT_sculpt_deck_header)
-    bpy.types.IMAGE_HT_header.remove(NODE_HT_sculpt_deck_header)
-    if prefs.header_toggle_position == "LEFT":
-        bpy.types.NODE_HT_header.prepend(NODE_HT_sculpt_deck_header)
-        bpy.types.IMAGE_HT_header.prepend(NODE_HT_sculpt_deck_header)
-    else:
-        bpy.types.NODE_HT_header.append(NODE_HT_sculpt_deck_header)
-        bpy.types.IMAGE_HT_header.append(NODE_HT_sculpt_deck_header)
-
-
 # preference changes made outside the viewport (e.g. in the Preferences window)
 # don't redraw the viewport gizmos on their own
 def redraw_viewports(_, c):
@@ -57,16 +38,6 @@ class SCULPT_DECK_AP_OverlaySettings(AddonPreferences):
     is_enabled: BoolProperty(
         name="Enable Controls",
         default=True,
-    )
-
-    header_toggle_position: EnumProperty(
-        items=[
-            ("LEFT", "Left", "Toggle position on the left"),
-            ("RIGHT", "Right", "Toggle position on the right"),
-        ],
-        name="Header Toggle Position",
-        default="RIGHT",
-        update=lambda _, c: update_header_toggle_position(c),
     )
 
     lazy_mode: BoolProperty(
@@ -402,7 +373,6 @@ class SCULPT_DECK_AP_OverlaySettings(AddonPreferences):
     def to_dict(self):
         return {
             "is_enabled": self.is_enabled,
-            "header_toggle_position": self.header_toggle_position,
             "lazy_mode": self.lazy_mode,
             "enable_floating_toggle": self.enable_floating_toggle,
             "toggle_position": list(self.toggle_position),
@@ -454,7 +424,6 @@ class SCULPT_DECK_AP_OverlaySettings(AddonPreferences):
 
     def from_dict(self, data: dict):
         self.is_enabled = data.get("is_enabled", True)
-        self.header_toggle_position = data.get("header_toggle_position", "RIGHT")
         self.lazy_mode = data.get("lazy_mode", False)
         self.enable_floating_toggle = data.get("enable_floating_toggle", False)
         self.toggle_position = data.get("toggle_position", (0, 0))
@@ -556,8 +525,6 @@ class SCULPT_DECK_AP_OverlaySettings(AddonPreferences):
         col.use_property_split = True
         col.active = self.is_enabled
 
-        col = col.column()
-        col.prop(self, "header_toggle_position", expand=True)
         col = col.column(align=True)
         col.prop(self, "isVisible", text="Show Overlay")
         col.prop(self, "swap_panrotate")
@@ -721,6 +688,3 @@ def register():
 def unregister():
     for cls in reversed(classes):
         bpy.utils.unregister_class(cls)
-
-    bpy.types.NODE_HT_header.remove(NODE_HT_sculpt_deck_header)
-    bpy.types.IMAGE_HT_header.remove(NODE_HT_sculpt_deck_header)

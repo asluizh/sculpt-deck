@@ -1,3 +1,5 @@
+"""The touch region overlay: the zoom rails and the pan circle, drawn over the 3D View."""
+
 import math
 
 import bpy
@@ -5,7 +7,7 @@ import gpu
 from gpu_extras.batch import batch_for_shader
 from mathutils import Vector
 
-from .blender import preferences
+from ..utils.blender import preferences
 
 
 class Overlay:
@@ -115,3 +117,14 @@ class Overlay:
         gpu.state.blend_set("ALPHA")
         shader.uniform_float("color", color)
         batch.draw(shader)
+
+
+overlay = Overlay()
+
+
+def register():
+    overlay.drawUI()
+
+
+def unregister():
+    overlay.clear_overlays()

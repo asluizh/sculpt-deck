@@ -1,16 +1,9 @@
-from . import keymaps, settings
-from .overlay import Overlay
-
-ov = Overlay()
+from . import settings
 
 
 def register():
-    keymaps.register()
     settings.register()
-    ov.drawUI()
 
 
 def unregister():
-    ov.clear_overlays()
     settings.unregister()
-    keymaps.unregister()
