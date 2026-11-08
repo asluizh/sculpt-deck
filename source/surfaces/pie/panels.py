@@ -4,10 +4,15 @@
 import bpy
 from bpy.types import Panel, UILayout
 
-from ...utils.blender import preferences
-from ...utils.constants import (pie_mode, pie_mode_items,
-                                pie_slot_display_order, pie_slot_names)
+from ...core.constants import pie_mode, pie_mode_items
+from ...core.preferences import preferences
 from ..action_slots import draw_action_slots
+
+# pie positions, in the order Blender fills a pie
+pie_slot_names = ("Left", "Right", "Bottom", "Top", "Top Left", "Top Right", "Bottom Left", "Bottom Right")
+
+# slots listed clockwise from the top, for the settings UI
+pie_slot_display_order = (4, 6, 2, 8, 3, 7, 1, 5)
 
 
 # shared by the sidebar panel and the add-on preferences
@@ -20,7 +25,7 @@ def draw_action_pie(layout: UILayout, prefs, mode: str):
 
 class SCULPT_DECK_PT_action_pie(Panel):
     bl_label = "Action Pie"
-    bl_order = 60  # see SculptDeckPanel in ui/panel.py
+    bl_order = 60  # see SculptDeckPanel in core/ui.py
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
     bl_category = "Sculpt Deck"

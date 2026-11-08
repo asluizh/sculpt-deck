@@ -3,10 +3,20 @@
 import bpy
 from bpy.types import Operator
 
-from ...utils.blender import preferences
-from ...utils.constants import (DCLICK, FINISHED, LMOUSE, PASSTHROUGH, PEN,
-                                PRESS, RMOUSE, viewport_keymaps)
+from ...core.constants import FINISHED, LMOUSE, PASSTHROUGH, PEN, PRESS
+from ...core.preferences import preferences
 from ..pen.button import BindingRunner
+
+RMOUSE = "RIGHTMOUSE"
+
+DCLICK = "DOUBLE_CLICK"
+
+# the 3D View keymaps the double click and right click actions join ("Image Paint" is Texture Paint Mode's)
+viewport_keymaps = (
+    "3D View",
+    "Image Paint",
+    "Grease Pencil",
+)
 
 
 def is_touch(event):

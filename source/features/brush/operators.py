@@ -1,11 +1,22 @@
-# Brush Actions offered on every surface: Previous Brush and Invert Brush. The pen buttons themselves are in
-# surfaces/pen.
+"""Previous Brush and Invert Brush, Actions offered on every surface (the pen buttons hold them too)."""
+
 import bpy
 from bpy.types import Operator
 
-from ..features.brush.history import activate_brush, brush_name, history
-from ..utils.constants import (CANCEL, FINISHED, brush_direction_pairs,
-                               pen_brush_modes)
+from ...core.constants import CANCEL, FINISHED, pen_brush_modes
+from .history import activate_brush, brush_name, history
+
+# brush directions that Invert Brush swaps
+brush_direction_pairs = {
+    "ADD": "SUBTRACT",
+    "SUBTRACT": "ADD",
+    "SMOOTH": "ENHANCE_DETAILS",
+    "ENHANCE_DETAILS": "SMOOTH",
+    "PINCH": "MAGNIFY",
+    "MAGNIFY": "PINCH",
+    "INFLATE": "DEFLATE",
+    "DEFLATE": "INFLATE",
+}
 
 
 class SCULPT_DECK_OT_brush_previous(Operator):

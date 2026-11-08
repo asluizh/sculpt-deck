@@ -9,9 +9,10 @@ from bpy.types import Operator
 from mathutils import Vector
 
 from ...core.actions import find
-from ...utils.actions import invoke_action
-from ...utils.blender import *
-from ...utils.constants import FINISHED, MODAL, PASSTHROUGH
+from ...core.blender import safe_area_3d
+from ...core.constants import FINISHED, MODAL, PASSTHROUGH
+from ...core.invoke import invoke_action
+from ...core.preferences import preferences
 
 # a widget press held this long opens its menu before the release
 MENU_HOLD_TIME = 0.3

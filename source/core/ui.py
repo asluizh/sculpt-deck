@@ -1,14 +1,16 @@
 # type: ignore
+"""The Sculpt Deck sidebar: the main panel every part's sub-panels sit in, and the Default Settings panel at the
+bottom."""
+
 import bpy
 from bpy.types import Panel, UILayout
 
-from ..utils import settings
-from ..utils.blender import preferences
-from ..utils.constants import pie_mode, pie_mode_items
+from . import settings
+from .preferences import preferences
 
 
 # Every sidebar sub-panel of SCULPT_DECK_PT_view_3d_panel sets its place with bl_order, spaced in tens, wherever
-# it's defined (here, navigation, the surfaces, the features), so the order users see doesn't depend on which
+# it's defined (navigation, the surfaces, the features, here), so the order users see doesn't depend on which
 # package registers first: Control Zones 10, Gizmo 20, Right Click 30, Double Click 40, Widget Buttons 50,
 # Action Pie 60, Pen Buttons 70, Tool Options 80, Viewport Options 90, Default Settings 100.
 class SculptDeckPanel:
@@ -43,51 +45,6 @@ class SCULPT_DECK_PT_view_3d_panel(SculptDeckPanel, Panel):
             col.prop(prefs, "enable_floating_toggle")
 
 
-class SCULPT_DECK_PT_tool_settings(SculptDeckPanel, Panel):
-    bl_label = "Tool Options"
-    bl_order = 80
-    bl_parent_id = "SCULPT_DECK_PT_view_3d_panel"
-    bl_options = {"DEFAULT_CLOSED"}
-
-    def draw(self, context):
-        prefs = preferences()
-
-        layout = self.layout
-        layout.use_property_decorate = False
-        layout.use_property_split = True
-
-        layout.prop(prefs, "subdivision_limit", slider=True)
-
-
-class SCULPT_DECK_PT_viewport_options(SculptDeckPanel, Panel):
-    bl_label = "Viewport Options"
-    bl_order = 90
-    bl_parent_id = "SCULPT_DECK_PT_view_3d_panel"
-    bl_options = {"DEFAULT_CLOSED"}
-
-    def draw(self, context):
-        prefs = preferences()
-
-        layout = self.layout
-        layout.use_property_decorate = False
-        layout.use_property_split = True
-
-        view = context.space_data
-        space = context.area.spaces.active
-
-        col = layout.column()
-        col.operator("sculpt_deck.tools_region_flip", text="Flip Tools")
-        if len(space.region_quadviews) > 0:
-            col.operator("screen.region_quadview", text="Disable Quadview")
-        else:
-            col.operator("screen.region_quadview", text="Enable Quadview")
-
-        col = layout.column(align=True)
-        if not len(space.region_quadviews) > 0:
-            col.prop(space, "lock_cursor", text="Lock to Cursor")
-            col.prop(view.region_3d, "lock_rotation", text="Lock Rotation")
-
-
 def draw_default_settings(layout):
     """Save Default Settings and Revert, when the settings differ from the defaults"""
     if not settings.is_unsaved():
@@ -114,11 +71,9 @@ class SCULPT_DECK_PT_default_settings(SculptDeckPanel, Panel):
         draw_default_settings(self.layout)
 
 
+# the main panel first: the sub-panels of every part need it registered
 classes = (
     SCULPT_DECK_PT_view_3d_panel,
-    SCULPT_DECK_PT_tool_settings,
-    SCULPT_DECK_PT_viewport_options,
-    # last, so it sits at the bottom
     SCULPT_DECK_PT_default_settings,
 )
 

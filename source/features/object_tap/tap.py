@@ -16,9 +16,10 @@ from bpy.types import Operator
 from bpy_extras.view3d_utils import region_2d_to_origin_3d, region_2d_to_vector_3d
 from mathutils import Vector
 
+from ...core.blender import ui_scale
+from ...core.constants import FINISHED, LMOUSE, MODAL, PASSTHROUGH, PRESS, object_modes
+from ...core.preferences import preferences
 from ...surfaces.clicks.action import click_binding, is_touch
-from ...utils.blender import preferences, ui_scale
-from ...utils.constants import FINISHED, LMOUSE, MODAL, PASSTHROUGH, PRESS, object_modes
 
 # a touch that lifts within TAP_TIME without moving TAP_SLOP pixels is a tap;
 # held for LONG_PRESS_TIME without moving it toggles the object's selection

@@ -3,7 +3,7 @@
 import bpy
 from bpy.types import Operator
 
-from ...utils.constants import CANCEL, FINISHED
+from ...core.constants import CANCEL, FINISHED
 
 
 def remeshable(context) -> bool:

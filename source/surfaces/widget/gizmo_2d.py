@@ -1,12 +1,25 @@
 import bpy
 from mathutils import Matrix, Vector
 
-from ...core.actions import find
-from ...utils.actions import TOOL_PREFIX, operator_exists
-from ...utils.blender import *
-from ...utils.constants import (action_toggles, multires_actions,
-                               popup_actions, voxel_actions)
+from ...core.actions import TOOL_PREFIX, find
+from ...core.invoke import operator_exists
+from ...core.preferences import preferences
 from .gizmo_config import gizmo_colors, toggle_colors
+
+# toggles whose widget icon follows their state: context path, on icon, off icon
+action_toggles = {
+    "screen.screen_full_area": ("screen.show_fullscreen", "FULLSCREEN_EXIT", "FULLSCREEN_ENTER"),
+    "screen.region_quadview": ("space_data.region_quadviews", "IMGDISPLAY", "MESH_PLANE"),
+    "sculpt_deck.viewport_lock": ("region_data.lock_rotation", "LOCKED", "UNLOCKED"),
+}
+
+# operators that open a popup, run like menus from widget buttons
+popup_actions = {"wm.toolbar", "wm.search_menu", "ed.undo_history", "screen.redo_last"}
+
+# widget buttons only shown when the active object can use them
+voxel_actions = {"object.voxel_size_edit", "object.voxel_remesh", "sculpt_deck.density_up", "sculpt_deck.density_down"}
+
+multires_actions = {"sculpt_deck.increment_multires", "sculpt_deck.decrement_multires"}
 
 ##
 # GizmoSet

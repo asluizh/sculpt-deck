@@ -5,8 +5,8 @@ import math
 import bpy
 from bpy.types import Operator
 
-from ...utils.blender import preferences
-from ...utils.constants import CANCEL, FINISHED, paint_settings_name
+from ...core.constants import CANCEL, FINISHED, paint_settings_name
+from ...core.preferences import preferences
 
 
 class BrushRadialControl:

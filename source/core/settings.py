@@ -2,7 +2,8 @@
 
 The add-on's preferences are the live settings. Saving them as defaults writes them to a file in the add-on's user
 folder, which survives add-on updates. Settings that differ from the defaults are stored in the .blend file when it's
-saved, so each file can keep its own; opening a file without any brings back the defaults.
+saved, so each file can keep its own; opening a file without any brings back the defaults. Save Default Settings and
+Revert to Default Settings are the operators for it.
 """
 
 import json
@@ -10,9 +11,11 @@ from os import path
 
 import bpy
 from bpy.app.handlers import persistent
+from bpy.types import Operator
 
 from ... import __package__ as package
-from .blender import preferences
+from .constants import CANCEL, FINISHED
+from .preferences import preferences
 
 FILE_NAME = "preferences.json"
 # custom property of the scene that holds a file's own settings
@@ -172,7 +175,42 @@ def load_from_file(*_):
     update_state()
 
 
+class SCULPT_DECK_OT_save_default_settings(Operator):
+    """Use the current settings for new files and files without their own settings"""
+
+    bl_label = "Save Default Settings"
+    bl_idname = "sculpt_deck.save_default_settings"
+
+    def execute(self, context):
+        try:
+            save_defaults()
+        except OSError as error:
+            self.report({"ERROR"}, f"Couldn't save the default settings: {error}")
+            return CANCEL
+        self.report({"INFO"}, "Default settings saved")
+        return FINISHED
+
+
+class SCULPT_DECK_OT_revert_settings(Operator):
+    """Go back to the default settings"""
+
+    bl_label = "Revert to Default Settings"
+    bl_idname = "sculpt_deck.revert_settings"
+
+    def execute(self, context):
+        revert_to_defaults()
+        return FINISHED
+
+
+classes = (
+    SCULPT_DECK_OT_save_default_settings,
+    SCULPT_DECK_OT_revert_settings,
+)
+
+
 def register():
+    for cls in classes:
+        bpy.utils.register_class(cls)
     bpy.app.handlers.save_pre.append(store_in_file)
     bpy.app.handlers.load_post.append(load_from_file)
     bpy.app.timers.register(poll_settings, first_interval=0.5, persistent=True)
@@ -185,3 +223,5 @@ def unregister():
         bpy.app.handlers.load_post.remove(load_from_file)
     if store_in_file in bpy.app.handlers.save_pre:
         bpy.app.handlers.save_pre.remove(store_in_file)
+    for cls in reversed(classes):
+        bpy.utils.unregister_class(cls)

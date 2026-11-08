@@ -4,9 +4,9 @@
 import bpy
 from bpy.types import Panel, UILayout
 
-from ...utils.blender import preferences
-from ...utils.constants import WIDGET_SLOTS, pie_mode, pie_mode_items
-from ..action_slots import draw_action_slots
+from ...core.constants import pie_mode, pie_mode_items
+from ...core.preferences import preferences
+from ..action_slots import WIDGET_SLOTS, draw_action_slots
 
 
 # shared by the sidebar panel and the add-on preferences
@@ -27,7 +27,7 @@ class WidgetPanel:
 
 class SCULPT_DECK_PT_gizmo_bar(WidgetPanel, Panel):
     bl_label = "Gizmo"
-    bl_order = 20  # see SculptDeckPanel in ui/panel.py
+    bl_order = 20  # see SculptDeckPanel in core/ui.py
 
     def draw(self, context):
         prefs = preferences()
@@ -50,7 +50,7 @@ class SCULPT_DECK_PT_gizmo_bar(WidgetPanel, Panel):
 
 class SCULPT_DECK_PT_widget_buttons(WidgetPanel, Panel):
     bl_label = "Widget Buttons"
-    bl_order = 50  # see SculptDeckPanel in ui/panel.py
+    bl_order = 50  # see SculptDeckPanel in core/ui.py
 
     def draw_header(self, context):
         self.layout.prop(preferences(), "show_menu", text="")

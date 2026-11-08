@@ -1,4 +1,11 @@
-from ...utils.constants import pivot_icon_items
+
+pivot_icon_items = [
+    ("BORDER", "PIVOT_BOUNDBOX"),
+    ("ORIGIN", "PIVOT_CURSOR"),
+    ("UNMASKED", "CLIPUV_HLT"),
+    ("ACTIVE", "PIVOT_ACTIVE"),
+    ("SURFACE", "PIVOT_MEDIAN"),
+]
 
 ###
 #  Config Standard

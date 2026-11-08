@@ -5,9 +5,10 @@ import bpy
 from bpy.types import Menu, UILayout
 
 from ...core import actions as catalog
-from ...utils.actions import TOOL_PREFIX, is_pie, operator_exists
-from ...utils.blender import preferences
-from ...utils.constants import pie_mode
+from ...core.actions import TOOL_PREFIX
+from ...core.constants import pie_mode
+from ...core.invoke import is_pie, operator_exists
+from ...core.preferences import preferences
 from ..action_slots import PIE_SLOTS
 
 

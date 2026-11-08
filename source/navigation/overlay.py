@@ -7,7 +7,7 @@ import gpu
 from gpu_extras.batch import batch_for_shader
 from mathutils import Vector
 
-from ..utils.blender import preferences
+from ..core.preferences import preferences
 
 
 class Overlay:

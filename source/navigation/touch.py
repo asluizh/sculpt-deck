@@ -12,10 +12,16 @@ from bpy.props import EnumProperty
 from bpy.types import Operator
 from mathutils import Vector
 
+from ..core.constants import FINISHED, PASSTHROUGH, PEN, PRESS, brush_modes
+from ..core.preferences import preferences
 from ..features.object_tap import tap
 from ..surfaces.clicks.action import is_touch
-from ..utils.blender import preferences
-from ..utils.constants import FINISHED, PASSTHROUGH, PEN, PRESS, brush_modes, input_mode_items
+
+input_mode_items = [
+    ("ORBIT", "Rotate", "Rotate the viewport"),
+    ("PAN", "Pan", "Move the viewport"),
+    ("DOLLY", "Zoom", "Zoom in/out the viewport"),
+]
 
 
 def zone_mode(context, x: float, y: float) -> str:

@@ -12,7 +12,7 @@ tool (TOOL:). Choices are stored by identifier.
 import zlib
 from dataclasses import dataclass, replace
 
-from ..utils.constants import pen_brush_modes
+from .constants import pen_brush_modes
 
 TOOL_PREFIX = "TOOL:"
 

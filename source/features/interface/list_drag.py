@@ -2,7 +2,7 @@
 
 import bpy
 
-from ...utils.constants import LMOUSE, PRESS
+from ...core.constants import LMOUSE, PRESS
 
 # the keymap items this part added, removed again on unregister
 added_keymaps = []

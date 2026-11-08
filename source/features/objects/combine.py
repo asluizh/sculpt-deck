@@ -4,8 +4,8 @@ import bpy
 from bpy.props import FloatProperty
 from bpy.types import Operator
 
+from ...core.constants import object_modes
 from ...core.detour import Detour
-from ...utils.constants import object_modes
 
 
 class SelectedMeshes(Detour):

@@ -9,9 +9,23 @@ from bpy.props import BoolProperty, EnumProperty, FloatProperty, IntProperty
 from bpy.types import Menu, Operator
 from mathutils import Matrix
 
+from ...core.constants import object_modes
 from ...core.detour import Detour
-from ...utils.constants import object_modes, primitive_items
 from ..local_transform.operators import TOOL_ID
+
+# menu order; the numbers stay fixed so saved values keep their meaning
+primitive_items = [
+    ("SPHERE", "Sphere", "", "MESH_UVSPHERE", 0),
+    ("ICOSPHERE", "Icosphere", "", "MESH_ICOSPHERE", 10),
+    ("QUADSPHERE", "Quad Sphere", "", "SPHERE", 11),
+    ("CUBE", "Cube", "", "MESH_CUBE", 1),
+    ("CYLINDER", "Cylinder", "", "MESH_CYLINDER", 2),
+    ("CONE", "Cone", "", "MESH_CONE", 3),
+    ("CAPSULE", "Capsule", "", "MESH_CAPSULE", 7),
+    ("TORUS", "Torus", "", "MESH_TORUS", 4),
+    ("PLANE", "Plane", "", "MESH_GRID", 5),
+    ("MONKEY", "Monkey", "", "MESH_MONKEY", 6),
+]
 
 
 def revolve(name: str, profile: list[tuple[float, float]], segments: int):

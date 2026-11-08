@@ -7,7 +7,31 @@ from bpy.props import EnumProperty, PointerProperty, StringProperty
 from bpy.types import PropertyGroup
 
 from ...core.actions import GESTURES, enum_items
-from ...utils.constants import click_defaults, click_slots, pen_buttons, pen_gestures
+
+# pen side buttons arrive as mouse buttons with event.is_tablet set
+pen_buttons = {
+    "RIGHTMOUSE": "upper",
+    "MIDDLEMOUSE": "lower",
+}
+
+pen_gestures = ("click", "hold")
+
+# mouse and touch actions kept with the pen buttons of each mode, using the
+# same actions as a pen button click
+click_slots = ("right_click", "double_click")
+
+click_defaults = {"right_click": "DEFAULT", "double_click": "screen.screen_full_area"}
+
+# pen buttons of a new setup; button 1 is the lower one (BTN_STYLUS),
+# button 2 the upper one (BTN_STYLUS2)
+pen_defaults = {
+    "SCULPT": {
+        "lower_click": "sculpt_deck.brush_invert",
+        "lower_hold": "sculpt_deck.brush_invert",
+        "upper_click": "BRUSH_PREVIOUS",
+        "upper_hold": ("BRUSH", ("ESSENTIALS", "", "brushes/essentials_brushes-mesh_sculpt.blend/Brush/Smooth")),
+    },
+}
 
 
 # the Action List of a pen button click or hold, a double click or a right click; a gesture

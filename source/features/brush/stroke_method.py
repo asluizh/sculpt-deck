@@ -3,7 +3,7 @@
 import bpy
 from bpy.types import Operator
 
-from ...utils.constants import FINISHED, paint_settings_name
+from ...core.constants import FINISHED, paint_settings_name
 
 
 class SCULPT_DECK_OT_stroke_method(Operator):

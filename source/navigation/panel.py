@@ -4,8 +4,8 @@
 import bpy
 from bpy.types import Panel
 
-from ..ui.panel import SculptDeckPanel
-from ..utils.blender import preferences
+from ..core.preferences import preferences
+from ..core.ui import SculptDeckPanel
 
 
 class SCULPT_DECK_PT_control_zones(SculptDeckPanel, Panel):

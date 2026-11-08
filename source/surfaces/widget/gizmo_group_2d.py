@@ -4,9 +4,10 @@ import bpy
 from bpy.types import GizmoGroup
 from mathutils import Vector
 
-from ...utils.blender import *
-from ...utils.constants import WIDGET_SLOTS, action_toggles
-from .gizmo_2d import ActionGizmo, GizmoSet, GizmoSetBoolean, action_icon
+from ...core.blender import navigation_gizmo_height, safe_area_3d, ui_scale
+from ...core.preferences import preferences
+from ..action_slots import WIDGET_SLOTS
+from .gizmo_2d import ActionGizmo, GizmoSet, GizmoSetBoolean, action_icon, action_toggles
 from .gizmo_config import controllerConfig, floatingToggleConfig
 
 __module__ = __name__.split(".")[0]

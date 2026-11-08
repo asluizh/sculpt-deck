@@ -3,19 +3,16 @@ import math
 
 import bpy
 import numpy
-from bpy.props import (BoolProperty, EnumProperty, FloatProperty,
-                       FloatVectorProperty, PointerProperty, StringProperty)
+from bpy.props import BoolProperty, EnumProperty, FloatProperty, FloatVectorProperty, PointerProperty, StringProperty
 from bpy.types import Operator, PropertyGroup
 from bpy_extras import view3d_utils
 from mathutils import Matrix, Vector
 
 from ...core.checkpoint import store_scene_checkpoint
-from ...core.drag import (ViewDrag, axis_on_screen, distance_along,
-                          set_world_matrix, view_plane_offset)
+from ...core.constants import CANCEL, FINISHED, object_modes
+from ...core.drag import ViewDrag, axis_on_screen, distance_along, set_world_matrix, view_plane_offset
 from ...core.hop import hop
-from ...utils.constants import CANCEL, FINISHED, object_modes
-from ..array.operators import (array_snapshot, keep_arrays, restore_arrays,
-                               scale_arrays)
+from ..array.operators import array_snapshot, keep_arrays, restore_arrays, scale_arrays
 
 ###
 # Local Transform

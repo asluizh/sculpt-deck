@@ -3,9 +3,9 @@
 import bpy
 from bpy.types import Operator
 
+from ...core.constants import object_modes
 from ...core.detour import Detour
-from ...utils.actions import object_history
-from ...utils.constants import object_modes
+from ...core.history import object_history
 from ..local_transform.operators import TOOL_ID
 
 

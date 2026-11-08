@@ -153,7 +153,7 @@ def check_round_trip(prefs):
     assert pen["upper_click"]["action"] == "SCULPT_DECK_MT_floating", pen["upper_click"]
     assert pen["lower_hold"]["action"] == "TOOL:builtin.box_mask", pen["lower_hold"]
     assert pen["double_click"] == {"action": "CUSTOM", "operator": "object.shade_smooth", "brush": []}
-    settings = sys.modules[MODULE + ".source.utils.settings"]
+    settings = sys.modules[MODULE + ".source.core.settings"]
     # changed after saving, so loading has to bring each one back
     sculpt.upper_click.action = "DEFAULT"
     sculpt.lower_hold.action = "NONE"

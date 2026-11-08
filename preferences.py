@@ -1,22 +1,26 @@
 # type: ignore
 import bpy
 from bpy.props import *
-from bpy.types import AddonPreferences, PropertyGroup, UILayout
+from bpy.types import AddonPreferences, UILayout
 
-from .source.surfaces.action_slots import SCULPT_DECK_PG_MenuModeGroup
+from .source.core import settings
+from .source.core.constants import pie_mode, pie_mode_aliases, pie_mode_items
+from .source.core.ui import draw_default_settings
+from .source.features.interface.toggles import pivot_items
+from .source.surfaces.action_slots import WIDGET_SLOTS, SCULPT_DECK_PG_MenuModeGroup
 from .source.surfaces.clicks.panel import draw_click_binding
 from .source.surfaces.pen.panel import draw_pen_buttons
-from .source.surfaces.pen.settings import SCULPT_DECK_PG_PenModeSet
+from .source.surfaces.pen.settings import SCULPT_DECK_PG_PenModeSet, click_defaults, click_slots, pen_defaults
 from .source.surfaces.pie.panels import draw_action_pie
+from .source.surfaces.pie.settings import menu_defaults
 from .source.surfaces.widget.panels import draw_widget_buttons
-from .source.ui.panel import draw_default_settings
-from .source.utils import settings
-from .source.utils.constants import (WIDGET_SLOTS, click_defaults, click_slots,
-                                     gizmo_sets, menu_defaults,
-                                     menu_orientation_items, menu_style_items,
-                                     pen_defaults, pie_mode, pie_mode_aliases,
-                                     pie_mode_items, pivot_items,
-                                     position_items, widget_defaults)
+from .source.surfaces.widget.settings import (
+    gizmo_sets,
+    menu_orientation_items,
+    menu_style_items,
+    position_items,
+    widget_defaults,
+)
 
 
 # preference changes made outside the viewport (e.g. in the Preferences window)

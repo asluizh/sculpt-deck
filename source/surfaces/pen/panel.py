@@ -2,10 +2,10 @@
 import bpy
 from bpy.types import Panel, UILayout
 
-from ...ui.panel import SculptDeckPanel
-from ...utils.blender import preferences
+from ...core.constants import pie_mode, pie_mode_items
+from ...core.preferences import preferences
+from ...core.ui import SculptDeckPanel
 from ...features.brush.history import brush_name
-from ...utils.constants import pie_mode, pie_mode_items
 
 
 # shared by the sidebar panel and the add-on preferences

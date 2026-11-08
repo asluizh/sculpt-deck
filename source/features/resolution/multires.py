@@ -4,8 +4,8 @@ the Subdivision Limit setting) and unsubdividing below the lowest."""
 import bpy
 from bpy.types import Operator
 
-from ...utils.blender import preferences
-from ...utils.constants import CANCEL, FINISHED
+from ...core.constants import CANCEL, FINISHED
+from ...core.preferences import preferences
 
 
 class SCULPT_DECK_OT_increase_multires(Operator):

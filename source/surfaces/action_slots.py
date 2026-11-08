@@ -7,7 +7,9 @@ from bpy.props import EnumProperty, StringProperty
 from bpy.types import PropertyGroup, UILayout
 
 from ..core.actions import enum_items
-from ..utils.constants import WIDGET_SLOTS, pie_mode
+from ..core.constants import pie_mode
+
+WIDGET_SLOTS = 12
 
 # the pie uses the first 8 slots, the widget all of them
 PIE_SLOTS = range(1, 9)
