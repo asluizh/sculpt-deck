@@ -1,6 +1,6 @@
-# Touchview: project notes
+# Sculpt Deck: project notes
 
-Working notes for this fork of [Touchview](https://github.com/nendotools/touchview): what it's for, what it covers, how the code is laid out and where the work stands. The user-facing documentation is the [README](README.md).
+Working notes for Sculpt Deck, which started as a fork of [Touchview](https://github.com/nendotools/touchview) (see [ADR 0001](docs/adr/0001-independent-from-touchview.md)): what it is for, what it covers, how the code is laid out and where the work stands. The user-facing documentation is the [README](README.md); domain terms are in the [glossary](GLOSSARY.md).
 
 ## Objective
 
@@ -41,7 +41,7 @@ Out of scope for now:
 __init__.py              add-on entry point (bl_info, register)
 preferences.py           add-on preferences, saved to and loaded from preferences.json
 blender_manifest.toml    extension manifest (version, minimum Blender, build excludes)
-bundle.sh                builds bin/touchview.zip
+bundle.sh                builds bin/sculpt_deck.zip
 icons/                   toolbar icons (triangle .dat files, see dev/)
 dev/                     development tools, not shipped
   pen_event_probe.py       logs pen/mouse/touch events, run from the Text Editor
@@ -90,7 +90,7 @@ Development notes (Blender 5.2):
 - Writing `matrix_world` recomputes the scale with rounding errors. Moves and rotations restore the exact scale afterwards.
 - Data can't be changed while gizmos draw, so tools change data from a `bpy.app.timers` callback.
 - Python edits to mesh data in Sculpt Mode, and Python operators with `UNDO`, both undo correctly. `object.transform_apply` doesn't run in Sculpt Mode, but `object.modifier_apply` does.
-- Sculpt and Edit Mode undo steps can't add or remove objects. Operators that do (Add Mesh, Duplicate, Delete, Join, Fuse) store a whole scene step first (`push_scene_undo`, which hides the active object so Blender picks that step type), finish in Object Mode so their own step is a whole scene step too, and return to the mode from a timer (`finish_in_mode`). Those steps are saved in Object Mode, so the object carries a `touchview_return_mode` property and undo/redo handlers switch it back. Each such operator leaves one extra "Before ..." undo step.
+- Sculpt and Edit Mode undo steps can't add or remove objects. Operators that do (Add Mesh, Duplicate, Delete, Join, Fuse) store a whole scene step first (`push_scene_undo`, which hides the active object so Blender picks that step type), finish in Object Mode so their own step is a whole scene step too, and return to the mode from a timer (`finish_in_mode`). Those steps are saved in Object Mode, so the object carries a `sculpt_deck_return_mode` property and undo/redo handlers switch it back. Each such operator leaves one extra "Before ..." undo step.
 - Sculpt Mode undo steps don't hold object transforms (or modifier settings), so undoing a move to a Sculpt step leaves the objects moved. Outside Object Mode, Local Transform stores a whole scene step (`push_scene_undo`, in `utils/undo.py`) of the objects at their start right before its own step, when the drag is confirmed, so undo moves them back and Adjust Last Operation goes back to that state. Each move leaves that extra "Before Local Transform" step. It also stores each object's starting matrix, array vectors and mesh size (and its children's matrices) in a hidden property, and starts from them when run again.
 - Operators called from Python push no undo steps, but `object.transfer_mode` still saves its "Change Active" step (with the new object still in Object Mode) and then skips the step of entering the mode, so undo lands in Object Mode. The tap calls it with `undo=True`.
 - Real Sculpt undo steps (and the full UI) can be tested without a screen: run `weston --backend=headless --renderer=gl --xwayland`, then Blender's flatpak with `--socket=x11 --nosocket=wayland --env=DISPLAY=:1 --factory-startup --enable-event-simulate`, driving it from timers (`window.event_simulate` for clicks, drags and keys) under a `temp_override` of the 3D viewport.

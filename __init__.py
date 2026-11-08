@@ -18,16 +18,16 @@
 
 
 bl_info = {
-    "name": "Touch Viewport",
-    "description": "Creates active touch zones over View 2D and 3D areas for easier viewport navigation with touch screens and pen tablets.",
-    "author": "NENDO, Karan(b3dhub)",
+    "name": "Sculpt Deck",
+    "description": "Sculpt in Blender with a pen and touch, without a keyboard.",
+    "author": "Luiz Alves; based on Touchview by NENDO and Karan (b3dhub)",
     "blender": (5, 2, 0),
-    "version": (4, 4, 0),
+    "version": (0, 1, 0),
     "category": "3D View",
-    "location": "View3D > Tools > NENDO",
+    "location": "View3D > Sidebar > Sculpt Deck",
     "warning": "",
-    "doc_url": "https://github.com/nendotools/touchview",
-    "tracker_url": "https://github.com/nendotools/touchview/issues",
+    "doc_url": "https://github.com/asluizh/sculpt-deck",
+    "tracker_url": "https://github.com/asluizh/sculpt-deck/issues",
 }
 
 

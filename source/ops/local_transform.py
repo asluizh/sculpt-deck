@@ -25,7 +25,7 @@ from .drag import (ViewDrag, axis_on_screen, distance_along,
 #  never work on a stretched object.
 ###
 
-TOOL_ID = "touchview.local_transform"
+TOOL_ID = "sculpt_deck.local_transform"
 
 local_pivot_items = [
     ("ORIGIN", "Origin", "Transform around the active object's origin", "OBJECT_ORIGIN", 0),
@@ -65,7 +65,7 @@ SNAP_FACTOR = 0.1
 SNAP_DISTANCE = 0.1
 
 
-class TOUCHVIEW_PG_local_transform(PropertyGroup):
+class SCULPT_DECK_PG_local_transform(PropertyGroup):
     pivot: EnumProperty(  # type: ignore
         name="Pivot",
         description="Point the object rotates and scales around",
@@ -83,8 +83,8 @@ class TOUCHVIEW_PG_local_transform(PropertyGroup):
     show_scale: BoolProperty(name="Scale", description="Show the scale handles", default=True)  # type: ignore
 
 
-def settings(context) -> TOUCHVIEW_PG_local_transform:
-    return context.scene.touchview_local_transform  # type: ignore
+def settings(context) -> SCULPT_DECK_PG_local_transform:
+    return context.scene.sculpt_deck_local_transform  # type: ignore
 
 
 def transform_objects(context) -> list:
@@ -188,11 +188,11 @@ def scaled(matrix: Matrix, pivot: Vector, factors: Vector) -> Matrix:
     return result
 
 
-class TOUCHVIEW_OT_local_transform(ViewDrag, Operator):
+class SCULPT_DECK_OT_local_transform(ViewDrag, Operator):
     """Move, rotate or scale the whole object, staying in the current mode"""
 
     bl_label = "Local Transform"
-    bl_idname = "touchview.local_transform"
+    bl_idname = "sculpt_deck.local_transform"
     bl_options = {"REGISTER", "UNDO", "BLOCKING"}
 
     status = "Drag to transform  •  Release/Click: Confirm  •  Right Click/Esc: Cancel  •  Ctrl: Snap"
@@ -495,12 +495,12 @@ class TOUCHVIEW_OT_local_transform(ViewDrag, Operator):
         return f"Scale along {axis}: {self.factor:.4f}"
 
 
-class TOUCHVIEW_OT_apply_object_scale(Operator):
+class SCULPT_DECK_OT_apply_object_scale(Operator):
     """Apply the scale of the active and selected objects to their meshes, so brushes aren't stretched, staying in
     the current mode"""
 
     bl_label = "Apply Scale"
-    bl_idname = "touchview.apply_object_scale"
+    bl_idname = "sculpt_deck.apply_object_scale"
     bl_options = {"REGISTER", "UNDO"}
 
     @classmethod
@@ -517,19 +517,19 @@ class TOUCHVIEW_OT_apply_object_scale(Operator):
 
 
 classes = (
-    TOUCHVIEW_PG_local_transform,
-    TOUCHVIEW_OT_local_transform,
-    TOUCHVIEW_OT_apply_object_scale,
+    SCULPT_DECK_PG_local_transform,
+    SCULPT_DECK_OT_local_transform,
+    SCULPT_DECK_OT_apply_object_scale,
 )
 
 
 def register():
     for cls in classes:
         bpy.utils.register_class(cls)
-    bpy.types.Scene.touchview_local_transform = PointerProperty(type=TOUCHVIEW_PG_local_transform)  # type: ignore
+    bpy.types.Scene.sculpt_deck_local_transform = PointerProperty(type=SCULPT_DECK_PG_local_transform)  # type: ignore
 
 
 def unregister():
-    del bpy.types.Scene.touchview_local_transform  # type: ignore
+    del bpy.types.Scene.sculpt_deck_local_transform  # type: ignore
     for cls in reversed(classes):
         bpy.utils.unregister_class(cls)

@@ -37,7 +37,7 @@ def draw_binding(col: UILayout, pen_set, slot: str, label: str):
         split.label(text="")
         row = split.row(align=True)
         row.label(text=brush_name(binding.brushRef()) or "No brush set", icon="BRUSH_DATA")
-        op = row.operator("touchview.pen_use_active_brush", text="", icon="EYEDROPPER")
+        op = row.operator("sculpt_deck.pen_use_active_brush", text="", icon="EYEDROPPER")
         op.mode = pen_set.mode
         op.slot = slot
 
@@ -79,7 +79,7 @@ def draw_widget_buttons(layout: UILayout, prefs, mode: str):
 
 def draw_pie_slot(pie: UILayout, idname: str):
     # empty slots keep the others in place; the pie can't contain itself
-    if not idname or idname == "TOUCHVIEW_MT_floating":
+    if not idname or idname == "SCULPT_DECK_MT_floating":
         pie.separator()
     else:
         draw_action(pie, idname)
@@ -106,15 +106,15 @@ def draw_action(layout: UILayout, idname: str):
         layout.label(text=f"Unknown: {idname}", icon="ERROR")
 
 
-class TouchView:
-    bl_label = "Touchview Settings"
+class SculptDeckPanel:
+    bl_label = "Sculpt Deck Settings"
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
-    bl_category = "Touchview"
+    bl_category = "Sculpt Deck"
 
 
-class TOUCHVIEW_PT_view_3d_panel(TouchView, Panel):
-    # bl_label = "Touchview Settings"
+class SCULPT_DECK_PT_view_3d_panel(SculptDeckPanel, Panel):
+    # bl_label = "Sculpt Deck Settings"
 
     def draw(self, context):
         prefs = preferences()
@@ -138,9 +138,9 @@ class TOUCHVIEW_PT_view_3d_panel(TouchView, Panel):
             col.prop(prefs, "enable_floating_toggle")
 
 
-class TOUCHVIEW_PT_control_zones(TouchView, Panel):
+class SCULPT_DECK_PT_control_zones(SculptDeckPanel, Panel):
     bl_label = "Control Zones"
-    bl_parent_id = "TOUCHVIEW_PT_view_3d_panel"
+    bl_parent_id = "SCULPT_DECK_PT_view_3d_panel"
     bl_options = {"DEFAULT_CLOSED"}
 
     def draw_header(self, context):
@@ -178,9 +178,9 @@ class TOUCHVIEW_PT_control_zones(TouchView, Panel):
         col.prop(prefs, "radius", slider=True)
 
 
-class TOUCHVIEW_PT_gizmo_bar(TouchView, Panel):
+class SCULPT_DECK_PT_gizmo_bar(SculptDeckPanel, Panel):
     bl_label = "Gizmo"
-    bl_parent_id = "TOUCHVIEW_PT_view_3d_panel"
+    bl_parent_id = "SCULPT_DECK_PT_view_3d_panel"
     bl_options = {"DEFAULT_CLOSED"}
 
     def draw(self, context):
@@ -202,8 +202,8 @@ class TOUCHVIEW_PT_gizmo_bar(TouchView, Panel):
         col.prop(prefs, "gizmo_padding", slider=True)
 
 
-class ClickPanel(TouchView):
-    bl_parent_id = "TOUCHVIEW_PT_view_3d_panel"
+class ClickPanel(SculptDeckPanel):
+    bl_parent_id = "SCULPT_DECK_PT_view_3d_panel"
     bl_options = {"DEFAULT_CLOSED"}
     slot = ""
     enable = ""
@@ -223,23 +223,23 @@ class ClickPanel(TouchView):
         draw_click_binding(layout, prefs, mode, self.slot, self.enable)
 
 
-class TOUCHVIEW_PT_right_click(ClickPanel, Panel):
+class SCULPT_DECK_PT_right_click(ClickPanel, Panel):
     bl_label = "Right Click"
     slot = "right_click"
     enable = "enable_right_click"
     note = "Mouse and touch, not the pen"
 
 
-class TOUCHVIEW_PT_double_click(ClickPanel, Panel):
+class SCULPT_DECK_PT_double_click(ClickPanel, Panel):
     bl_label = "Double Click"
     slot = "double_click"
     enable = "enable_double_click"
     note = "Double tap or mouse double click"
 
 
-class TOUCHVIEW_PT_widget_buttons(TouchView, Panel):
+class SCULPT_DECK_PT_widget_buttons(SculptDeckPanel, Panel):
     bl_label = "Widget Buttons"
-    bl_parent_id = "TOUCHVIEW_PT_view_3d_panel"
+    bl_parent_id = "SCULPT_DECK_PT_view_3d_panel"
     bl_options = {"DEFAULT_CLOSED"}
 
     def draw_header(self, context):
@@ -256,9 +256,9 @@ class TOUCHVIEW_PT_widget_buttons(TouchView, Panel):
         draw_widget_buttons(layout, prefs, mode)
 
 
-class TOUCHVIEW_PT_action_pie(TouchView, Panel):
+class SCULPT_DECK_PT_action_pie(SculptDeckPanel, Panel):
     bl_label = "Action Pie"
-    bl_parent_id = "TOUCHVIEW_PT_view_3d_panel"
+    bl_parent_id = "SCULPT_DECK_PT_view_3d_panel"
     bl_options = {"DEFAULT_CLOSED"}
 
     def draw(self, context):
@@ -272,9 +272,9 @@ class TOUCHVIEW_PT_action_pie(TouchView, Panel):
         draw_action_pie(layout, prefs, mode)
 
 
-class TOUCHVIEW_PT_pen_buttons(TouchView, Panel):
+class SCULPT_DECK_PT_pen_buttons(SculptDeckPanel, Panel):
     bl_label = "Pen Buttons"
-    bl_parent_id = "TOUCHVIEW_PT_view_3d_panel"
+    bl_parent_id = "SCULPT_DECK_PT_view_3d_panel"
     bl_options = {"DEFAULT_CLOSED"}
 
     def draw(self, context):
@@ -286,9 +286,9 @@ class TOUCHVIEW_PT_pen_buttons(TouchView, Panel):
         draw_pen_buttons(layout, preferences(), mode)
 
 
-class TOUCHVIEW_PT_tool_settings(TouchView, Panel):
+class SCULPT_DECK_PT_tool_settings(SculptDeckPanel, Panel):
     bl_label = "Tool Options"
-    bl_parent_id = "TOUCHVIEW_PT_view_3d_panel"
+    bl_parent_id = "SCULPT_DECK_PT_view_3d_panel"
     bl_options = {"DEFAULT_CLOSED"}
 
     def draw(self, context):
@@ -301,9 +301,9 @@ class TOUCHVIEW_PT_tool_settings(TouchView, Panel):
         layout.prop(prefs, "subdivision_limit", slider=True)
 
 
-class TOUCHVIEW_PT_viewport_options(TouchView, Panel):
+class SCULPT_DECK_PT_viewport_options(SculptDeckPanel, Panel):
     bl_label = "Viewport Options"
-    bl_parent_id = "TOUCHVIEW_PT_view_3d_panel"
+    bl_parent_id = "SCULPT_DECK_PT_view_3d_panel"
     bl_options = {"DEFAULT_CLOSED"}
 
     def draw(self, context):
@@ -317,7 +317,7 @@ class TOUCHVIEW_PT_viewport_options(TouchView, Panel):
         space = context.area.spaces.active
 
         col = layout.column()
-        col.operator("touchview.tools_region_flip", text="Flip Tools")
+        col.operator("sculpt_deck.tools_region_flip", text="Flip Tools")
         if len(space.region_quadviews) > 0:
             col.operator("screen.region_quadview", text="Disable Quadview")
         else:
@@ -337,13 +337,13 @@ def draw_default_settings(layout):
     col.label(text="Settings differ from the defaults", icon="INFO")
     col.label(text="They're kept in this file when it's saved")
     row = layout.row(align=True)
-    row.operator("touchview.save_default_settings", icon="FILE_TICK")
-    row.operator("touchview.revert_settings", text="", icon="LOOP_BACK")
+    row.operator("sculpt_deck.save_default_settings", icon="FILE_TICK")
+    row.operator("sculpt_deck.revert_settings", text="", icon="LOOP_BACK")
 
 
-class TOUCHVIEW_PT_default_settings(TouchView, Panel):
+class SCULPT_DECK_PT_default_settings(SculptDeckPanel, Panel):
     bl_label = "Default Settings"
-    bl_parent_id = "TOUCHVIEW_PT_view_3d_panel"
+    bl_parent_id = "SCULPT_DECK_PT_view_3d_panel"
     bl_options = {"HIDE_HEADER"}
 
     @classmethod
@@ -354,7 +354,7 @@ class TOUCHVIEW_PT_default_settings(TouchView, Panel):
         draw_default_settings(self.layout)
 
 
-class TOUCHVIEW_PT_image_editor_panel(TouchView, Panel):
+class SCULPT_DECK_PT_image_editor_panel(SculptDeckPanel, Panel):
     bl_space_type = "IMAGE_EDITOR"
 
     def draw(self, context):
@@ -380,7 +380,7 @@ class TOUCHVIEW_PT_image_editor_panel(TouchView, Panel):
         subcol.prop(prefs, "header_toggle_position", expand=True)
 
 
-class TOUCHVIEW_PT_node_editor_panel(TouchView, Panel):
+class SCULPT_DECK_PT_node_editor_panel(SculptDeckPanel, Panel):
     bl_space_type = "NODE_EDITOR"
 
     def draw(self, context):
@@ -407,8 +407,8 @@ class TOUCHVIEW_PT_node_editor_panel(TouchView, Panel):
 
 
 # UI panel to append Gizmo menu
-class TOUCHVIEW_PT_gizmo_display(Panel):
-    bl_label = "Touchview Gizmos"
+class SCULPT_DECK_PT_gizmo_display(Panel):
+    bl_label = "Sculpt Deck Gizmos"
     bl_parent_id = "VIEW3D_PT_gizmo_display"
     bl_space_type = "VIEW_3D"
     bl_region_type = "HEADER"
@@ -419,14 +419,14 @@ class TOUCHVIEW_PT_gizmo_display(Panel):
         col = self.layout.column()
         col.active = context.space_data.show_gizmo
         col.prop(prefs, "show_menu")
-        col.label(text="Choose buttons in the sidebar: Touchview > Widget Buttons")
+        col.label(text="Choose buttons in the sidebar: Sculpt Deck > Widget Buttons")
 
 
-class TOUCHVIEW_MT_floating(Menu):
-    """Touchview action pie"""
+class SCULPT_DECK_MT_floating(Menu):
+    """Sculpt Deck action pie"""
 
     bl_label = "Action Pie"
-    bl_description = "Touchview action pie, set up per mode in the sidebar"
+    bl_description = "Sculpt Deck action pie, set up per mode in the sidebar"
 
     def draw(self, context):
         menu = preferences().getMenuSettings(context.mode)
@@ -435,8 +435,8 @@ class TOUCHVIEW_MT_floating(Menu):
             draw_pie_slot(pie, menu.slot(slot) if menu else "")
 
 
-class TOUCHVIEW_MT_all_actions(Menu):
-    """Every Touchview action for the current mode"""
+class SCULPT_DECK_MT_all_actions(Menu):
+    """Every Sculpt Deck action for the current mode"""
 
     bl_label = "All Actions"
 
@@ -445,7 +445,7 @@ class TOUCHVIEW_MT_all_actions(Menu):
         groups = (
             ("Actions", [action for action in actions if not action[0].startswith(TOOL_PREFIX)]),
             ("Tools", [action for action in actions if action[0].startswith(TOOL_PREFIX)]),
-            ("Common", [action for action in pie_common_actions if action[0] != "TOUCHVIEW_MT_all_actions"]),
+            ("Common", [action for action in pie_common_actions if action[0] != "SCULPT_DECK_MT_all_actions"]),
         )
         row = self.layout.row()
         for title, group in groups:
@@ -458,35 +458,35 @@ class TOUCHVIEW_MT_all_actions(Menu):
                 draw_action(col, idname)
 
 
-class TOUCHVIEW_MT_add_mesh(Menu):
+class SCULPT_DECK_MT_add_mesh(Menu):
     """Add a mesh and keep working on it in the current mode"""
 
     bl_label = "Add Mesh"
 
     def draw(self, context):
         for primitive, name, _, icon, _ in primitive_items:
-            self.layout.operator("touchview.add_primitive", text=name, icon=icon).primitive = primitive
+            self.layout.operator("sculpt_deck.add_primitive", text=name, icon=icon).primitive = primitive
 
 
 classes = (
-    TOUCHVIEW_PT_view_3d_panel,
-    TOUCHVIEW_PT_control_zones,
-    TOUCHVIEW_PT_gizmo_bar,
-    TOUCHVIEW_PT_right_click,
-    TOUCHVIEW_PT_double_click,
-    TOUCHVIEW_PT_widget_buttons,
-    TOUCHVIEW_PT_action_pie,
-    TOUCHVIEW_PT_pen_buttons,
-    TOUCHVIEW_PT_tool_settings,
-    TOUCHVIEW_PT_viewport_options,
+    SCULPT_DECK_PT_view_3d_panel,
+    SCULPT_DECK_PT_control_zones,
+    SCULPT_DECK_PT_gizmo_bar,
+    SCULPT_DECK_PT_right_click,
+    SCULPT_DECK_PT_double_click,
+    SCULPT_DECK_PT_widget_buttons,
+    SCULPT_DECK_PT_action_pie,
+    SCULPT_DECK_PT_pen_buttons,
+    SCULPT_DECK_PT_tool_settings,
+    SCULPT_DECK_PT_viewport_options,
     # last, so it sits at the bottom
-    TOUCHVIEW_PT_default_settings,
-    TOUCHVIEW_PT_image_editor_panel,
-    TOUCHVIEW_PT_node_editor_panel,
-    TOUCHVIEW_PT_gizmo_display,
-    TOUCHVIEW_MT_floating,
-    TOUCHVIEW_MT_add_mesh,
-    TOUCHVIEW_MT_all_actions,
+    SCULPT_DECK_PT_default_settings,
+    SCULPT_DECK_PT_image_editor_panel,
+    SCULPT_DECK_PT_node_editor_panel,
+    SCULPT_DECK_PT_gizmo_display,
+    SCULPT_DECK_MT_floating,
+    SCULPT_DECK_MT_add_mesh,
+    SCULPT_DECK_MT_all_actions,
 )
 
 

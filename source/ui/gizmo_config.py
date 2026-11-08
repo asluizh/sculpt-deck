@@ -13,7 +13,7 @@ from ..utils.constants import pivot_icon_items
 controllerConfig = {
     "type": "default",
     "binding": {"location": "", "name": "menu_controller"},
-    "command": "touchview.move_float_menu",
+    "command": "sculpt_deck.move_float_menu",
     "icon": "BLANK1",
     "use_grab_cursor": True,
 }
@@ -21,7 +21,7 @@ controllerConfig = {
 floatingToggleConfig = {
     "type": "boolean",
     "binding": {"location": "", "name": "float_toggle"},
-    "command": "touchview.move_toggle_button",
+    "command": "sculpt_deck.move_toggle_button",
     "onIcon": "OUTLINER_DATA_CAMERA",
     "offIcon": "GREASEPENCIL",
     "use_grab_cursor": True,

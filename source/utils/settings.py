@@ -16,7 +16,7 @@ from .blender import preferences
 
 FILE_NAME = "preferences.json"
 # custom property of the scene that holds a file's own settings
-FILE_KEY = "touchview_settings"
+FILE_KEY = "sculpt_deck_settings"
 # not settings: open tabs, and the choice of how settings are saved
 EXCLUDED_KEYS = {"active_menu", "active_widget", "gizmo_tabs", "auto_save_defaults"}
 
@@ -30,7 +30,7 @@ def defaults_path(create: bool = False) -> str:
         folder = bpy.utils.extension_path_user(package, create=create)
     except ValueError:
         # installed as a legacy add-on, not an extension
-        folder = bpy.utils.user_resource("CONFIG", path="touchview", create=create)
+        folder = bpy.utils.user_resource("CONFIG", path="sculpt_deck", create=create)
     return path.join(folder, FILE_NAME)
 
 

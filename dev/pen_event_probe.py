@@ -2,7 +2,7 @@
 #
 # Development tool for checking how Blender reports pen/stylus buttons, in
 # particular whether `event.is_tablet` can tell a pen button apart from a mouse.
-# Not part of the TouchView add-on.
+# Not part of the Sculpt Deck add-on.
 #
 # Usage: open this file in Blender's Text Editor and press Run Script, then in
 # the 3D Viewport sidebar (N) open the "Pen Probe" tab and press Start.
@@ -18,7 +18,7 @@
 bl_info = {
     "name": "Pen Event Probe",
     "description": "Logs pen, mouse and touch events to check event.is_tablet",
-    "author": "TouchView contributors",
+    "author": "Sculpt Deck contributors",
     "blender": (5, 2, 0),
     "version": (0, 1, 0),
     "category": "Development",

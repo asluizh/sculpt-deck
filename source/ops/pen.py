@@ -77,11 +77,11 @@ class BindingRunner:
             self.report({"WARNING"}, f"Can't run '{idname}': {error}")
 
 
-class TOUCHVIEW_OT_pen_button(BindingRunner, Operator):
+class SCULPT_DECK_OT_pen_button(BindingRunner, Operator):
     """Run the action bound to this pen button"""
 
     bl_label = "Pen Button Action"
-    bl_idname = "touchview.pen_button"
+    bl_idname = "sculpt_deck.pen_button"
     bl_options = {"INTERNAL"}
 
     @classmethod
@@ -131,7 +131,7 @@ class TOUCHVIEW_OT_pen_button(BindingRunner, Operator):
         # hold to invert: strokes drawn while the button is held are inverted,
         # like holding Ctrl
         if (
-            self.hold.action == "touchview.brush_invert"
+            self.hold.action == "sculpt_deck.brush_invert"
             and event.type == "LEFTMOUSE"
             and event.value == "PRESS"
             and self.mode == "SCULPT"
@@ -224,11 +224,11 @@ class TOUCHVIEW_OT_pen_button(BindingRunner, Operator):
             category, op_name = op.split(".")
             getattr(getattr(bpy.ops, category), op_name)("INVOKE_DEFAULT", name=name)
 
-class TOUCHVIEW_OT_brush_previous(Operator):
+class SCULPT_DECK_OT_brush_previous(Operator):
     """Switch back to the previously used brush"""
 
     bl_label = "Previous Brush"
-    bl_idname = "touchview.brush_previous"
+    bl_idname = "sculpt_deck.brush_previous"
 
     @classmethod
     def poll(cls, context):
@@ -246,11 +246,11 @@ class TOUCHVIEW_OT_brush_previous(Operator):
         return FINISHED
 
 
-class TOUCHVIEW_OT_brush_invert(Operator):
+class SCULPT_DECK_OT_brush_invert(Operator):
     """Switch the brush direction, e.g. add/subtract or smooth/enhance details"""
 
     bl_label = "Invert Brush"
-    bl_idname = "touchview.brush_invert"
+    bl_idname = "sculpt_deck.brush_invert"
 
     @classmethod
     def poll(cls, context):
@@ -263,11 +263,11 @@ class TOUCHVIEW_OT_brush_invert(Operator):
         return FINISHED
 
 
-class TOUCHVIEW_OT_pen_use_active_brush(Operator):
+class SCULPT_DECK_OT_pen_use_active_brush(Operator):
     """Bind the brush that is currently active in this mode"""
 
     bl_label = "Use Active Brush"
-    bl_idname = "touchview.pen_use_active_brush"
+    bl_idname = "sculpt_deck.pen_use_active_brush"
     bl_options = {"INTERNAL"}
 
     mode: StringProperty()  # type: ignore
@@ -285,10 +285,10 @@ class TOUCHVIEW_OT_pen_use_active_brush(Operator):
 
 
 classes = (
-    TOUCHVIEW_OT_brush_invert,
-    TOUCHVIEW_OT_brush_previous,
-    TOUCHVIEW_OT_pen_button,
-    TOUCHVIEW_OT_pen_use_active_brush,
+    SCULPT_DECK_OT_brush_invert,
+    SCULPT_DECK_OT_brush_previous,
+    SCULPT_DECK_OT_pen_button,
+    SCULPT_DECK_OT_pen_use_active_brush,
 )
 
 

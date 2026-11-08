@@ -22,7 +22,7 @@ def assign_keymaps():
 
     # add global default action
     km = wm.keyconfigs.addon.keymaps.new(name="3D View", space_type="VIEW_3D")
-    kmi = km.keymap_items.new("touchview.toggle_touch", type="T", value=PRESS, alt=True)
+    kmi = km.keymap_items.new("sculpt_deck.toggle_touch", type="T", value=PRESS, alt=True)
     modified_keymaps.append((km, kmi))
 
     # pen buttons, in the "Grease Pencil" keymap: the 3D View checks it before
@@ -30,7 +30,7 @@ def assign_keymaps():
     # (e.g. the sculpt context menu)
     km = wm.keyconfigs.addon.keymaps.new(name="Grease Pencil", space_type="EMPTY")
     for button in pen_buttons:
-        kmi = km.keymap_items.new("touchview.pen_button", button, PRESS)
+        kmi = km.keymap_items.new("sculpt_deck.pen_button", button, PRESS)
         modified_keymaps.append((km, kmi))
 
     # make menus draggable
@@ -38,21 +38,21 @@ def assign_keymaps():
     kmi = km.keymap_items.new("view2d.pan", LMOUSE, PRESS)
     modified_keymaps.append((km, kmi))
 
-    # add LEFT MOUSE ACTION for touchview.view_ops
+    # add LEFT MOUSE ACTION for sculpt_deck.view_ops
     for kmap in wm.keyconfigs["Blender"].keymaps:
         km = wm.keyconfigs.addon.keymaps.new(name=kmap.name, space_type=kmap.space_type, region_type=kmap.region_type)
         if kmap.name in top_level_names:
             if kmap.name in flat_modes:
-                main_action = "touchview.view_ops_2d"
+                main_action = "sculpt_deck.view_ops_2d"
             else:
-                main_action = "touchview.view_ops_3d"
+                main_action = "sculpt_deck.view_ops_3d"
             kmi = km.keymap_items.new(main_action, LMOUSE, PRESS)
             modified_keymaps.append((km, kmi))
 
-            kmi = km.keymap_items.new("touchview.dt_action", LMOUSE, DCLICK)
+            kmi = km.keymap_items.new("sculpt_deck.dt_action", LMOUSE, DCLICK)
             modified_keymaps.append((km, kmi))
 
-            kmi = km.keymap_items.new("touchview.rc_action", RMOUSE, PRESS)
+            kmi = km.keymap_items.new("sculpt_deck.rc_action", RMOUSE, PRESS)
             modified_keymaps.append((km, kmi))
 
 

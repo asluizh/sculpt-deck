@@ -225,7 +225,7 @@ class ActionGizmo:
     """A widget button running one of the shared pie/widget actions"""
 
     # undo/redo and multires up/down stay next to each other in the radial menu
-    pairs = {"ed.undo": "ed.redo", "touchview.increment_multires": "touchview.decrement_multires"}
+    pairs = {"ed.undo": "ed.redo", "sculpt_deck.increment_multires": "sculpt_deck.decrement_multires"}
 
     def __init__(self, group: bpy.types.GizmoGroup, context, idname: str):
         self.idname = idname
@@ -250,7 +250,7 @@ class ActionGizmo:
 
     def set_target(self, idname: str):
         if "_AST_" in idname or "_MT_" in idname or idname in popup_actions:
-            self.primary.target_set_operator("touchview.widget_menu").name = idname
+            self.primary.target_set_operator("sculpt_deck.widget_menu").name = idname
         elif idname.startswith(TOOL_PREFIX):
             self.primary.target_set_operator("wm.tool_set_by_id").name = idname[len(TOOL_PREFIX):]
         elif operator_exists(idname):

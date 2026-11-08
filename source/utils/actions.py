@@ -7,7 +7,7 @@ TOOL_PREFIX = "TOOL:"
 
 
 def is_pie(idname: str) -> bool:
-    return idname.endswith("_pie") or idname == "TOUCHVIEW_MT_floating"
+    return idname.endswith("_pie") or idname == "SCULPT_DECK_MT_floating"
 
 
 def operator_exists(idname: str) -> bool:

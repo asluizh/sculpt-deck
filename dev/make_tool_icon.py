@@ -1,7 +1,7 @@
 """Build the Local Transform toolbar icon from Blender's Transform tool icon.
 
 Usage: python3 make_tool_icon.py <blender>/datafiles/icons/ops.transform.transform.dat
-       ../icons/ops.touchview.local_transform.dat
+       ../icons/ops.sculpt_deck.local_transform.dat
 
 Tool icons are triangle lists: b"VCO\\0", width, height, x and y start bytes,
 then 6 coordinate bytes per triangle and 12 color bytes (RGBA per corner).

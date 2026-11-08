@@ -5,7 +5,7 @@ import bpy
 from bpy.types import GizmoGroup, WorkSpaceTool
 from mathutils import Matrix
 
-from ..ops.local_transform import (TOOL_ID, TOUCHVIEW_OT_local_transform,
+from ..ops.local_transform import (TOOL_ID, SCULPT_DECK_OT_local_transform,
                                    pivot_point, settings, transform_objects,
                                    unit_scale)
 
@@ -22,7 +22,7 @@ from ..ops.local_transform import (TOOL_ID, TOUCHVIEW_OT_local_transform,
 
 # Blender joins this to its icon folder, an absolute path points at ours
 ICON = os.path.normpath(
-    os.path.join(os.path.dirname(__file__), "..", "..", "icons", "ops.touchview.local_transform")
+    os.path.join(os.path.dirname(__file__), "..", "..", "icons", "ops.sculpt_deck.local_transform")
 )
 
 # turn a gizmo's Z axis onto the X, Y or Z axis
@@ -51,8 +51,8 @@ def brighter(color) -> tuple:
     return tuple(min(channel * 1.3 + 0.15, 1.0) for channel in color)
 
 
-class TOUCHVIEW_GGT_local_transform(GizmoGroup):
-    bl_idname = "TOUCHVIEW_GGT_local_transform"
+class SCULPT_DECK_GGT_local_transform(GizmoGroup):
+    bl_idname = "SCULPT_DECK_GGT_local_transform"
     bl_label = "Local Transform"
     bl_space_type = "VIEW_3D"
     bl_region_type = "WINDOW"
@@ -108,7 +108,7 @@ class TOUCHVIEW_GGT_local_transform(GizmoGroup):
 
     def handle(self, gizmo_type: str, mode: str, axis: str, color: tuple):
         gizmo = self.gizmos.new(gizmo_type)
-        props = gizmo.target_set_operator(TOUCHVIEW_OT_local_transform.bl_idname)
+        props = gizmo.target_set_operator(SCULPT_DECK_OT_local_transform.bl_idname)
         props.mode = mode
         props.axis = axis
         gizmo.color = color
@@ -120,7 +120,7 @@ class TOUCHVIEW_GGT_local_transform(GizmoGroup):
     def draw_prepare(self, context):
         obj = context.active_object
         options = settings(context)
-        running = TOUCHVIEW_OT_local_transform.running
+        running = SCULPT_DECK_OT_local_transform.running
 
         pivot = Matrix.Translation(pivot_point(context, transform_objects(context)))
         local = pivot @ obj.matrix_world.to_3x3().normalized().to_4x4()
@@ -148,7 +148,7 @@ class TOUCHVIEW_GGT_local_transform(GizmoGroup):
         self.center.hide = running or not options.show_move
 
 
-class TOUCHVIEW_TOOL_local_transform(WorkSpaceTool):
+class SCULPT_DECK_TOOL_local_transform(WorkSpaceTool):
     bl_space_type = "VIEW_3D"
     bl_context_mode = "SCULPT"
     bl_idname = TOOL_ID
@@ -158,7 +158,7 @@ class TOUCHVIEW_TOOL_local_transform(WorkSpaceTool):
         "Scaling always follows the object's axes, so rotating between stretches doesn't skew it"
     )
     bl_icon = ICON
-    bl_widget = TOUCHVIEW_GGT_local_transform.bl_idname
+    bl_widget = SCULPT_DECK_GGT_local_transform.bl_idname
 
     def draw_settings(context, layout, tool):  # type: ignore
         options = settings(context)
@@ -174,15 +174,15 @@ class TOUCHVIEW_TOOL_local_transform(WorkSpaceTool):
             # left over from before, brushes work stretched until it's applied
             row = layout.row()
             row.alert = True
-            row.operator("touchview.apply_object_scale", icon="CON_SIZELIKE")
+            row.operator("sculpt_deck.apply_object_scale", icon="CON_SIZELIKE")
 
 
 def register():
-    bpy.utils.register_class(TOUCHVIEW_GGT_local_transform)
+    bpy.utils.register_class(SCULPT_DECK_GGT_local_transform)
     # its own toolbar section, right after Blender's transform tools
-    bpy.utils.register_tool(TOUCHVIEW_TOOL_local_transform, after={"builtin.transform"}, separator=True, group=True)
+    bpy.utils.register_tool(SCULPT_DECK_TOOL_local_transform, after={"builtin.transform"}, separator=True, group=True)
 
 
 def unregister():
-    bpy.utils.unregister_tool(TOUCHVIEW_TOOL_local_transform)
-    bpy.utils.unregister_class(TOUCHVIEW_GGT_local_transform)
+    bpy.utils.unregister_tool(SCULPT_DECK_TOOL_local_transform)
+    bpy.utils.unregister_class(SCULPT_DECK_GGT_local_transform)

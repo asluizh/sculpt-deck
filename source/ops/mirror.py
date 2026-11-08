@@ -18,10 +18,10 @@ from .array import (active_tool, apply_modifier, array_poll, get_input,
 #  the mirror is applied or removed, or the active mesh has none.
 ###
 
-MIRROR_TOOL_ID = "touchview.mirror"
+MIRROR_TOOL_ID = "sculpt_deck.mirror"
 modifier_tools.add(MIRROR_TOOL_ID)
 
-GROUP_KEY = "touchview_mirror"
+GROUP_KEY = "sculpt_deck_mirror"
 GROUP_VERSION = 1
 NAME = "Mirror"
 
@@ -229,11 +229,11 @@ class MirrorOperator:
             leave_tool(context)
 
 
-class TOUCHVIEW_OT_mirror_apply(MirrorOperator, Operator):
+class SCULPT_DECK_OT_mirror_apply(MirrorOperator, Operator):
     """Turn the mirror image into real mesh, merged with the mesh on the mirror planes"""
 
     bl_label = "Apply Mirror"
-    bl_idname = "touchview.mirror_apply"
+    bl_idname = "sculpt_deck.mirror_apply"
     bl_options = {"REGISTER", "UNDO"}
 
     def execute(self, context):
@@ -247,11 +247,11 @@ class TOUCHVIEW_OT_mirror_apply(MirrorOperator, Operator):
         return FINISHED
 
 
-class TOUCHVIEW_OT_mirror_remove(MirrorOperator, Operator):
+class SCULPT_DECK_OT_mirror_remove(MirrorOperator, Operator):
     """Remove the mirror, keeping only the mesh itself"""
 
     bl_label = "Remove Mirror"
-    bl_idname = "touchview.mirror_remove"
+    bl_idname = "sculpt_deck.mirror_remove"
     bl_options = {"REGISTER", "UNDO"}
 
     def execute(self, context):
@@ -265,8 +265,8 @@ class TOUCHVIEW_OT_mirror_remove(MirrorOperator, Operator):
 
 
 classes = (
-    TOUCHVIEW_OT_mirror_apply,
-    TOUCHVIEW_OT_mirror_remove,
+    SCULPT_DECK_OT_mirror_apply,
+    SCULPT_DECK_OT_mirror_remove,
 )
 
 register, unregister = bpy.utils.register_classes_factory(classes)

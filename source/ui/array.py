@@ -6,7 +6,7 @@ from bpy.types import Gizmo, GizmoGroup, WorkSpaceTool
 from mathutils import Matrix, Vector
 
 from ..ops.array import (AXES, CIRCULAR_TOOL_ID, LINEAR_TOOL_ID,
-                         TOUCHVIEW_OT_array_edit, axes_basis, circle_step,
+                         SCULPT_DECK_OT_array_edit, axes_basis, circle_step,
                          copy_matrix, current_array, ensure_array, get_input,
                          leave_tool_later, settings)
 from ..ops.local_transform import TOOL_ID as LOCAL_TRANSFORM_ID
@@ -62,13 +62,13 @@ def unit_circle(angle: float) -> Vector:
     return Vector((math.cos(angle), math.sin(angle), 0.0))
 
 
-class TOUCHVIEW_GT_array_circle(Gizmo):
+class SCULPT_DECK_GT_array_circle(Gizmo):
     """The circle of a circular array, drawn in its plane at its size: the
     matrix maps X to the mesh's side, Z to the axis, scaled by the radius.
     The "LINE" part draws the circle and the step marks, the "SECTOR" part
     fills the arc. Neither can be clicked, the handles do the editing."""
 
-    bl_idname = "TOUCHVIEW_GT_array_circle"
+    bl_idname = "SCULPT_DECK_GT_array_circle"
     __slots__ = ("part", "shape", "shape_key", "marks", "marks_key")
 
     def setup(self):
@@ -147,7 +147,7 @@ class ArrayGizmos:
 
     def handle(self, gizmo_type: str, handle: str, axis: str, color: tuple):
         gizmo = self.gizmos.new(gizmo_type)  # type: ignore
-        props = gizmo.target_set_operator(TOUCHVIEW_OT_array_edit.bl_idname)
+        props = gizmo.target_set_operator(SCULPT_DECK_OT_array_edit.bl_idname)
         props.handle = handle
         props.axis = axis
         gizmo.color = color
@@ -187,8 +187,8 @@ class ArrayGizmos:
         return modifier
 
 
-class TOUCHVIEW_GGT_linear_array(ArrayGizmos, GizmoGroup):
-    bl_idname = "TOUCHVIEW_GGT_linear_array"
+class SCULPT_DECK_GGT_linear_array(ArrayGizmos, GizmoGroup):
+    bl_idname = "SCULPT_DECK_GGT_linear_array"
     bl_label = "Linear Array"
     kind = "LINEAR"
     tool_id = LINEAR_TOOL_ID
@@ -204,7 +204,7 @@ class TOUCHVIEW_GGT_linear_array(ArrayGizmos, GizmoGroup):
     def draw_prepare(self, context):
         modifier = self.prepare(context)
         for gizmo in self.gizmos:
-            gizmo.hide = modifier is None or TOUCHVIEW_OT_array_edit.running
+            gizmo.hide = modifier is None or SCULPT_DECK_OT_array_edit.running
         if modifier is None:
             return
         obj = context.active_object
@@ -223,8 +223,8 @@ class TOUCHVIEW_GGT_linear_array(ArrayGizmos, GizmoGroup):
         self.count.matrix_basis = Matrix.Translation(last) @ aligned(direction.normalized())
 
 
-class TOUCHVIEW_GGT_circular_array(ArrayGizmos, GizmoGroup):
-    bl_idname = "TOUCHVIEW_GGT_circular_array"
+class SCULPT_DECK_GGT_circular_array(ArrayGizmos, GizmoGroup):
+    bl_idname = "SCULPT_DECK_GGT_circular_array"
     bl_label = "Circular Array"
     kind = "CIRCULAR"
     tool_id = CIRCULAR_TOOL_ID
@@ -246,7 +246,7 @@ class TOUCHVIEW_GGT_circular_array(ArrayGizmos, GizmoGroup):
         self.start(context)
 
     def outline(self, part: str, alpha: float):
-        gizmo = self.gizmos.new(TOUCHVIEW_GT_array_circle.bl_idname)
+        gizmo = self.gizmos.new(SCULPT_DECK_GT_array_circle.bl_idname)
         gizmo.part = part
         gizmo.color = ACCENT
         gizmo.alpha = alpha
@@ -255,8 +255,8 @@ class TOUCHVIEW_GGT_circular_array(ArrayGizmos, GizmoGroup):
 
     def draw_prepare(self, context):
         modifier = self.prepare(context)
-        running = TOUCHVIEW_OT_array_edit.running
-        handle = TOUCHVIEW_OT_array_edit.active_handle if running else ""
+        running = SCULPT_DECK_OT_array_edit.running
+        handle = SCULPT_DECK_OT_array_edit.active_handle if running else ""
         for gizmo in self.gizmos:
             gizmo.hide = modifier is None or running
         if modifier is None:
@@ -286,7 +286,7 @@ class TOUCHVIEW_GGT_circular_array(ArrayGizmos, GizmoGroup):
         frame = Matrix((outward, axis.cross(outward), axis)).transposed().to_4x4()
         circle = Matrix.Translation(center) @ frame @ Matrix.Scale(radius, 4)
         self.circle.matrix_basis = self.sector.matrix_basis = circle
-        self.circle.build(arc, TOUCHVIEW_OT_array_edit.arc_step if handle == "ARC" else None)
+        self.circle.build(arc, SCULPT_DECK_OT_array_edit.arc_step if handle == "ARC" else None)
         self.sector.build(arc, None)
 
         # the dot sits on the last copy, or ahead of the mesh when there's none
@@ -314,11 +314,11 @@ def draw_orientation(layout, options):
 
 def draw_finish(layout, kind: str):
     row = layout.row(align=True)
-    row.operator("touchview.array_apply", text="Apply", icon="CHECKMARK").kind = kind
-    row.operator("touchview.array_remove", text="", icon="X").kind = kind
+    row.operator("sculpt_deck.array_apply", text="Apply", icon="CHECKMARK").kind = kind
+    row.operator("sculpt_deck.array_remove", text="", icon="X").kind = kind
 
 
-class TOUCHVIEW_TOOL_linear_array(WorkSpaceTool):
+class SCULPT_DECK_TOOL_linear_array(WorkSpaceTool):
     bl_space_type = "VIEW_3D"
     bl_context_mode = "SCULPT"
     bl_idname = LINEAR_TOOL_ID
@@ -327,8 +327,8 @@ class TOUCHVIEW_TOOL_linear_array(WorkSpaceTool):
         "Copy the mesh in a line. The mesh stays in place and can still be sculpted,\n"
         "and every copy follows it until the array is applied"
     )
-    bl_icon = os.path.join(ICON_DIR, "ops.touchview.linear_array")
-    bl_widget = TOUCHVIEW_GGT_linear_array.bl_idname
+    bl_icon = os.path.join(ICON_DIR, "ops.sculpt_deck.linear_array")
+    bl_widget = SCULPT_DECK_GGT_linear_array.bl_idname
 
     def draw_settings(context, layout, tool):  # type: ignore
         options = settings(context)
@@ -341,7 +341,7 @@ class TOUCHVIEW_TOOL_linear_array(WorkSpaceTool):
         draw_finish(layout, "LINEAR")
 
 
-class TOUCHVIEW_TOOL_circular_array(WorkSpaceTool):
+class SCULPT_DECK_TOOL_circular_array(WorkSpaceTool):
     bl_space_type = "VIEW_3D"
     bl_context_mode = "SCULPT"
     bl_idname = CIRCULAR_TOOL_ID
@@ -350,8 +350,8 @@ class TOUCHVIEW_TOOL_circular_array(WorkSpaceTool):
         "Copy the mesh around a circle. The mesh stays in place and can still be sculpted,\n"
         "and every copy follows it until the array is applied"
     )
-    bl_icon = os.path.join(ICON_DIR, "ops.touchview.circular_array")
-    bl_widget = TOUCHVIEW_GGT_circular_array.bl_idname
+    bl_icon = os.path.join(ICON_DIR, "ops.sculpt_deck.circular_array")
+    bl_widget = SCULPT_DECK_GGT_circular_array.bl_idname
 
     def draw_settings(context, layout, tool):  # type: ignore
         options = settings(context)
@@ -370,23 +370,23 @@ class TOUCHVIEW_TOOL_circular_array(WorkSpaceTool):
         row.label(text="Around")
         for name in (*AXES, "VIEW"):
             text = "View" if name == "VIEW" else name
-            row.operator("touchview.array_axis", text=text, depress=name == current).axis = name
+            row.operator("sculpt_deck.array_axis", text=text, depress=name == current).axis = name
         draw_orientation(layout, options)
         draw_finish(layout, "CIRCULAR")
 
 
 def register():
-    bpy.utils.register_class(TOUCHVIEW_GT_array_circle)
-    bpy.utils.register_class(TOUCHVIEW_GGT_linear_array)
-    bpy.utils.register_class(TOUCHVIEW_GGT_circular_array)
+    bpy.utils.register_class(SCULPT_DECK_GT_array_circle)
+    bpy.utils.register_class(SCULPT_DECK_GGT_linear_array)
+    bpy.utils.register_class(SCULPT_DECK_GGT_circular_array)
     # next to Local Transform
-    bpy.utils.register_tool(TOUCHVIEW_TOOL_linear_array, after={LOCAL_TRANSFORM_ID}, group=True)
-    bpy.utils.register_tool(TOUCHVIEW_TOOL_circular_array, after={LINEAR_TOOL_ID}, group=True)
+    bpy.utils.register_tool(SCULPT_DECK_TOOL_linear_array, after={LOCAL_TRANSFORM_ID}, group=True)
+    bpy.utils.register_tool(SCULPT_DECK_TOOL_circular_array, after={LINEAR_TOOL_ID}, group=True)
 
 
 def unregister():
-    bpy.utils.unregister_tool(TOUCHVIEW_TOOL_circular_array)
-    bpy.utils.unregister_tool(TOUCHVIEW_TOOL_linear_array)
-    bpy.utils.unregister_class(TOUCHVIEW_GGT_circular_array)
-    bpy.utils.unregister_class(TOUCHVIEW_GGT_linear_array)
-    bpy.utils.unregister_class(TOUCHVIEW_GT_array_circle)
+    bpy.utils.unregister_tool(SCULPT_DECK_TOOL_circular_array)
+    bpy.utils.unregister_tool(SCULPT_DECK_TOOL_linear_array)
+    bpy.utils.unregister_class(SCULPT_DECK_GGT_circular_array)
+    bpy.utils.unregister_class(SCULPT_DECK_GGT_linear_array)
+    bpy.utils.unregister_class(SCULPT_DECK_GT_array_circle)

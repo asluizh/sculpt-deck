@@ -49,12 +49,12 @@ def write(path, triangles):
 def main(folder):
     spacing = SIZE + GAP
     write(
-        os.path.join(folder, "ops.touchview.linear_array.dat"),
+        os.path.join(folder, "ops.sculpt_deck.linear_array.dat"),
         squares([(128 + (i - 1) * spacing, 128) for i in range(3)]),
     )
     radius = 70
     write(
-        os.path.join(folder, "ops.touchview.circular_array.dat"),
+        os.path.join(folder, "ops.sculpt_deck.circular_array.dat"),
         squares([
             (128 + radius * math.cos(angle), 128 + radius * math.sin(angle))
             for angle in (math.radians(90 + i * 120) for i in range(3))

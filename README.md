@@ -1,26 +1,22 @@
-<div align="center" style="display: flex; flex-direction: column; align-items: center; justify-content: center;">
-  <h1>TouchView</h1>
-  <div>BLENDER 3D add-on</div>
-  <div><sup>customizable rotate/pan/zoom</sup></div>
-  <div style="display: flex; flex-direction: row;">
-    <img alt="GitHub release (latest by date)" src="https://img.shields.io/github/v/release/nendotools/touchview?style=flat-square">
-    <img alt="GitHub Workflow Status (with branch)" src="https://img.shields.io/github/actions/workflow/status/nendotools/touchview/linting.yml?style=flat-square">
-    <img alt="GitHub issues" src="https://img.shields.io/github/issues-raw/nendotools/touchview?style=flat-square">
-    <img alt="GitHub" src="https://img.shields.io/github/license/nendotools/touchview?style=flat-square">
-    <img alt="PyPI - Python Version" src="https://img.shields.io/pypi/pyversions/fake-bpy-module-latest?style=flat-square">
-  </div>
+<div align="center">
+  <h1>Sculpt Deck</h1>
+  <div>Blender 5.2+ add-on</div>
+  <div><sup>sculpt with a pen and touch, without a keyboard</sup></div>
 </div>
 
 ### Table of Contents
 
-- [Features](https://github.com/nendotools/touchview#features)
-- [Building from Github](https://github.com/nendotools/touchview#building-from-github)
-- [Installation](https://github.com/nendotools/touchview#installation)
-- [Changelog](https://github.com/nendotools/touchview#changelog)
+- [Features](#features)
+- [Building from Github](#building-from-github)
+- [Installation](#installation)
+- [Changelog](#changelog)
+- [Credits](#credits)
 
 # Features
 
-This add-on is designed to improve the user experience of Blender for users without immediate access to a keyboard or mouse. It provides many customizable UI improvements to cater to your workflow needs.
+Sculpt Deck lets you sculpt in Blender with only a pen tablet and touch. Anything that normally needs a keyboard shortcut, a modifier key or a trip to the Properties editor can be reached from the viewport: by touch, from the on-screen widget, from the action pie or from a pen button. Actions that Blender only offers in Object Mode, such as adding, joining or deleting meshes, run without leaving Sculpt Mode.
+
+Sculpt Deck started as a fork of [Touchview](https://github.com/nendotools/touchview); see [Credits](#credits).
 
 <div style="display:flex; flex-direction:row;">
 <img align="right" src="/docs/simple_demo.gif" width="40%">
@@ -69,7 +65,7 @@ The _Adjust Last Operation_ panel has:
 
 ## Double Click and Right Click Actions
 
-A double tap (or mouse double click) and a mouse or touch right click can each run an action, chosen for each mode from the same list as a pen button click: Blender's default, nothing, brushes, tools, the widget and pie actions, or any operator or menu. Turn them on with the checkbox in their sidebar panel header (_Touchview > Double Click_ and _Right Click_) or in the add-on preferences under _Pen & Clicks_.
+A double tap (or mouse double click) and a mouse or touch right click can each run an action, chosen for each mode from the same list as a pen button click: Blender's default, nothing, brushes, tools, the widget and pie actions, or any operator or menu. Turn them on with the checkbox in their sidebar panel header (_Sculpt Deck > Double Click_ and _Right Click_) or in the add-on preferences under _Pen & Clicks_.
 
 By default the double tap maximizes the area, and right click is off, leaving it to Blender.
 
@@ -79,7 +75,7 @@ By default the double tap maximizes the area, and right click is off, leaving it
 
 ![gizmo bar](/docs/gizmo_bar.png)
 
-Important features have been made available directly in the viewport. Each mode has up to 12 buttons, chosen in the sidebar under _Touchview > Widget Buttons_ (or in the add-on preferences) from the same list of actions as the action pie, or any custom operator or menu.
+Important features have been made available directly in the viewport. Each mode has up to 12 buttons, chosen in the sidebar under _Sculpt Deck > Widget Buttons_ (or in the add-on preferences) from the same list of actions as the action pie, or any custom operator or menu.
 
 By default they include undo/redo, add mesh, recenter view, maximize area, the sidebar toggle and, depending on the mode, the object gizmo, voxel remesh, Multires levels and brush size/strength. Buttons that can't be used hide themselves, e.g. the voxel buttons on objects with a Multires modifier. Buttons that open a menu keep it open when tapped, or close it on release when held (releasing over an item picks it). Quad view, rotation lock, voxel density and many more are available from the list.
 
@@ -129,7 +125,7 @@ This feature allows you to quickly access the UI for brush resizing and strength
 
 An action pie with up to 8 commands, unique to each mode (object, edit, sculpt, the paint modes and Grease Pencil draw; every other mode shares one pie). Open it from a widget button (_Action Pie_) or a pen button.
 
-Set it up in the sidebar under _Touchview > Action Pie_, which edits the pie of the mode you're in, or in the add-on preferences. Each pie position has a dropdown of popular actions for that mode (e.g. the brush picker, mask and face set popups, and tools like box trim or mesh filter in sculpt mode) plus common ones that usually need a keyboard: undo history, adjust last operation, the mode, view, shading, pivot and snap pies, frame selected, local view, X-ray, search and save. _All Actions_ opens a popup with every action for the current mode, so nothing is out of reach between reassignments. Pick _Custom..._ to type any operator (`object.shade_smooth`) or menu (`VIEW3D_MT_add`) name; turn on _Preferences > Interface > Python Tooltips_ to see them when hovering Blender's buttons.
+Set it up in the sidebar under _Sculpt Deck > Action Pie_, which edits the pie of the mode you're in, or in the add-on preferences. Each pie position has a dropdown of popular actions for that mode (e.g. the brush picker, mask and face set popups, and tools like box trim or mesh filter in sculpt mode) plus common ones that usually need a keyboard: undo history, adjust last operation, the mode, view, shading, pivot and snap pies, frame selected, local view, X-ray, search and save. _All Actions_ opens a popup with every action for the current mode, so nothing is out of reach between reassignments. Pick _Custom..._ to type any operator (`object.shade_smooth`) or menu (`VIEW3D_MT_add`) name; turn on _Preferences > Interface > Python Tooltips_ to see them when hovering Blender's buttons.
 
 ## Pen Buttons
 
@@ -146,11 +142,11 @@ By default, in Sculpt Mode, button 1 (the lower one) inverts the brush on click 
 
 A **hold** uses a brush or a tool only until the button is released, e.g. hold for the Smooth brush, or hold and draw with the tip for a Box Hide. Actions that change the mesh resolution (remesh, Multires levels) aren't offered for pen buttons, which are easy to press by accident; _Edit Voxel Size_ is.
 
-A press becomes a hold after a moment, once the pen moves, or when the tip touches down while the button is held. Set them up in the sidebar under _Touchview > Pen Buttons_, which edits the mode you're in, or in the add-on preferences.
+A press becomes a hold after a moment, once the pen moves, or when the tip touches down while the button is held. Set them up in the sidebar under _Sculpt Deck > Pen Buttons_, which edits the mode you're in, or in the add-on preferences.
 
 ## Default and Per-file Settings
 
-Settings changed in the sidebar or the add-on preferences apply right away. When they differ from your defaults, the bottom of the _Touchview_ sidebar tab offers **Save Default Settings** (use them for new files and files without their own settings) and a revert button (go back to the defaults). Until they're saved as defaults, the changed settings are stored in the .blend file when you save it, so each file can keep its own setup. Opening a file without its own settings brings back the defaults.
+Settings changed in the sidebar or the add-on preferences apply right away. When they differ from your defaults, the bottom of the _Sculpt Deck_ sidebar tab offers **Save Default Settings** (use them for new files and files without their own settings) and a revert button (go back to the defaults). Until they're saved as defaults, the changed settings are stored in the .blend file when you save it, so each file can keep its own setup. Opening a file without its own settings brings back the defaults.
 
 To have every change saved as the default instead, turn on **Auto-Save Defaults** in the add-on preferences.
 
@@ -158,16 +154,7 @@ Defaults are kept in the add-on's user folder, so they survive add-on updates. Y
 
 # Feature Roadmap
 
-If you have a suggestion for more features, please check if it's on this list before submitting a request on Github.
-
-I'm continuing to look at features which could improve the experience of Blender without adding too much clutter to the UI.
-
-Currently, I'm planning to add the following features:
-
-> - better 3D gizmos for edit mode
-> - control gizmo enum (flip through object gizmos in sculpt mode)
-
-This list will change as I explore options and get more user feedback.
+Planned work is tracked in [GitHub issues](https://github.com/asluizh/sculpt-deck/issues). Version 1.0 comes once the major features are shipped and the known bugs are fixed.
 
 # Building from Github
 
@@ -177,45 +164,25 @@ Building the addon zip can be done by using the included `bundle.sh` script. Sim
 ./bundle.sh
 ```
 
-It will output the files to include and generate a new ZIP file:
+It builds the extension ZIP:
 
 ```
-$ ./bundle.sh
-  adding: touchview/ (stored 0%)
-  adding: touchview/source/ (stored 0%)
-  adding: touchview/source/gizmos.py (deflated 77%)
-  adding: touchview/source/items.py (deflated 68%)
-  adding: touchview/source/operators.py (deflated 80%)
-  adding: touchview/source/overlay.py (deflated 73%)
-  adding: touchview/source/panel.py (deflated 69%)
-  adding: touchview/source/touch_input.py (deflated 69%)
-  adding: touchview/source/__init__.py (deflated 70%)
-  adding: touchview/prefs.py (deflated 76%)
-  adding: touchview/__init__.py (deflated 51%)
-```
-
-The final ZIP can be found in:
-
-```
-./bin/touchview.zip
+./bin/sculpt_deck.zip
 ```
 
 # Installation
 
-In Blender, open `Edit` > `Preferences...`.
+In Blender, open `Edit` > `Preferences...` > `Get Extensions`, open the menu at the top right and choose `Install from Disk...`, then pick `sculpt_deck.zip`.
 
-Navigate to the `Add-ons` tab.
-
-Click `Install...` and navigate to the `touchview.zip` file.
-
-Select it and click `Install Add-on`.
+Or drag `sculpt_deck.zip` into Blender.
 
 ###### _note:_ You do not need to extract it, first. Simply install the ZIP, directly
 
 # Changelog
 
-<details open><summary><b>Unreleased</b></summary><br>
+<details open><summary><b>v0.1.0 (unreleased)</b></summary><br>
 
+- `CHANGED`: Renamed from Touchview to Sculpt Deck, with a new extension ID (`sculpt_deck`), focused on sculpting without a keyboard. Settings, keymaps and file data saved by Touchview are not carried over.
 - `ADDED`: Add Mesh shapes: Icosphere and Quad Sphere (with subdivisions), and Capsule (with radius and length).
 - `ADDED`: Add Mesh shape options: sphere segments and rings, cylinder and cone base vertices (for prisms and pyramids), torus outer and inner radius and segments.
 - `ADDED`: Add Mesh _Smooth_ (shade smooth, on by default) and _Round Edges_ (cube, cylinder, cone) options.
@@ -232,6 +199,8 @@ Select it and click `Install Add-on`.
 - `FIXED`: In Sculpt or Edit Mode, undoing Add Mesh, Join or Fuse left the objects behind, and changing Add Mesh settings in _Adjust Last Operation_ added a new copy each time.
 
 </details>
+
+### Before Sculpt Deck (Touchview)
 
 <details><summary><b>v4.4.0</b></summary><br>
 
@@ -628,6 +597,8 @@ Compatibility update for Blender 4.0
 
 # Issues
 
-> Please [report any issues](https://github.com/nendotools/touchview/issues) you find and I'll do my best to address them.
+Please [report any issues](https://github.com/asluizh/sculpt-deck/issues) you find.
 
-> The add-on is free, but if it helps you, please consider [supporting me](https://nendo.gumroad.com/l/touchview).
+# Credits
+
+Sculpt Deck is based on [Touchview](https://github.com/nendotools/touchview) by NENDO and Karan (b3dhub), with contributions from its community. Licensed under the GPL, version 3 or later.

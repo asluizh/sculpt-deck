@@ -160,14 +160,14 @@ def pie_mode(mode: str) -> str:
 # pie when it ends in _pie), a brush asset shelf (_AST_) or a tool (TOOL:). Common actions are offered in every mode and
 # cover what usually needs a keyboard shortcut.
 pie_common_actions = [
-    ("TOUCHVIEW_MT_all_actions", "All Actions", "THREE_DOTS"),
+    ("SCULPT_DECK_MT_all_actions", "All Actions", "THREE_DOTS"),
     ("ed.undo", "Undo", "LOOP_BACK"),
     ("ed.redo", "Redo", "LOOP_FORWARDS"),
-    ("touchview.viewport_recenter", "Recenter on Selected", "CURSOR"),
-    ("touchview.toggle_n_panel", "Toggle Sidebar", "EVENT_N"),
-    ("touchview.viewport_lock", "Toggle Rotation Lock", "LOCKED"),
+    ("sculpt_deck.viewport_recenter", "Recenter on Selected", "CURSOR"),
+    ("sculpt_deck.toggle_n_panel", "Toggle Sidebar", "EVENT_N"),
+    ("sculpt_deck.viewport_lock", "Toggle Rotation Lock", "LOCKED"),
     ("screen.region_quadview", "Toggle Quad View", "IMGDISPLAY"),
-    ("touchview.toggle_touch", "Toggle Touch Controls", "VIEW_PAN"),
+    ("sculpt_deck.toggle_touch", "Toggle Touch Controls", "VIEW_PAN"),
     ("ed.undo_history", "Undo History", "RECOVER_LAST"),
     ("screen.repeat_last", "Repeat Last", "FILE_REFRESH"),
     ("screen.redo_last", "Adjust Last Operation", "OPTIONS"),
@@ -196,11 +196,11 @@ pie_mode_actions = {
         ("object.duplicate_move", "Duplicate", "DUPLICATE"),
         ("object.duplicate_move_linked", "Duplicate Linked", "LINKED"),
         ("object.join", "Join", "OBJECT_DATA"),
-        ("touchview.fuse_selected", "Fuse (Union)", "SELECT_EXTEND"),
-        ("touchview.fuse_difference", "Fuse (Difference)", "SELECT_DIFFERENCE"),
-        ("touchview.cycle_control_gizmo", "Cycle Object Gizmo", "ORIENTATION_LOCAL"),
-        ("touchview.increment_multires", "Multires Level Up", "TRIA_UP"),
-        ("touchview.decrement_multires", "Multires Level Down", "TRIA_DOWN"),
+        ("sculpt_deck.fuse_selected", "Fuse (Union)", "SELECT_EXTEND"),
+        ("sculpt_deck.fuse_difference", "Fuse (Difference)", "SELECT_DIFFERENCE"),
+        ("sculpt_deck.cycle_control_gizmo", "Cycle Object Gizmo", "ORIENTATION_LOCAL"),
+        ("sculpt_deck.increment_multires", "Multires Level Up", "TRIA_UP"),
+        ("sculpt_deck.decrement_multires", "Multires Level Down", "TRIA_DOWN"),
         ("object.select_all", "Select All (Toggle)", "RESTRICT_SELECT_OFF"),
         ("object.hide_view_set", "Hide Selected", "HIDE_ON"),
         ("object.hide_view_clear", "Reveal Hidden", "HIDE_OFF"),
@@ -228,8 +228,8 @@ pie_mode_actions = {
     ],
     "EDIT_MESH": [
         ("VIEW3D_MT_edit_mesh_select_mode", "Select Mode", "VERTEXSEL"),
-        ("TOUCHVIEW_MT_add_mesh", "Add Mesh", "ADD"),
-        ("touchview.cycle_control_gizmo", "Cycle Object Gizmo", "ORIENTATION_LOCAL"),
+        ("SCULPT_DECK_MT_add_mesh", "Add Mesh", "ADD"),
+        ("sculpt_deck.cycle_control_gizmo", "Cycle Object Gizmo", "ORIENTATION_LOCAL"),
         ("mesh.select_all", "Select All (Toggle)", "RESTRICT_SELECT_OFF"),
         ("mesh.select_linked", "Select Linked", "LINKED"),
         ("mesh.select_more", "Select More", "ADD"),
@@ -268,38 +268,38 @@ pie_mode_actions = {
     ],
     "SCULPT": [
         ("VIEW3D_AST_brush_sculpt", "Brushes", "BRUSHES_ALL"),
-        ("touchview.brush_previous", "Previous Brush", "LOOP_BACK"),
-        ("touchview.brush_invert", "Invert Brush", "ARROW_LEFTRIGHT"),
-        ("TOUCHVIEW_MT_add_mesh", "Add Mesh", "ADD"),
-        ("touchview.duplicate_object", "Duplicate", "DUPLICATE"),
-        ("touchview.delete_object", "Delete", "X"),
-        ("touchview.brush_resize", "Brush Size", "ANTIALIASED"),
-        ("touchview.brush_strength", "Brush Strength", "SMOOTHCURVE"),
-        ("touchview.stroke_method", "Stroke Method", "STROKE"),
-        ("touchview.join_selected", "Join Selected", "OBJECT_DATA"),
-        ("touchview.fuse_selected", "Fuse (Union)", "SELECT_EXTEND"),
-        ("touchview.fuse_difference", "Fuse (Difference)", "SELECT_DIFFERENCE"),
+        ("sculpt_deck.brush_previous", "Previous Brush", "LOOP_BACK"),
+        ("sculpt_deck.brush_invert", "Invert Brush", "ARROW_LEFTRIGHT"),
+        ("SCULPT_DECK_MT_add_mesh", "Add Mesh", "ADD"),
+        ("sculpt_deck.duplicate_object", "Duplicate", "DUPLICATE"),
+        ("sculpt_deck.delete_object", "Delete", "X"),
+        ("sculpt_deck.brush_resize", "Brush Size", "ANTIALIASED"),
+        ("sculpt_deck.brush_strength", "Brush Strength", "SMOOTHCURVE"),
+        ("sculpt_deck.stroke_method", "Stroke Method", "STROKE"),
+        ("sculpt_deck.join_selected", "Join Selected", "OBJECT_DATA"),
+        ("sculpt_deck.fuse_selected", "Fuse (Union)", "SELECT_EXTEND"),
+        ("sculpt_deck.fuse_difference", "Fuse (Difference)", "SELECT_DIFFERENCE"),
         ("VIEW3D_MT_mask", "Mask Popup", "MOD_MASK"),
         ("VIEW3D_MT_sculpt_mask_edit_pie", "Mask Edit Pie", "MOD_MASK"),
         ("paint.mask_flood_fill", "Clear Mask", "CLIPUV_DEHLT"),
-        ("touchview.mask_invert", "Invert Mask", "CLIPUV_HLT"),
-        ("touchview.reveal_all", "Reveal Hidden", "HIDE_OFF"),
+        ("sculpt_deck.mask_invert", "Invert Mask", "CLIPUV_HLT"),
+        ("sculpt_deck.reveal_all", "Reveal Hidden", "HIDE_OFF"),
         ("VIEW3D_MT_face_sets", "Face Sets Popup", "FACE_MAPS"),
         ("VIEW3D_MT_sculpt_face_sets_edit_pie", "Face Sets Edit Pie", "FACE_MAPS"),
         ("VIEW3D_MT_sculpt_automasking_pie", "Auto-Masking Pie", "MOD_MASK"),
         ("paint.visibility_invert", "Invert Visibility", "HIDE_ON"),
         ("object.voxel_remesh", "Voxel Remesh", "MOD_REMESH"),
         ("object.voxel_size_edit", "Edit Voxel Size", "MESH_GRID"),
-        ("touchview.density_up", "Voxel Density Up", "TRIA_UP"),
-        ("touchview.density_down", "Voxel Density Down", "TRIA_DOWN"),
-        ("touchview.increment_multires", "Multires Level Up", "TRIA_UP"),
-        ("touchview.decrement_multires", "Multires Level Down", "TRIA_DOWN"),
-        ("touchview.cycle_control_gizmo", "Cycle Object Gizmo", "ORIENTATION_LOCAL"),
-        ("touchview.apply_object_scale", "Apply Scale", "CON_SIZELIKE"),
-        ("touchview.array_apply", "Apply Array", "MOD_ARRAY"),
-        ("touchview.array_remove", "Remove Array", "X"),
-        ("touchview.mirror_apply", "Apply Mirror", "MOD_MIRROR"),
-        ("touchview.mirror_remove", "Remove Mirror", "X"),
+        ("sculpt_deck.density_up", "Voxel Density Up", "TRIA_UP"),
+        ("sculpt_deck.density_down", "Voxel Density Down", "TRIA_DOWN"),
+        ("sculpt_deck.increment_multires", "Multires Level Up", "TRIA_UP"),
+        ("sculpt_deck.decrement_multires", "Multires Level Down", "TRIA_DOWN"),
+        ("sculpt_deck.cycle_control_gizmo", "Cycle Object Gizmo", "ORIENTATION_LOCAL"),
+        ("sculpt_deck.apply_object_scale", "Apply Scale", "CON_SIZELIKE"),
+        ("sculpt_deck.array_apply", "Apply Array", "MOD_ARRAY"),
+        ("sculpt_deck.array_remove", "Remove Array", "X"),
+        ("sculpt_deck.mirror_apply", "Apply Mirror", "MOD_MIRROR"),
+        ("sculpt_deck.mirror_remove", "Remove Mirror", "X"),
         ("object.quadriflow_remesh", "QuadriFlow Remesh", "MOD_REMESH"),
         ("sculpt.dynamic_topology_toggle", "Toggle Dyntopo", "MESH_DATA"),
         ("VIEW3D_MT_sculpt", "Sculpt Menu", "SCULPTMODE_HLT"),
@@ -331,22 +331,22 @@ pie_mode_actions = {
                 ("builtin.rotate", "Rotate", "CON_ROTLIKE"),
                 ("builtin.scale", "Scale", "CON_SIZELIKE"),
                 ("builtin.transform", "Transform", "OBJECT_ORIGIN"),
-                ("touchview.local_transform", "Local Transform", "ORIENTATION_LOCAL"),
-                ("touchview.mirror", "Mirror", "MOD_MIRROR"),
-                ("touchview.linear_array", "Linear Array", "MOD_ARRAY"),
-                ("touchview.circular_array", "Circular Array", "MESH_CIRCLE"),
+                ("sculpt_deck.local_transform", "Local Transform", "ORIENTATION_LOCAL"),
+                ("sculpt_deck.mirror", "Mirror", "MOD_MIRROR"),
+                ("sculpt_deck.linear_array", "Linear Array", "MOD_ARRAY"),
+                ("sculpt_deck.circular_array", "Circular Array", "MESH_CIRCLE"),
             )
         ],
     ],
     "PAINT_VERTEX": [
         ("VIEW3D_AST_brush_vertex_paint", "Brushes", "BRUSHES_ALL"),
-        ("touchview.brush_previous", "Previous Brush", "LOOP_BACK"),
-        ("TOUCHVIEW_MT_add_mesh", "Add Mesh", "ADD"),
-        ("touchview.duplicate_object", "Duplicate", "DUPLICATE"),
-        ("touchview.delete_object", "Delete", "X"),
-        ("touchview.brush_resize", "Brush Size", "ANTIALIASED"),
-        ("touchview.brush_strength", "Brush Strength", "SMOOTHCURVE"),
-        ("touchview.stroke_method", "Stroke Method", "STROKE"),
+        ("sculpt_deck.brush_previous", "Previous Brush", "LOOP_BACK"),
+        ("SCULPT_DECK_MT_add_mesh", "Add Mesh", "ADD"),
+        ("sculpt_deck.duplicate_object", "Duplicate", "DUPLICATE"),
+        ("sculpt_deck.delete_object", "Delete", "X"),
+        ("sculpt_deck.brush_resize", "Brush Size", "ANTIALIASED"),
+        ("sculpt_deck.brush_strength", "Brush Strength", "SMOOTHCURVE"),
+        ("sculpt_deck.stroke_method", "Stroke Method", "STROKE"),
         ("paint.sample_color", "Sample Color", "EYEDROPPER"),
         ("paint.brush_colors_flip", "Swap Colors", "ARROW_LEFTRIGHT"),
         ("paint.vertex_color_set", "Fill with Color", "COLOR"),
@@ -356,13 +356,13 @@ pie_mode_actions = {
     ],
     "PAINT_WEIGHT": [
         ("VIEW3D_AST_brush_weight_paint", "Brushes", "BRUSHES_ALL"),
-        ("touchview.brush_previous", "Previous Brush", "LOOP_BACK"),
-        ("TOUCHVIEW_MT_add_mesh", "Add Mesh", "ADD"),
-        ("touchview.duplicate_object", "Duplicate", "DUPLICATE"),
-        ("touchview.delete_object", "Delete", "X"),
-        ("touchview.brush_resize", "Brush Size", "ANTIALIASED"),
-        ("touchview.brush_strength", "Brush Strength", "SMOOTHCURVE"),
-        ("touchview.stroke_method", "Stroke Method", "STROKE"),
+        ("sculpt_deck.brush_previous", "Previous Brush", "LOOP_BACK"),
+        ("SCULPT_DECK_MT_add_mesh", "Add Mesh", "ADD"),
+        ("sculpt_deck.duplicate_object", "Duplicate", "DUPLICATE"),
+        ("sculpt_deck.delete_object", "Delete", "X"),
+        ("sculpt_deck.brush_resize", "Brush Size", "ANTIALIASED"),
+        ("sculpt_deck.brush_strength", "Brush Strength", "SMOOTHCURVE"),
+        ("sculpt_deck.stroke_method", "Stroke Method", "STROKE"),
         ("paint.weight_sample", "Sample Weight", "EYEDROPPER"),
         ("paint.weight_sample_group", "Sample Group", "EYEDROPPER"),
         ("paint.weight_gradient", "Weight Gradient", "IPO_EASE_IN_OUT"),
@@ -372,13 +372,13 @@ pie_mode_actions = {
     ],
     "PAINT_TEXTURE": [
         ("VIEW3D_AST_brush_texture_paint", "Brushes", "BRUSHES_ALL"),
-        ("touchview.brush_previous", "Previous Brush", "LOOP_BACK"),
-        ("TOUCHVIEW_MT_add_mesh", "Add Mesh", "ADD"),
-        ("touchview.duplicate_object", "Duplicate", "DUPLICATE"),
-        ("touchview.delete_object", "Delete", "X"),
-        ("touchview.brush_resize", "Brush Size", "ANTIALIASED"),
-        ("touchview.brush_strength", "Brush Strength", "SMOOTHCURVE"),
-        ("touchview.stroke_method", "Stroke Method", "STROKE"),
+        ("sculpt_deck.brush_previous", "Previous Brush", "LOOP_BACK"),
+        ("SCULPT_DECK_MT_add_mesh", "Add Mesh", "ADD"),
+        ("sculpt_deck.duplicate_object", "Duplicate", "DUPLICATE"),
+        ("sculpt_deck.delete_object", "Delete", "X"),
+        ("sculpt_deck.brush_resize", "Brush Size", "ANTIALIASED"),
+        ("sculpt_deck.brush_strength", "Brush Strength", "SMOOTHCURVE"),
+        ("sculpt_deck.stroke_method", "Stroke Method", "STROKE"),
         ("paint.sample_color", "Sample Color", "EYEDROPPER"),
         ("paint.brush_colors_flip", "Swap Colors", "ARROW_LEFTRIGHT"),
         ("paint.add_texture_paint_slot", "Add Paint Slot", "IMAGE_DATA"),
@@ -386,9 +386,9 @@ pie_mode_actions = {
     ],
     "PAINT_GREASE_PENCIL": [
         ("VIEW3D_AST_brush_gpencil_paint", "Brushes", "BRUSHES_ALL"),
-        ("touchview.brush_previous", "Previous Brush", "LOOP_BACK"),
-        ("touchview.brush_resize", "Brush Size", "ANTIALIASED"),
-        ("touchview.brush_strength", "Brush Strength", "SMOOTHCURVE"),
+        ("sculpt_deck.brush_previous", "Previous Brush", "LOOP_BACK"),
+        ("sculpt_deck.brush_resize", "Brush Size", "ANTIALIASED"),
+        ("sculpt_deck.brush_strength", "Brush Strength", "SMOOTHCURVE"),
         ("GREASE_PENCIL_MT_layer_active", "Active Layer", "OUTLINER_DATA_GP_LAYER"),
         ("grease_pencil.layer_add", "Add Layer", "ADD"),
         ("grease_pencil.insert_blank_frame", "Insert Blank Frame", "KEYFRAME"),
@@ -400,7 +400,7 @@ pie_mode_actions = {
 
 # only offered for widget buttons, a pie can't open itself
 widget_only_actions = [
-    ("TOUCHVIEW_MT_floating", "Action Pie", "SETTINGS"),
+    ("SCULPT_DECK_MT_floating", "Action Pie", "SETTINGS"),
 ]
 
 pie_actions = {idname: (label, icon) for idname, label, icon in pie_common_actions + widget_only_actions}
@@ -411,66 +411,66 @@ for _actions in pie_mode_actions.values():
 action_toggles = {
     "screen.screen_full_area": ("screen.show_fullscreen", "FULLSCREEN_EXIT", "FULLSCREEN_ENTER"),
     "screen.region_quadview": ("space_data.region_quadviews", "IMGDISPLAY", "MESH_PLANE"),
-    "touchview.viewport_lock": ("region_data.lock_rotation", "LOCKED", "UNLOCKED"),
+    "sculpt_deck.viewport_lock": ("region_data.lock_rotation", "LOCKED", "UNLOCKED"),
 }
 
 # operators that open a popup, run like menus from widget buttons
 popup_actions = {"wm.toolbar", "wm.search_menu", "ed.undo_history", "screen.redo_last"}
 
 # widget buttons only shown when the active object can use them
-voxel_actions = {"object.voxel_size_edit", "object.voxel_remesh", "touchview.density_up", "touchview.density_down"}
-multires_actions = {"touchview.increment_multires", "touchview.decrement_multires"}
+voxel_actions = {"object.voxel_size_edit", "object.voxel_remesh", "sculpt_deck.density_up", "sculpt_deck.density_down"}
+multires_actions = {"sculpt_deck.increment_multires", "sculpt_deck.decrement_multires"}
 
 WIDGET_SLOTS = 12
 
 # initial widget buttons per mode
 widget_defaults = {
-    "OBJECT": ("ed.undo", "ed.redo", "VIEW3D_MT_add", "touchview.cycle_control_gizmo",
-               "touchview.viewport_recenter", "screen.screen_full_area", "touchview.toggle_n_panel",
-               "touchview.increment_multires", "touchview.decrement_multires", "TOUCHVIEW_MT_floating"),
-    "EDIT_MESH": ("ed.undo", "ed.redo", "TOUCHVIEW_MT_add_mesh", "touchview.cycle_control_gizmo",
-                  "touchview.viewport_recenter", "screen.screen_full_area", "touchview.toggle_n_panel",
-                  "TOUCHVIEW_MT_floating"),
-    "SCULPT": ("ed.undo", "ed.redo", "TOUCHVIEW_MT_add_mesh", "touchview.viewport_recenter",
-               "touchview.toggle_n_panel", "object.voxel_size_edit", "object.voxel_remesh",
-               "touchview.increment_multires", "touchview.decrement_multires", "touchview.brush_resize",
-               "touchview.brush_strength", "TOUCHVIEW_MT_floating"),
-    "PAINT_VERTEX": ("ed.undo", "ed.redo", "TOUCHVIEW_MT_add_mesh", "touchview.viewport_recenter",
-                     "screen.screen_full_area", "touchview.toggle_n_panel", "touchview.brush_resize",
-                     "touchview.brush_strength", "TOUCHVIEW_MT_floating"),
-    "PAINT_WEIGHT": ("ed.undo", "ed.redo", "TOUCHVIEW_MT_add_mesh", "touchview.viewport_recenter",
-                     "screen.screen_full_area", "touchview.toggle_n_panel", "touchview.brush_resize",
-                     "touchview.brush_strength", "TOUCHVIEW_MT_floating"),
-    "PAINT_TEXTURE": ("ed.undo", "ed.redo", "TOUCHVIEW_MT_add_mesh", "touchview.viewport_recenter",
-                      "screen.screen_full_area", "touchview.toggle_n_panel", "touchview.brush_resize",
-                      "touchview.brush_strength", "TOUCHVIEW_MT_floating"),
-    "PAINT_GREASE_PENCIL": ("ed.undo", "ed.redo", "touchview.viewport_recenter", "screen.screen_full_area",
-                            "touchview.toggle_n_panel", "touchview.brush_resize", "touchview.brush_strength",
-                            "TOUCHVIEW_MT_floating"),
-    "OTHER": ("ed.undo", "ed.redo", "touchview.viewport_recenter", "screen.screen_full_area",
-              "touchview.toggle_n_panel", "TOUCHVIEW_MT_floating"),
+    "OBJECT": ("ed.undo", "ed.redo", "VIEW3D_MT_add", "sculpt_deck.cycle_control_gizmo",
+               "sculpt_deck.viewport_recenter", "screen.screen_full_area", "sculpt_deck.toggle_n_panel",
+               "sculpt_deck.increment_multires", "sculpt_deck.decrement_multires", "SCULPT_DECK_MT_floating"),
+    "EDIT_MESH": ("ed.undo", "ed.redo", "SCULPT_DECK_MT_add_mesh", "sculpt_deck.cycle_control_gizmo",
+                  "sculpt_deck.viewport_recenter", "screen.screen_full_area", "sculpt_deck.toggle_n_panel",
+                  "SCULPT_DECK_MT_floating"),
+    "SCULPT": ("ed.undo", "ed.redo", "SCULPT_DECK_MT_add_mesh", "sculpt_deck.viewport_recenter",
+               "sculpt_deck.toggle_n_panel", "object.voxel_size_edit", "object.voxel_remesh",
+               "sculpt_deck.increment_multires", "sculpt_deck.decrement_multires", "sculpt_deck.brush_resize",
+               "sculpt_deck.brush_strength", "SCULPT_DECK_MT_floating"),
+    "PAINT_VERTEX": ("ed.undo", "ed.redo", "SCULPT_DECK_MT_add_mesh", "sculpt_deck.viewport_recenter",
+                     "screen.screen_full_area", "sculpt_deck.toggle_n_panel", "sculpt_deck.brush_resize",
+                     "sculpt_deck.brush_strength", "SCULPT_DECK_MT_floating"),
+    "PAINT_WEIGHT": ("ed.undo", "ed.redo", "SCULPT_DECK_MT_add_mesh", "sculpt_deck.viewport_recenter",
+                     "screen.screen_full_area", "sculpt_deck.toggle_n_panel", "sculpt_deck.brush_resize",
+                     "sculpt_deck.brush_strength", "SCULPT_DECK_MT_floating"),
+    "PAINT_TEXTURE": ("ed.undo", "ed.redo", "SCULPT_DECK_MT_add_mesh", "sculpt_deck.viewport_recenter",
+                      "screen.screen_full_area", "sculpt_deck.toggle_n_panel", "sculpt_deck.brush_resize",
+                      "sculpt_deck.brush_strength", "SCULPT_DECK_MT_floating"),
+    "PAINT_GREASE_PENCIL": ("ed.undo", "ed.redo", "sculpt_deck.viewport_recenter", "screen.screen_full_area",
+                            "sculpt_deck.toggle_n_panel", "sculpt_deck.brush_resize", "sculpt_deck.brush_strength",
+                            "SCULPT_DECK_MT_floating"),
+    "OTHER": ("ed.undo", "ed.redo", "sculpt_deck.viewport_recenter", "screen.screen_full_area",
+              "sculpt_deck.toggle_n_panel", "SCULPT_DECK_MT_floating"),
 }
 
 # initial slots of a new pie, in pie order (left, right, bottom, top, ...)
 menu_defaults = {
     "OBJECT": ("VIEW3D_MT_add", "object.delete", "VIEW3D_MT_object_mode_pie", "VIEW3D_MT_view_pie",
-               "object.duplicate_move", "TOUCHVIEW_MT_all_actions", "ed.undo_history", "screen.redo_last"),
+               "object.duplicate_move", "SCULPT_DECK_MT_all_actions", "ed.undo_history", "screen.redo_last"),
     "EDIT_MESH": ("VIEW3D_MT_edit_mesh_select_mode", "VIEW3D_MT_edit_mesh_delete", "VIEW3D_MT_object_mode_pie",
-                  "VIEW3D_MT_view_pie", "view3d.edit_mesh_extrude_move_normal", "TOUCHVIEW_MT_all_actions",
+                  "VIEW3D_MT_view_pie", "view3d.edit_mesh_extrude_move_normal", "SCULPT_DECK_MT_all_actions",
                   "VIEW3D_MT_edit_mesh_merge", "screen.redo_last"),
     "SCULPT": ("VIEW3D_AST_brush_sculpt", "VIEW3D_MT_mask", "VIEW3D_MT_object_mode_pie", "VIEW3D_MT_view_pie",
-               "VIEW3D_MT_face_sets", "TOUCHVIEW_MT_all_actions", "ed.undo_history", "TOUCHVIEW_MT_add_mesh"),
+               "VIEW3D_MT_face_sets", "SCULPT_DECK_MT_all_actions", "ed.undo_history", "SCULPT_DECK_MT_add_mesh"),
     "PAINT_VERTEX": ("VIEW3D_AST_brush_vertex_paint", "paint.sample_color", "VIEW3D_MT_object_mode_pie",
-                     "VIEW3D_MT_view_pie", "paint.brush_colors_flip", "TOUCHVIEW_MT_all_actions", "", ""),
+                     "VIEW3D_MT_view_pie", "paint.brush_colors_flip", "SCULPT_DECK_MT_all_actions", "", ""),
     "PAINT_WEIGHT": ("VIEW3D_AST_brush_weight_paint", "paint.weight_sample", "VIEW3D_MT_object_mode_pie",
-                     "VIEW3D_MT_view_pie", "paint.weight_gradient", "TOUCHVIEW_MT_all_actions", "", ""),
+                     "VIEW3D_MT_view_pie", "paint.weight_gradient", "SCULPT_DECK_MT_all_actions", "", ""),
     "PAINT_TEXTURE": ("VIEW3D_AST_brush_texture_paint", "paint.sample_color", "VIEW3D_MT_object_mode_pie",
-                      "VIEW3D_MT_view_pie", "paint.brush_colors_flip", "TOUCHVIEW_MT_all_actions", "", ""),
+                      "VIEW3D_MT_view_pie", "paint.brush_colors_flip", "SCULPT_DECK_MT_all_actions", "", ""),
     "PAINT_GREASE_PENCIL": ("VIEW3D_AST_brush_gpencil_paint", "GREASE_PENCIL_MT_layer_active",
                             "VIEW3D_MT_object_mode_pie", "VIEW3D_MT_view_pie",
-                            "grease_pencil.insert_blank_frame", "TOUCHVIEW_MT_all_actions", "", ""),
+                            "grease_pencil.insert_blank_frame", "SCULPT_DECK_MT_all_actions", "", ""),
     "OTHER": ("ed.undo", "ed.redo", "VIEW3D_MT_object_mode_pie", "VIEW3D_MT_view_pie", "",
-              "TOUCHVIEW_MT_all_actions", "", ""),
+              "SCULPT_DECK_MT_all_actions", "", ""),
 }
 
 # mouse and touch actions kept with the pen buttons of each mode, using the
@@ -561,8 +561,8 @@ pen_brush_items = [
     ("BRUSH", "Specific Brush", "Click switches to the chosen brush, hold uses it until released", "BRUSH_DATA", 6),
 ]
 
-pen_action_numbers = {"TOUCHVIEW_MT_floating": 2, "SCREEN_MT_user_menu": 3, "CUSTOM": 4}
-pen_action_aliases = {"PIE": "TOUCHVIEW_MT_floating", "QUICK_FAVORITES": "SCREEN_MT_user_menu", "OPERATOR": "CUSTOM"}
+pen_action_numbers = {"SCULPT_DECK_MT_floating": 2, "SCREEN_MT_user_menu": 3, "CUSTOM": 4}
+pen_action_aliases = {"PIE": "SCULPT_DECK_MT_floating", "QUICK_FAVORITES": "SCREEN_MT_user_menu", "OPERATOR": "CUSTOM"}
 
 pen_brush_actions = {"BRUSH_PREVIOUS", "BRUSH"}
 
@@ -571,21 +571,21 @@ pen_brush_actions = {"BRUSH_PREVIOUS", "BRUSH"}
 pen_resolution_actions = {
     "object.voxel_remesh",
     "object.quadriflow_remesh",
-    "touchview.density_up",
-    "touchview.density_down",
-    "touchview.increment_multires",
-    "touchview.decrement_multires",
+    "sculpt_deck.density_up",
+    "sculpt_deck.density_down",
+    "sculpt_deck.increment_multires",
+    "sculpt_deck.decrement_multires",
     "sculpt.dynamic_topology_toggle",
     "mesh.subdivide",
-    "touchview.fuse_selected",
-    "touchview.fuse_difference",
+    "sculpt_deck.fuse_selected",
+    "sculpt_deck.fuse_difference",
 }
 
 
 # a hold only makes sense for what can be used while held and undone on
 # release: brushes, tools and inverting the brush
 def pen_hold_action(idname: str) -> bool:
-    return idname in pen_brush_actions or idname.startswith("TOOL:") or idname == "touchview.brush_invert"
+    return idname in pen_brush_actions or idname.startswith("TOOL:") or idname == "sculpt_deck.brush_invert"
 
 
 # brush directions that Invert Brush swaps
@@ -604,8 +604,8 @@ brush_direction_pairs = {
 # button 2 the upper one (BTN_STYLUS2)
 pen_defaults = {
     "SCULPT": {
-        "lower_click": "touchview.brush_invert",
-        "lower_hold": "touchview.brush_invert",
+        "lower_click": "sculpt_deck.brush_invert",
+        "lower_hold": "sculpt_deck.brush_invert",
         "upper_click": "BRUSH_PREVIOUS",
         "upper_hold": ("BRUSH", ("ESSENTIALS", "", "brushes/essentials_brushes-mesh_sculpt.blend/Brush/Smooth")),
     },

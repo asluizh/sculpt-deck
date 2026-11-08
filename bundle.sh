@@ -1,7 +1,7 @@
 bundle() {
   local dest dir
   dest="bin"
-  dir="bin/touchview"
+  dir="bin/sculpt_deck"
   mkdir -p "$dir"
   cp "__init__.py" "$dir"
   cp "preferences.py" "$dir"
@@ -9,7 +9,7 @@ bundle() {
   cp -r "source" "$dir"
   cp -r "icons" "$dir"
   cd "$dest"
-  zip -r "touchview.zip" "touchview"
+  zip -r "sculpt_deck.zip" "sculpt_deck"
   cd ".."
   rm -rf "$dir"
 }

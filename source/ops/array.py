@@ -25,11 +25,11 @@ from .drag import (ScreenAngle, ViewDrag, axis_on_screen, distance_along,
 #  array is applied or removed, or the active mesh has none.
 ###
 
-LINEAR_TOOL_ID = "touchview.linear_array"
-CIRCULAR_TOOL_ID = "touchview.circular_array"
+LINEAR_TOOL_ID = "sculpt_deck.linear_array"
+CIRCULAR_TOOL_ID = "sculpt_deck.circular_array"
 
 # marks our node groups, rebuilt when the version changes
-GROUP_KEY = "touchview_array"
+GROUP_KEY = "sculpt_deck_array"
 GROUP_VERSION = 2
 
 array_kinds = [
@@ -330,7 +330,7 @@ def proxy(kind: str, name: str, default):
     return get, set
 
 
-class TOUCHVIEW_PG_array(PropertyGroup):
+class SCULPT_DECK_PG_array(PropertyGroup):
     orientation: EnumProperty(  # type: ignore
         name="Axis",
         description="Axes the array handles and buttons follow, the array itself doesn't change",
@@ -367,8 +367,8 @@ class TOUCHVIEW_PG_array(PropertyGroup):
     )
 
 
-def settings(context) -> TOUCHVIEW_PG_array:
-    return context.scene.touchview_array  # type: ignore
+def settings(context) -> SCULPT_DECK_PG_array:
+    return context.scene.sculpt_deck_array  # type: ignore
 
 
 def axes_basis(obj, orientation: str) -> Matrix:
@@ -415,7 +415,7 @@ def ensure_array(object_name: str, kind: str, view_rotation):
     if current_array(obj, kind) is not None:
         return
     window = windows[0]
-    add_array(obj, kind, window.scene.touchview_array.orientation, view_rotation)  # type: ignore
+    add_array(obj, kind, window.scene.sculpt_deck_array.orientation, view_rotation)  # type: ignore
     with bpy.context.temp_override(window=window):
         bpy.ops.ed.undo_push(message=f"Add {kind_names[kind]}")
 
@@ -508,11 +508,11 @@ class ArrayOperator:
         return obj, next((m for m in reversed(obj.modifiers) if array_kind(m)), None)
 
 
-class TOUCHVIEW_OT_array_apply(ArrayOperator, Operator):
+class SCULPT_DECK_OT_array_apply(ArrayOperator, Operator):
     """Turn the array's copies into real mesh, so each one can be sculpted on its own"""
 
     bl_label = "Apply Array"
-    bl_idname = "touchview.array_apply"
+    bl_idname = "sculpt_deck.array_apply"
     bl_options = {"REGISTER", "UNDO"}
 
     def execute(self, context):
@@ -525,11 +525,11 @@ class TOUCHVIEW_OT_array_apply(ArrayOperator, Operator):
         return FINISHED
 
 
-class TOUCHVIEW_OT_array_remove(ArrayOperator, Operator):
+class SCULPT_DECK_OT_array_remove(ArrayOperator, Operator):
     """Remove the array, keeping only the mesh itself"""
 
     bl_label = "Remove Array"
-    bl_idname = "touchview.array_remove"
+    bl_idname = "sculpt_deck.array_remove"
     bl_options = {"REGISTER", "UNDO"}
 
     def execute(self, context):
@@ -541,11 +541,11 @@ class TOUCHVIEW_OT_array_remove(ArrayOperator, Operator):
         return FINISHED
 
 
-class TOUCHVIEW_OT_array_axis(Operator):
+class SCULPT_DECK_OT_array_axis(Operator):
     """Turn the copies around an axis"""
 
     bl_label = "Circle Axis"
-    bl_idname = "touchview.array_axis"
+    bl_idname = "sculpt_deck.array_axis"
     bl_options = {"REGISTER", "UNDO"}
 
     axis: EnumProperty(  # type: ignore
@@ -608,11 +608,11 @@ drag_axes = [
 ]
 
 
-class TOUCHVIEW_OT_array_edit(ViewDrag, Operator):
+class SCULPT_DECK_OT_array_edit(ViewDrag, Operator):
     """Drag to change the array"""
 
     bl_label = "Edit Array"
-    bl_idname = "touchview.array_edit"
+    bl_idname = "sculpt_deck.array_edit"
     bl_options = {"REGISTER", "UNDO", "BLOCKING"}
 
     handle: EnumProperty(name="Handle", items=array_handles)  # type: ignore
@@ -828,21 +828,21 @@ class TOUCHVIEW_OT_array_edit(ViewDrag, Operator):
 
 
 classes = (
-    TOUCHVIEW_PG_array,
-    TOUCHVIEW_OT_array_apply,
-    TOUCHVIEW_OT_array_remove,
-    TOUCHVIEW_OT_array_axis,
-    TOUCHVIEW_OT_array_edit,
+    SCULPT_DECK_PG_array,
+    SCULPT_DECK_OT_array_apply,
+    SCULPT_DECK_OT_array_remove,
+    SCULPT_DECK_OT_array_axis,
+    SCULPT_DECK_OT_array_edit,
 )
 
 
 def register():
     for cls in classes:
         bpy.utils.register_class(cls)
-    bpy.types.Scene.touchview_array = PointerProperty(type=TOUCHVIEW_PG_array)  # type: ignore
+    bpy.types.Scene.sculpt_deck_array = PointerProperty(type=SCULPT_DECK_PG_array)  # type: ignore
 
 
 def unregister():
-    del bpy.types.Scene.touchview_array  # type: ignore
+    del bpy.types.Scene.sculpt_deck_array  # type: ignore
     for cls in reversed(classes):
         bpy.utils.unregister_class(cls)

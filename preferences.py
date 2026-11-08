@@ -24,7 +24,7 @@ from .source.utils.constants import (WIDGET_SLOTS, click_defaults, click_slots,
                                      widget_only_actions)
 
 
-def NODE_HT_nendo_header(s, c):
+def NODE_HT_sculpt_deck_header(s, c):
     prefs = c.preferences.addons[__package__].preferences
     layout = s.layout
     layout.separator()
@@ -33,14 +33,14 @@ def NODE_HT_nendo_header(s, c):
 
 def update_header_toggle_position(c):
     prefs = c.preferences.addons[__package__].preferences
-    bpy.types.NODE_HT_header.remove(NODE_HT_nendo_header)
-    bpy.types.IMAGE_HT_header.remove(NODE_HT_nendo_header)
+    bpy.types.NODE_HT_header.remove(NODE_HT_sculpt_deck_header)
+    bpy.types.IMAGE_HT_header.remove(NODE_HT_sculpt_deck_header)
     if prefs.header_toggle_position == "LEFT":
-        bpy.types.NODE_HT_header.prepend(NODE_HT_nendo_header)
-        bpy.types.IMAGE_HT_header.prepend(NODE_HT_nendo_header)
+        bpy.types.NODE_HT_header.prepend(NODE_HT_sculpt_deck_header)
+        bpy.types.IMAGE_HT_header.prepend(NODE_HT_sculpt_deck_header)
     else:
-        bpy.types.NODE_HT_header.append(NODE_HT_nendo_header)
-        bpy.types.IMAGE_HT_header.append(NODE_HT_nendo_header)
+        bpy.types.NODE_HT_header.append(NODE_HT_sculpt_deck_header)
+        bpy.types.IMAGE_HT_header.append(NODE_HT_sculpt_deck_header)
 
 
 # preference changes made outside the viewport (e.g. in the Preferences window)
@@ -99,7 +99,7 @@ def pie_custom():
     )
 
 
-class TOUCHVIEW_PG_MenuModeGroup(PropertyGroup):
+class SCULPT_DECK_PG_MenuModeGroup(PropertyGroup):
     mode: StringProperty(name="mode", default="OBJECT")
     kind: StringProperty(name="kind", default="PIE")  # PIE or WIDGET
     menu_choice_1: pie_choice(1)
@@ -188,7 +188,7 @@ def pen_actions(binding, _):
             actions = [
                 action
                 for action in actions
-                if action[0] != "touchview.brush_previous"
+                if action[0] != "sculpt_deck.brush_previous"
                 and action[0] not in pen_resolution_actions
                 and (binding.gesture == "click" or pen_hold_action(action[0]))
             ]
@@ -203,7 +203,7 @@ def pen_actions(binding, _):
     return _pen_action_cache[key]
 
 
-class TOUCHVIEW_PG_PenBinding(PropertyGroup):
+class SCULPT_DECK_PG_PenBinding(PropertyGroup):
     mode: StringProperty(name="mode", default="OBJECT")
     gesture: StringProperty(name="gesture", default="click")  # click or hold
     action: EnumProperty(name="Action", items=pen_actions)
@@ -242,15 +242,15 @@ class TOUCHVIEW_PG_PenBinding(PropertyGroup):
             self.setBrushRef(tuple(brush))
 
 
-class TOUCHVIEW_PG_PenModeSet(PropertyGroup):
+class SCULPT_DECK_PG_PenModeSet(PropertyGroup):
     mode: StringProperty(name="mode", default="OBJECT")
-    upper_click: PointerProperty(type=TOUCHVIEW_PG_PenBinding)
-    upper_hold: PointerProperty(type=TOUCHVIEW_PG_PenBinding)
-    lower_click: PointerProperty(type=TOUCHVIEW_PG_PenBinding)
-    lower_hold: PointerProperty(type=TOUCHVIEW_PG_PenBinding)
+    upper_click: PointerProperty(type=SCULPT_DECK_PG_PenBinding)
+    upper_hold: PointerProperty(type=SCULPT_DECK_PG_PenBinding)
+    lower_click: PointerProperty(type=SCULPT_DECK_PG_PenBinding)
+    lower_hold: PointerProperty(type=SCULPT_DECK_PG_PenBinding)
     # mouse/touch right click and double tap, with the actions of a pen button click
-    right_click: PointerProperty(type=TOUCHVIEW_PG_PenBinding)
-    double_click: PointerProperty(type=TOUCHVIEW_PG_PenBinding)
+    right_click: PointerProperty(type=SCULPT_DECK_PG_PenBinding)
+    double_click: PointerProperty(type=SCULPT_DECK_PG_PenBinding)
 
     def bindings(self):
         for button in pen_buttons.values():
@@ -270,7 +270,7 @@ class TOUCHVIEW_PG_PenModeSet(PropertyGroup):
             binding.from_dict(data.get(slot, {"action": click_defaults.get(slot, "DEFAULT")}))
 
 
-class TOUCHVIEW_AP_OverlaySettings(AddonPreferences):
+class SCULPT_DECK_AP_OverlaySettings(AddonPreferences):
     bl_idname = __package__
 
     ##
@@ -578,12 +578,12 @@ class TOUCHVIEW_AP_OverlaySettings(AddonPreferences):
     show_float_menu: BoolProperty(default=False)
 
     menu_sets: CollectionProperty(
-        type=TOUCHVIEW_PG_MenuModeGroup,
+        type=SCULPT_DECK_PG_MenuModeGroup,
         options={"LIBRARY_EDITABLE"},
     )
 
     # widget buttons per mode, same actions as the pie
-    widget_sets: CollectionProperty(type=TOUCHVIEW_PG_MenuModeGroup)
+    widget_sets: CollectionProperty(type=SCULPT_DECK_PG_MenuModeGroup)
 
     active_widget: EnumProperty(
         name="Buttons for Mode",
@@ -595,7 +595,7 @@ class TOUCHVIEW_AP_OverlaySettings(AddonPreferences):
     # Pen Button Options
     ##
 
-    pen_sets: CollectionProperty(type=TOUCHVIEW_PG_PenModeSet)
+    pen_sets: CollectionProperty(type=SCULPT_DECK_PG_PenModeSet)
 
     pen_mode_tab: EnumProperty(
         name="Buttons for Mode",
@@ -880,8 +880,8 @@ class TOUCHVIEW_AP_OverlaySettings(AddonPreferences):
             self.show_float_menu = False
             for widget in self.widget_sets:
                 slots = widget.slots(WIDGET_SLOTS)
-                if "TOUCHVIEW_MT_floating" not in slots and "" in slots:
-                    widget.setSlot(slots.index("") + 1, "TOUCHVIEW_MT_floating")
+                if "SCULPT_DECK_MT_floating" not in slots and "" in slots:
+                    widget.setSlot(slots.index("") + 1, "SCULPT_DECK_MT_floating")
 
     def getPenSet(self, mode: str):
         return self.findModeSet(self.pen_sets, mode)
@@ -931,10 +931,10 @@ class TOUCHVIEW_AP_OverlaySettings(AddonPreferences):
 
 
 classes = (
-    TOUCHVIEW_PG_MenuModeGroup,
-    TOUCHVIEW_PG_PenBinding,
-    TOUCHVIEW_PG_PenModeSet,
-    TOUCHVIEW_AP_OverlaySettings,
+    SCULPT_DECK_PG_MenuModeGroup,
+    SCULPT_DECK_PG_PenBinding,
+    SCULPT_DECK_PG_PenModeSet,
+    SCULPT_DECK_AP_OverlaySettings,
 )
 
 
@@ -947,5 +947,5 @@ def unregister():
     for cls in reversed(classes):
         bpy.utils.unregister_class(cls)
 
-    bpy.types.NODE_HT_header.remove(NODE_HT_nendo_header)
-    bpy.types.IMAGE_HT_header.remove(NODE_HT_nendo_header)
+    bpy.types.NODE_HT_header.remove(NODE_HT_sculpt_deck_header)
+    bpy.types.IMAGE_HT_header.remove(NODE_HT_sculpt_deck_header)

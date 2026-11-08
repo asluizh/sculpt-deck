@@ -18,17 +18,17 @@ from .local_transform import AXIS_ALIGN
 #  axis color, around the mesh's reflection point.
 ###
 
-ICON = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "..", "icons", "ops.touchview.mirror"))
+ICON = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "..", "icons", "ops.sculpt_deck.mirror"))
 
 # the outline's half size, in parts of the mesh's largest dimension
 PLANE_SIZE = 0.75
 
 
-class TOUCHVIEW_GT_mirror_plane(Gizmo):
+class SCULPT_DECK_GT_mirror_plane(Gizmo):
     """A square outline in the matrix's XY plane, from -1 to 1. It can't be
     clicked, the header sets the planes."""
 
-    bl_idname = "TOUCHVIEW_GT_mirror_plane"
+    bl_idname = "SCULPT_DECK_GT_mirror_plane"
     __slots__ = ("shape",)
 
     def setup(self):
@@ -46,8 +46,8 @@ class TOUCHVIEW_GT_mirror_plane(Gizmo):
         pass
 
 
-class TOUCHVIEW_GGT_mirror(GizmoGroup):
-    bl_idname = "TOUCHVIEW_GGT_mirror"
+class SCULPT_DECK_GGT_mirror(GizmoGroup):
+    bl_idname = "SCULPT_DECK_GGT_mirror"
     bl_label = "Mirror"
     bl_space_type = "VIEW_3D"
     bl_region_type = "WINDOW"
@@ -64,7 +64,7 @@ class TOUCHVIEW_GGT_mirror(GizmoGroup):
         theme = context.preferences.themes[0].user_interface
         self.planes = []
         for color in (theme.axis_x, theme.axis_y, theme.axis_z):
-            gizmo = self.gizmos.new(TOUCHVIEW_GT_mirror_plane.bl_idname)
+            gizmo = self.gizmos.new(SCULPT_DECK_GT_mirror_plane.bl_idname)
             gizmo.color = tuple(color)
             gizmo.alpha = 0.6
             gizmo.line_width = 2
@@ -100,7 +100,7 @@ class TOUCHVIEW_GGT_mirror(GizmoGroup):
             self.planes[i].matrix_basis = Matrix.Translation(center) @ rotation @ AXIS_ALIGN[i] @ Matrix.Scale(size, 4)
 
 
-class TOUCHVIEW_TOOL_mirror(WorkSpaceTool):
+class SCULPT_DECK_TOOL_mirror(WorkSpaceTool):
     bl_space_type = "VIEW_3D"
     bl_context_mode = "SCULPT"
     bl_idname = MIRROR_TOOL_ID
@@ -111,7 +111,7 @@ class TOUCHVIEW_TOOL_mirror(WorkSpaceTool):
         "follows it until the mirror is applied"
     )
     bl_icon = ICON
-    bl_widget = TOUCHVIEW_GGT_mirror.bl_idname
+    bl_widget = SCULPT_DECK_GGT_mirror.bl_idname
 
     def draw_settings(context, layout, tool):  # type: ignore
         modifier = current_mirror(context.active_object)
@@ -123,18 +123,18 @@ class TOUCHVIEW_TOOL_mirror(WorkSpaceTool):
             row.prop(input_socket(modifier, axis), "value", text=axis, toggle=True)
         layout.prop(input_socket(modifier, "Mirror Object"), "value", text="", icon="OBJECT_DATA")
         row = layout.row(align=True)
-        row.operator("touchview.mirror_apply", text="Apply", icon="CHECKMARK")
-        row.operator("touchview.mirror_remove", text="", icon="X")
+        row.operator("sculpt_deck.mirror_apply", text="Apply", icon="CHECKMARK")
+        row.operator("sculpt_deck.mirror_remove", text="", icon="X")
 
 
 def register():
-    bpy.utils.register_class(TOUCHVIEW_GT_mirror_plane)
-    bpy.utils.register_class(TOUCHVIEW_GGT_mirror)
+    bpy.utils.register_class(SCULPT_DECK_GT_mirror_plane)
+    bpy.utils.register_class(SCULPT_DECK_GGT_mirror)
     # right after Local Transform, before the array tools (see ui/__init__.py)
-    bpy.utils.register_tool(TOUCHVIEW_TOOL_mirror, after={LOCAL_TRANSFORM_ID}, group=True)
+    bpy.utils.register_tool(SCULPT_DECK_TOOL_mirror, after={LOCAL_TRANSFORM_ID}, group=True)
 
 
 def unregister():
-    bpy.utils.unregister_tool(TOUCHVIEW_TOOL_mirror)
-    bpy.utils.unregister_class(TOUCHVIEW_GGT_mirror)
-    bpy.utils.unregister_class(TOUCHVIEW_GT_mirror_plane)
+    bpy.utils.unregister_tool(SCULPT_DECK_TOOL_mirror)
+    bpy.utils.unregister_class(SCULPT_DECK_GGT_mirror)
+    bpy.utils.unregister_class(SCULPT_DECK_GT_mirror_plane)

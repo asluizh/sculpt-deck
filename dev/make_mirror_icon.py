@@ -22,7 +22,7 @@ def main(folder):
     half = LINE // 2
     for y in range(40, 216, DASH * 2):
         triangles += rectangle(128 - half, y, 128 + half + 1, min(y + DASH, 216), WHITE)
-    write(os.path.join(folder, "ops.touchview.mirror.dat"), triangles)
+    write(os.path.join(folder, "ops.sculpt_deck.mirror.dat"), triangles)
 
 
 if __name__ == "__main__":

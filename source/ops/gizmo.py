@@ -13,11 +13,11 @@ from ..utils.constants import CANCEL, FINISHED, MODAL, PASSTHROUGH, pie_actions
 MENU_HOLD_TIME = 0.3
 
 
-class TOUCHVIEW_OT_move_float_menu(Operator):
+class SCULPT_DECK_OT_move_float_menu(Operator):
     """Tap to show/hide the menu buttons, drag to move the menu"""
 
     bl_label = "Relocate Gizmo Menu"
-    bl_idname = "touchview.move_float_menu"
+    bl_idname = "sculpt_deck.move_float_menu"
 
     def invoke(self, context, event):
         self.has_moved = False
@@ -73,11 +73,11 @@ class TOUCHVIEW_OT_move_float_menu(Operator):
         return False
 
 
-class TOUCHVIEW_OT_cycle_controlGizmo(Operator):
+class SCULPT_DECK_OT_cycle_controlGizmo(Operator):
     """Cycle the object gizmo between move, rotate, scale and none"""
 
     bl_label = "switch object control gizmo"
-    bl_idname = "touchview.cycle_control_gizmo"
+    bl_idname = "sculpt_deck.cycle_control_gizmo"
 
     @classmethod
     def poll(cls, context):
@@ -112,11 +112,11 @@ class TOUCHVIEW_OT_cycle_controlGizmo(Operator):
         space.show_gizmo_object_scale = False
 
 
-class TOUCHVIEW_OT_float_controller(Operator):
+class SCULPT_DECK_OT_float_controller(Operator):
     """Tap to toggle touch controls, drag to move this button"""
 
     bl_label = "Relocate Toggle Button"
-    bl_idname = "touchview.move_toggle_button"
+    bl_idname = "sculpt_deck.move_toggle_button"
 
     def invoke(self, context, event):
         self.has_moved = False
@@ -180,11 +180,11 @@ class TOUCHVIEW_OT_float_controller(Operator):
         return False
 
 
-class TOUCHVIEW_OT_widget_menu(Operator):
+class SCULPT_DECK_OT_widget_menu(Operator):
     """Open a menu or popup from a widget button"""
 
     bl_label = "Widget Menu"
-    bl_idname = "touchview.widget_menu"
+    bl_idname = "sculpt_deck.widget_menu"
     bl_options = {"INTERNAL"}
 
     name: StringProperty()  # type: ignore  # menu, asset shelf or popup operator
@@ -218,10 +218,10 @@ class TOUCHVIEW_OT_widget_menu(Operator):
 
 
 classes = (
-    TOUCHVIEW_OT_move_float_menu,
-    TOUCHVIEW_OT_cycle_controlGizmo,
-    TOUCHVIEW_OT_float_controller,
-    TOUCHVIEW_OT_widget_menu,
+    SCULPT_DECK_OT_move_float_menu,
+    SCULPT_DECK_OT_cycle_controlGizmo,
+    SCULPT_DECK_OT_float_controller,
+    SCULPT_DECK_OT_widget_menu,
 )
 
 

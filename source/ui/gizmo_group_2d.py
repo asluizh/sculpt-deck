@@ -21,7 +21,7 @@ __module__ = __name__.split(".")[0]
 
 
 class GIZMO_GT_viewport_gizmo_group(GizmoGroup):
-    bl_label = "Fast access tools for touch viewport"
+    bl_label = "Sculpt Deck widget"
     bl_space_type = "VIEW_3D"
     bl_region_type = "WINDOW"
     bl_options = {"PERSISTENT", "SCALE"}

@@ -18,11 +18,11 @@ from ..utils.constants import (CANCEL, FINISHED, object_modes,
                                primitive_items)
 
 
-class TOUCHVIEW_OT_flip_tools(Operator):
+class SCULPT_DECK_OT_flip_tools(Operator):
     """Relocate Tools panel between left and right"""
 
     bl_label = "Tools Region Swap"
-    bl_idname = "touchview.tools_region_flip"
+    bl_idname = "sculpt_deck.tools_region_flip"
 
     @classmethod
     def poll(cls, context):
@@ -40,11 +40,11 @@ class TOUCHVIEW_OT_flip_tools(Operator):
         return FINISHED
 
 
-class TOUCHVIEW_OT_next_pivot_mode(Operator):
+class SCULPT_DECK_OT_next_pivot_mode(Operator):
     """Step through Pivot modes"""
 
     bl_label = "Use next Pivot mode"
-    bl_idname = "touchview.step_pivot_mode"
+    bl_idname = "sculpt_deck.step_pivot_mode"
 
     @classmethod
     def poll(cls, context):
@@ -67,11 +67,11 @@ class TOUCHVIEW_OT_next_pivot_mode(Operator):
         return FINISHED
 
 
-class TOUCHVIEW_OT_toggle_touch_controls(Operator):
+class SCULPT_DECK_OT_toggle_touch_controls(Operator):
     """Toggle Touch Controls"""
 
     bl_label = "Toggle Touch Controls"
-    bl_idname = "touchview.toggle_touch"
+    bl_idname = "sculpt_deck.toggle_touch"
 
     def execute(self, context):
         prefs = preferences()
@@ -80,11 +80,11 @@ class TOUCHVIEW_OT_toggle_touch_controls(Operator):
         return FINISHED
 
 
-class TOUCHVIEW_OT_toggle_npanel(Operator):
+class SCULPT_DECK_OT_toggle_npanel(Operator):
     """Toggle the sidebar (N panel)"""
 
     bl_label = "Display prefs Panel"
-    bl_idname = "touchview.toggle_n_panel"
+    bl_idname = "sculpt_deck.toggle_n_panel"
 
     @classmethod
     def poll(cls, context):
@@ -97,11 +97,11 @@ class TOUCHVIEW_OT_toggle_npanel(Operator):
         return FINISHED
 
 
-class TOUCHVIEW_OT_viewport_recenter(Operator):
+class SCULPT_DECK_OT_viewport_recenter(Operator):
     """Recenter Viewport and Cursor on Selected Object"""
 
     bl_label = "Recenter Viewport and Cursor on Selected"
-    bl_idname = "touchview.viewport_recenter"
+    bl_idname = "sculpt_deck.viewport_recenter"
 
     def execute(self, context):
         current = context.scene.tool_settings.transform_pivot_point
@@ -113,11 +113,11 @@ class TOUCHVIEW_OT_viewport_recenter(Operator):
         return FINISHED
 
 
-class TOUCHVIEW_OT_viewport_lock(Operator):
+class SCULPT_DECK_OT_viewport_lock(Operator):
     """Toggle viewport rotation lock"""
 
     bl_label = "Viewport rotation lock toggle"
-    bl_idname = "touchview.viewport_lock"
+    bl_idname = "sculpt_deck.viewport_lock"
 
     region_ids = []
 
@@ -193,29 +193,29 @@ class BrushRadialControl:
         return FINISHED
 
 
-class TOUCHVIEW_OT_brush_resize(BrushRadialControl, Operator):
+class SCULPT_DECK_OT_brush_resize(BrushRadialControl, Operator):
     """Adjust the brush size"""
 
     bl_label = "Brush Size Adjust"
-    bl_idname = "touchview.brush_resize"
+    bl_idname = "sculpt_deck.brush_resize"
 
     prop = "size"
 
 
-class TOUCHVIEW_OT_brush_strength(BrushRadialControl, Operator):
+class SCULPT_DECK_OT_brush_strength(BrushRadialControl, Operator):
     """Adjust the brush strength"""
 
     bl_label = "Brush Strength Adjust"
-    bl_idname = "touchview.brush_strength"
+    bl_idname = "sculpt_deck.brush_strength"
 
     prop = "strength"
 
 
-class TOUCHVIEW_OT_increase_multires(Operator):
+class SCULPT_DECK_OT_increase_multires(Operator):
     """Increase the Multires level, subdividing when at the highest level"""
 
     bl_label = "Increment Multires modifier by 1 or add subdivision level"
-    bl_idname = "touchview.increment_multires"
+    bl_idname = "sculpt_deck.increment_multires"
 
     def execute(self, context):
         prefs = preferences()
@@ -240,11 +240,11 @@ class TOUCHVIEW_OT_increase_multires(Operator):
         return CANCEL
 
 
-class TOUCHVIEW_OT_decrease_multires(Operator):
+class SCULPT_DECK_OT_decrease_multires(Operator):
     """Decrease the Multires level, unsubdividing when at the lowest level"""
 
     bl_label = "decrement Multires modifier by 1"
-    bl_idname = "touchview.decrement_multires"
+    bl_idname = "sculpt_deck.decrement_multires"
 
     def execute(self, context):
         if not context.active_object or not len(context.active_object.modifiers):
@@ -266,11 +266,11 @@ class TOUCHVIEW_OT_decrease_multires(Operator):
         return CANCEL
 
 
-class TOUCHVIEW_OT_density_up(Operator):
+class SCULPT_DECK_OT_density_up(Operator):
     """Increase voxel density and remesh"""
 
     bl_label = "Increase voxel density and remesh"
-    bl_idname = "touchview.density_up"
+    bl_idname = "sculpt_deck.density_up"
     bl_options = {"REGISTER", "UNDO"}
 
     def execute(self, context):
@@ -285,11 +285,11 @@ class TOUCHVIEW_OT_density_up(Operator):
         return FINISHED
 
 
-class TOUCHVIEW_OT_density_down(Operator):
+class SCULPT_DECK_OT_density_down(Operator):
     """Decrease voxel density and remesh"""
 
     bl_label = "Decrease voxel density and remesh"
-    bl_idname = "touchview.density_down"
+    bl_idname = "sculpt_deck.density_down"
     bl_options = {"REGISTER", "UNDO"}
 
     def execute(self, context):
@@ -304,11 +304,11 @@ class TOUCHVIEW_OT_density_down(Operator):
         return FINISHED
 
 
-class TOUCHVIEW_OT_mask_invert(Operator):
+class SCULPT_DECK_OT_mask_invert(Operator):
     """Invert the sculpt mask"""
 
     bl_label = "Invert Mask"
-    bl_idname = "touchview.mask_invert"
+    bl_idname = "sculpt_deck.mask_invert"
     bl_options = {"REGISTER", "UNDO"}
 
     @classmethod
@@ -320,11 +320,11 @@ class TOUCHVIEW_OT_mask_invert(Operator):
         return FINISHED
 
 
-class TOUCHVIEW_OT_stroke_method(Operator):
+class SCULPT_DECK_OT_stroke_method(Operator):
     """Choose how the active brush applies its stroke (Space, Dots, Line, Curve...)"""
 
     bl_label = "Stroke Method"
-    bl_idname = "touchview.stroke_method"
+    bl_idname = "sculpt_deck.stroke_method"
 
     @classmethod
     def poll(cls, context):
@@ -341,11 +341,11 @@ class TOUCHVIEW_OT_stroke_method(Operator):
         return FINISHED
 
 
-class TOUCHVIEW_OT_reveal_all(Operator):
+class SCULPT_DECK_OT_reveal_all(Operator):
     """Show all hidden parts of the sculpt"""
 
     bl_label = "Reveal Hidden"
-    bl_idname = "touchview.reveal_all"
+    bl_idname = "sculpt_deck.reveal_all"
     bl_options = {"REGISTER", "UNDO"}
 
     @classmethod
@@ -358,7 +358,7 @@ class TOUCHVIEW_OT_reveal_all(Operator):
 
 
 # custom property marking the mode an object returns to: saved in the undo step, cleared once back in that mode
-RETURN_MODE = "touchview_return_mode"
+RETURN_MODE = "sculpt_deck_return_mode"
 
 
 def enter_mode(window, area, mode: str, tool: str = ""):
@@ -443,11 +443,11 @@ rounded_primitives = {"CUBE", "CYLINDER", "CONE"}
 even_primitives = {"ICOSPHERE", "QUADSPHERE", "PLANE"}
 
 
-class TOUCHVIEW_OT_add_primitive(Operator):
+class SCULPT_DECK_OT_add_primitive(Operator):
     """Add a mesh at the 3D cursor and keep working on it in the current mode"""
 
     bl_label = "Add Mesh"
-    bl_idname = "touchview.add_primitive"
+    bl_idname = "sculpt_deck.add_primitive"
     bl_options = {"REGISTER", "UNDO"}
 
     primitive: EnumProperty(name="Shape", items=primitive_items)  # type: ignore
@@ -637,7 +637,7 @@ class TOUCHVIEW_OT_add_primitive(Operator):
 
     def apply_modifier(self, kind: str, **settings):
         obj = bpy.context.view_layer.objects.active
-        modifier = obj.modifiers.new("Touchview", kind)
+        modifier = obj.modifiers.new("Sculpt Deck", kind)
         for name, value in settings.items():
             setattr(modifier, name, value)
         bpy.ops.object.modifier_apply(modifier=modifier.name)
@@ -646,7 +646,7 @@ class TOUCHVIEW_OT_add_primitive(Operator):
 class SelectedMeshes:
     """Shared by Join and Fuse: run in Object Mode, then return to the user's mode"""
 
-    # see TOUCHVIEW_OT_add_primitive
+    # see SCULPT_DECK_OT_add_primitive
     undo_pushed: BoolProperty(options={"HIDDEN", "SKIP_SAVE"})  # type: ignore
 
     @classmethod
@@ -690,19 +690,19 @@ class Fuse(SelectedMeshes):
         bpy.ops.object.voxel_remesh()
 
 
-class TOUCHVIEW_OT_join_selected(SelectedMeshes, Operator):
+class SCULPT_DECK_OT_join_selected(SelectedMeshes, Operator):
     """Join the selected meshes into the active one, staying in the current mode"""
 
     bl_label = "Join Selected"
-    bl_idname = "touchview.join_selected"
+    bl_idname = "sculpt_deck.join_selected"
     bl_options = {"REGISTER", "UNDO"}
 
 
-class TOUCHVIEW_OT_fuse_selected(Fuse, Operator):
+class SCULPT_DECK_OT_fuse_selected(Fuse, Operator):
     """Merge the selected meshes into the active one and voxel remesh them, staying in the current mode"""
 
     bl_label = "Fuse (Union)"
-    bl_idname = "touchview.fuse_selected"
+    bl_idname = "sculpt_deck.fuse_selected"
     bl_options = {"REGISTER", "UNDO"}
 
     def combine(self, context, active, others):
@@ -710,16 +710,16 @@ class TOUCHVIEW_OT_fuse_selected(Fuse, Operator):
         self.remesh(active)
 
 
-class TOUCHVIEW_OT_fuse_difference(Fuse, Operator):
+class SCULPT_DECK_OT_fuse_difference(Fuse, Operator):
     """Cut the other selected meshes out of the active one and voxel remesh it, staying in the current mode"""
 
     bl_label = "Fuse (Difference)"
-    bl_idname = "touchview.fuse_difference"
+    bl_idname = "sculpt_deck.fuse_difference"
     bl_options = {"REGISTER", "UNDO"}
 
     def combine(self, context, active, others):
         for cutter in others:
-            modifier = active.modifiers.new("Touchview Cut", "BOOLEAN")
+            modifier = active.modifiers.new("Sculpt Deck Cut", "BOOLEAN")
             modifier.operation = "DIFFERENCE"
             modifier.solver = "EXACT"
             modifier.object = cutter
@@ -733,7 +733,7 @@ class TOUCHVIEW_OT_fuse_difference(Fuse, Operator):
 class ActiveMesh:
     """Shared by Duplicate and Delete: run in Object Mode on the active mesh, then return to the user's mode"""
 
-    # see TOUCHVIEW_OT_add_primitive
+    # see SCULPT_DECK_OT_add_primitive
     undo_pushed: BoolProperty(options={"HIDDEN", "SKIP_SAVE"})  # type: ignore
 
     @classmethod
@@ -755,11 +755,11 @@ class ActiveMesh:
         return FINISHED
 
 
-class TOUCHVIEW_OT_duplicate_object(ActiveMesh, Operator):
+class SCULPT_DECK_OT_duplicate_object(ActiveMesh, Operator):
     """Copy the active mesh and move the copy with Local Transform, staying in the current mode"""
 
     bl_label = "Duplicate"
-    bl_idname = "touchview.duplicate_object"
+    bl_idname = "sculpt_deck.duplicate_object"
     bl_options = {"REGISTER", "UNDO"}
 
     def run(self, context, obj, mode):
@@ -772,12 +772,12 @@ class TOUCHVIEW_OT_duplicate_object(ActiveMesh, Operator):
 DELETE_CUBE_ROUNDNESS = 0.25
 
 
-class TOUCHVIEW_OT_delete_object(ActiveMesh, Operator):
+class SCULPT_DECK_OT_delete_object(ActiveMesh, Operator):
     """Delete the active mesh and go back to the mesh used before it, in the current mode.
     When no mesh is left, a rounded cube takes its place"""
 
     bl_label = "Delete"
-    bl_idname = "touchview.delete_object"
+    bl_idname = "sculpt_deck.delete_object"
     bl_options = {"REGISTER", "UNDO"}
 
     def run(self, context, obj, mode):
@@ -792,16 +792,16 @@ class TOUCHVIEW_OT_delete_object(ActiveMesh, Operator):
             finish_in_mode(context, mode)
         elif mode != "OBJECT":
             # Sculpt and the other modes need a mesh to work on
-            bpy.ops.touchview.add_primitive(
+            bpy.ops.sculpt_deck.add_primitive(
                 primitive="CUBE", roundness=DELETE_CUBE_ROUNDNESS, target_mode=mode, keep_tool=True, undo_pushed=True
             )
 
 
-class TOUCHVIEW_OT_save_default_settings(Operator):
+class SCULPT_DECK_OT_save_default_settings(Operator):
     """Use the current settings for new files and files without their own settings"""
 
     bl_label = "Save Default Settings"
-    bl_idname = "touchview.save_default_settings"
+    bl_idname = "sculpt_deck.save_default_settings"
 
     def execute(self, context):
         try:
@@ -813,11 +813,11 @@ class TOUCHVIEW_OT_save_default_settings(Operator):
         return FINISHED
 
 
-class TOUCHVIEW_OT_revert_settings(Operator):
+class SCULPT_DECK_OT_revert_settings(Operator):
     """Go back to the default settings"""
 
     bl_label = "Revert to Default Settings"
-    bl_idname = "touchview.revert_settings"
+    bl_idname = "sculpt_deck.revert_settings"
 
     def execute(self, context):
         settings.revert_to_defaults()
@@ -825,29 +825,29 @@ class TOUCHVIEW_OT_revert_settings(Operator):
 
 
 classes = (
-    TOUCHVIEW_OT_save_default_settings,
-    TOUCHVIEW_OT_revert_settings,
-    TOUCHVIEW_OT_add_primitive,
-    TOUCHVIEW_OT_duplicate_object,
-    TOUCHVIEW_OT_delete_object,
-    TOUCHVIEW_OT_mask_invert,
-    TOUCHVIEW_OT_reveal_all,
-    TOUCHVIEW_OT_stroke_method,
-    TOUCHVIEW_OT_fuse_difference,
-    TOUCHVIEW_OT_fuse_selected,
-    TOUCHVIEW_OT_join_selected,
-    TOUCHVIEW_OT_brush_resize,
-    TOUCHVIEW_OT_brush_strength,
-    TOUCHVIEW_OT_decrease_multires,
-    TOUCHVIEW_OT_density_down,
-    TOUCHVIEW_OT_density_up,
-    TOUCHVIEW_OT_flip_tools,
-    TOUCHVIEW_OT_increase_multires,
-    TOUCHVIEW_OT_next_pivot_mode,
-    TOUCHVIEW_OT_toggle_npanel,
-    TOUCHVIEW_OT_toggle_touch_controls,
-    TOUCHVIEW_OT_viewport_lock,
-    TOUCHVIEW_OT_viewport_recenter,
+    SCULPT_DECK_OT_save_default_settings,
+    SCULPT_DECK_OT_revert_settings,
+    SCULPT_DECK_OT_add_primitive,
+    SCULPT_DECK_OT_duplicate_object,
+    SCULPT_DECK_OT_delete_object,
+    SCULPT_DECK_OT_mask_invert,
+    SCULPT_DECK_OT_reveal_all,
+    SCULPT_DECK_OT_stroke_method,
+    SCULPT_DECK_OT_fuse_difference,
+    SCULPT_DECK_OT_fuse_selected,
+    SCULPT_DECK_OT_join_selected,
+    SCULPT_DECK_OT_brush_resize,
+    SCULPT_DECK_OT_brush_strength,
+    SCULPT_DECK_OT_decrease_multires,
+    SCULPT_DECK_OT_density_down,
+    SCULPT_DECK_OT_density_up,
+    SCULPT_DECK_OT_flip_tools,
+    SCULPT_DECK_OT_increase_multires,
+    SCULPT_DECK_OT_next_pivot_mode,
+    SCULPT_DECK_OT_toggle_npanel,
+    SCULPT_DECK_OT_toggle_touch_controls,
+    SCULPT_DECK_OT_viewport_lock,
+    SCULPT_DECK_OT_viewport_recenter,
 )
 
 

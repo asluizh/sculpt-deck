@@ -57,11 +57,11 @@ class ClickAction(BindingRunner):
         return self.run(context)
 
 
-class TOUCHVIEW_OT_right_click_action(ClickAction, Operator):
+class SCULPT_DECK_OT_right_click_action(ClickAction, Operator):
     """Run the right click action set for this mode"""
 
     bl_label = "Right Click Action"
-    bl_idname = "touchview.rc_action"
+    bl_idname = "sculpt_deck.rc_action"
     bl_options = {"INTERNAL"}
     slot = "right_click"
 
@@ -72,7 +72,7 @@ class TOUCHVIEW_OT_right_click_action(ClickAction, Operator):
     def invoke(self, context, event):
         if event.type not in [RMOUSE]:
             return PASSTHROUGH
-        # pen buttons are handled by touchview.pen_button
+        # pen buttons are handled by sculpt_deck.pen_button
         if event.is_tablet:
             return PASSTHROUGH
         if event.value == "DOUBLE_CLICK":
@@ -80,11 +80,11 @@ class TOUCHVIEW_OT_right_click_action(ClickAction, Operator):
         return self.run(context)
 
 
-class TOUCHVIEW_OT_double_click_action(ClickAction, Operator):
+class SCULPT_DECK_OT_double_click_action(ClickAction, Operator):
     """Run the double click action set for this mode"""
 
     bl_label = "Double Click Action"
-    bl_idname = "touchview.dt_action"
+    bl_idname = "sculpt_deck.dt_action"
     bl_options = {"INTERNAL"}
     slot = "double_click"
 
@@ -102,11 +102,11 @@ class TOUCHVIEW_OT_double_click_action(ClickAction, Operator):
         return self.run(context)
 
 
-class TOUCHVIEW_OT_touch_input_2d(Operator):
+class SCULPT_DECK_OT_touch_input_2d(Operator):
     """Active Viewport control zones"""
 
     bl_label = "2D Viewport Control Regions"
-    bl_idname = "touchview.view_ops_2d"
+    bl_idname = "sculpt_deck.view_ops_2d"
 
     delta: tuple[float, float]
 
@@ -169,11 +169,11 @@ class TOUCHVIEW_OT_touch_input_2d(Operator):
         return FINISHED
 
 
-class TOUCHVIEW_OT_touch_input_3d(Operator):
+class SCULPT_DECK_OT_touch_input_3d(Operator):
     """Active Viewport control zones"""
 
     bl_label = "Viewport Control Regions"
-    bl_idname = "touchview.view_ops_3d"
+    bl_idname = "sculpt_deck.view_ops_3d"
 
     delta: tuple[float, float]
 
@@ -274,7 +274,7 @@ class TOUCHVIEW_OT_touch_input_3d(Operator):
                 dy = event.mouse_region_y - self.delta[1]
                 if math.hypot(dx, dy) <= DOUBLE_TAP_DISTANCE * ui_scale():
                     try:
-                        bpy.ops.touchview.dt_action("EXEC_DEFAULT")  # type: ignore
+                        bpy.ops.sculpt_deck.dt_action("EXEC_DEFAULT")  # type: ignore
                     except RuntimeError as error:
                         self.report({"WARNING"}, str(error))
                     self.state = "DOUBLE_TAPPED"
@@ -425,10 +425,10 @@ class TOUCHVIEW_OT_touch_input_3d(Operator):
 
 
 classes = (
-    TOUCHVIEW_OT_right_click_action,
-    TOUCHVIEW_OT_double_click_action,
-    TOUCHVIEW_OT_touch_input_2d,
-    TOUCHVIEW_OT_touch_input_3d,
+    SCULPT_DECK_OT_right_click_action,
+    SCULPT_DECK_OT_double_click_action,
+    SCULPT_DECK_OT_touch_input_2d,
+    SCULPT_DECK_OT_touch_input_3d,
 )
 
 
