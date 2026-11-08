@@ -147,7 +147,10 @@ def detour_add_mesh_adjust_last():
 
 
 def detour_repeat_from_object_mode():
-    """A Detour repeated while still in Object Mode keeps the mode it first started from (#13)"""
+    """A Detour repeated while still in Object Mode keeps the mode it first started from (#13).
+
+    The only scenario that repeats before the mode is back: `adjust_last` with an undo step runs the repeat after
+    it. The undo history it leaves is one step behind, so it checks only the mode and the meshes."""
     yield from reset()
     call("sculpt_deck.add_primitive", primitive="CUBE")
     yield 1.0

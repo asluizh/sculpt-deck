@@ -83,8 +83,12 @@ class Detour:
 
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
-        if "execute" in cls.__dict__:
-            raise TypeError(f"{cls.__name__} is a Detour: supply object_mode_work, not execute")
+        # also catches a mixin listed before Detour
+        for base in cls.__mro__:
+            if base is Detour:
+                break
+            if "execute" in base.__dict__:
+                raise TypeError(f"{cls.__name__} is a Detour: supply object_mode_work, not execute")
 
     def execute(self, context):
         if not self.start_mode:
@@ -97,6 +101,7 @@ class Detour:
         try:
             self.object_mode_work(context)
         finally:
+            # even when the work fails: the user is put back in their mode, and the checkpoint stays to undo to
             finish_in_mode(context, self.start_mode, self.return_tool())
         return FINISHED
 
