@@ -49,7 +49,7 @@ dev/                     development tools, not shipped
   make_array_icons.py      builds the Linear/Circular Array icons
   make_mirror_icon.py      builds the Mirror icon
   tests/                   smoke.sh: headless register check (expected output in smoke_expected.txt)
-                           scenarios.sh: UI scenarios (undo, Adjust Last Operation, pen hold) on headless weston
+                           scenarios.sh: UI scenarios (undo, Adjust Last Operation, pen buttons, clicks) on headless weston
 source/
   core/                  shared mechanisms every part builds on (see the glossary)
     actions.py             the Action catalog (each Action's modes, Momentary, Resolution Change) and the rules
@@ -68,11 +68,21 @@ source/
     mirror/                Mirror
       operators.py           node group (its inputs are the Mirror settings), apply/remove operators
       tools.py               toolbar tool, header and plane outlines
+  surfaces/              Action Surfaces, each with its settings, sidebar panel and keymap entries
+    pen/                   pen buttons (click and hold per mode)
+      settings.py            the pen set of each mode (PropertyGroups held in the preferences' pen_sets), with the
+                             right click and double click bindings
+      button.py              the pen button operator (hold engages a Momentary brush or tool, put back on release),
+                             BindingRunner shared with the clicks, Use Active Brush, the pen keymap entries
+      panel.py               Pen Buttons sidebar panel; draws a binding for the clicks too
+    clicks/                double click and right click (mouse and touch)
+      action.py              the double click and right click operators and their keymap entries
+      panel.py               Right Click and Double Click sidebar panels
   ops/                   operators
     actions.py             general actions: remesh, Multires, masks, brush size/strength
-    touch.py               touch navigation, tap/double tap/long press on objects, double click and right click actions
+    touch.py               touch navigation, tap/double tap/long press on objects
     gizmo.py               widget and action pie operators
-    pen.py                 pen button bindings (click and hold, temporary brushes and tools), BindingRunner shared with clicks
+    pen.py                 Previous Brush and Invert Brush
     drag.py                shared modal drag for tool gizmos (confirm on release, tap keeps running)
     local_transform.py     Local Transform tool operator, settings, Apply Scale
   ui/                    drawing
@@ -86,7 +96,7 @@ source/
     brush.py               brush history, polled every 0.25 s along with the tool history
     undo.py                push_scene_undo: the Scene Checkpoint under its old name, for Local Transform
     settings.py            default settings (add-on user folder) and per-file settings (scene property), unsaved check
-    keymaps.py             keymap registration
+    keymaps.py             keymap registration of touch navigation (the surfaces register their own)
     overlay.py             touch region overlay
     blender.py             preferences access, safe area and other UI helpers
 ```
@@ -110,7 +120,7 @@ Development notes (Blender 5.2):
 - Sculpt and Edit Mode undo steps can't add or remove objects. Operators that do (Add Mesh, Duplicate, Delete, Join, Fuse) are Detours (`core/detour.py`): a subclass supplies only `object_mode_work`, and the `Detour` base stores a Scene Checkpoint first (`core/checkpoint.py`, which hides the active object so Blender picks a whole scene step), finishes in Object Mode so the operator's own step is a whole scene step too, and returns to the starting mode from a timer. Those steps are saved in Object Mode, so the object carries a `sculpt_deck_return_mode` property and undo/redo handlers switch it back. The Detour records its starting mode once, in a hidden property, so a repeat from Adjust Last Operation, which can run before that mode is back, still ends there; and it stores the checkpoint once, so each Detour leaves exactly one extra "Before ..." undo step. A Detour run by another one (Delete adding a cube when no mesh is left) gets `checkpoint=False` and the caller's `start_mode`.
 - Sculpt Mode undo steps don't hold object transforms (or modifier settings), so undoing a move to a Sculpt step leaves the objects moved. Outside Object Mode, Local Transform stores a Scene Checkpoint (`push_scene_undo`, re-exported from `core/checkpoint.py` by `utils/undo.py`) of the objects at their start right before its own step, when the drag is confirmed, so undo moves them back and Adjust Last Operation goes back to that state. Each move leaves that extra "Before Local Transform" step. It also stores each object's starting matrix, array vectors and mesh size (and its children's matrices) in a hidden property, and starts from them when run again.
 - Operators called from Python push no undo steps, but `object.transfer_mode` still saves its "Change Active" step (with the new object still in Object Mode) and then skips the step of entering the mode, so undo lands in Object Mode. The tap calls it with `undo=True`.
-- Run `dev/tests/scenarios.sh` (or `dev/tests/scenarios.sh <name> ...`) after changes to undo, modes, Detours or pen buttons. Its `adjust_last` runs `ed.undo_redo` with an undo step: called from Python without one, the repeated operator stores no step of its own and runs while still in Object Mode (`detour_repeat_from_object_mode` uses that on purpose). Real Sculpt undo steps only exist in the full UI, so it starts `weston --backend=headless --renderer=gl --xwayland` and runs Blender's flatpak on its Xwayland display with `--enable-event-simulate`, driving it from a timer under a `temp_override` of the 3D viewport. A scenario is a generator in `dev/tests/scenarios.py` that calls operators with an undo step, checks the result and yields seconds to wait; add it to `SCENARIOS`. A scenario failing because of a known bug goes in `KNOWN_FAILURES` with the reason. `window.event_simulate` can't make tablet events, so the pen scenario makes the add-on take simulated presses for pen presses.
+- Run `dev/tests/scenarios.sh` (or `dev/tests/scenarios.sh <name> ...`) after changes to undo, modes, Detours or pen buttons. Its `adjust_last` runs `ed.undo_redo` with an undo step: called from Python without one, the repeated operator stores no step of its own and runs while still in Object Mode (`detour_repeat_from_object_mode` uses that on purpose). Real Sculpt undo steps only exist in the full UI, so it starts `weston --backend=headless --renderer=gl --xwayland` and runs Blender's flatpak on its Xwayland display with `--enable-event-simulate`, driving it from a timer under a `temp_override` of the 3D viewport. A scenario is a generator in `dev/tests/scenarios.py` that calls operators with an undo step, checks the result and yields seconds to wait; add it to `SCENARIOS`. A scenario failing because of a known bug goes in `KNOWN_FAILURES` with the reason. `window.event_simulate` can't make tablet events, so the pen scenarios make the add-on take simulated presses for pen presses (`is_pen` in `surfaces/pen/button.py`), and the click scenarios turn that back off.
 - Undo can be tested in the UI with operators called from a timer as `bpy.ops.<op>("EXEC_DEFAULT", True, ...)` (the `True` pushes an undo step) and `bpy.context.window_manager.print_undo_steps()`.
 - `bpy.utils.register_tool(after=...)` puts a tool at the end of the separator section holding `after`, so the order inside a section is the registration order (`ui/__init__.py`, then `features/__init__.py`).
 - Popup menus opened with `wm.call_menu` run their operator buttons with `EXEC_REGION_WIN`, so operators that need `invoke` (Save's file browser, Search) fail or vanish. `draw_action` sets `operator_context = "INVOKE_REGION_WIN"`.
