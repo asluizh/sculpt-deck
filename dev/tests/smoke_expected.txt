@@ -26,6 +26,7 @@ sculpt_deck.mirror_apply
 sculpt_deck.mirror_remove
 sculpt_deck.move_float_menu
 sculpt_deck.move_toggle_button
+sculpt_deck.object_tap
 sculpt_deck.pen_button
 sculpt_deck.pen_use_active_brush
 sculpt_deck.rc_action
@@ -37,7 +38,6 @@ sculpt_deck.stroke_method
 sculpt_deck.toggle_n_panel
 sculpt_deck.toggle_touch
 sculpt_deck.tools_region_flip
-sculpt_deck.view_ops_2d
 sculpt_deck.view_ops_3d
 sculpt_deck.viewport_lock
 sculpt_deck.viewport_recenter
@@ -73,6 +73,7 @@ SCULPT_DECK_OT_mirror_apply
 SCULPT_DECK_OT_mirror_remove
 SCULPT_DECK_OT_move_float_menu
 SCULPT_DECK_OT_move_toggle_button
+SCULPT_DECK_OT_object_tap
 SCULPT_DECK_OT_pen_button
 SCULPT_DECK_OT_pen_use_active_brush
 SCULPT_DECK_OT_rc_action
@@ -84,7 +85,6 @@ SCULPT_DECK_OT_stroke_method
 SCULPT_DECK_OT_toggle_n_panel
 SCULPT_DECK_OT_toggle_touch
 SCULPT_DECK_OT_tools_region_flip
-SCULPT_DECK_OT_view_ops_2d
 SCULPT_DECK_OT_view_ops_3d
 SCULPT_DECK_OT_viewport_lock
 SCULPT_DECK_OT_viewport_recenter
@@ -95,8 +95,6 @@ SCULPT_DECK_PT_default_settings
 SCULPT_DECK_PT_double_click
 SCULPT_DECK_PT_gizmo_bar
 SCULPT_DECK_PT_gizmo_display
-SCULPT_DECK_PT_image_editor_panel
-SCULPT_DECK_PT_node_editor_panel
 SCULPT_DECK_PT_pen_buttons
 SCULPT_DECK_PT_right_click
 SCULPT_DECK_PT_tool_settings

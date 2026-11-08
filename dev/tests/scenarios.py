@@ -829,6 +829,95 @@ def double_click_action():
         unbind(saved)
 
 
+def region_point(name: str) -> tuple[int, int]:
+    """Where an object's origin shows in the 3D viewport, in region coordinates"""
+    from bpy_extras.view3d_utils import location_3d_to_region_2d
+
+    _window, _area, region = view3d()
+    point = location_3d_to_region_2d(region, region.data, bpy.context.scene.objects[name].matrix_world.translation)
+    check(point is not None, f"{name} isn't in view")
+    check(0 < point.x < region.width and 0 < point.y < region.height, f"{name} is outside the viewport at {point}")
+    return round(point.x), round(point.y)
+
+
+def touch(value: str, x: int, y: int, event_type: str = "LEFTMOUSE"):
+    """A simulated touch (a press without a tablet) at x, y of the 3D viewport region"""
+    window, _area, region = view3d()
+    window.event_simulate(event_type, value, x=region.x + x, y=region.y + y)
+
+
+def object_tap_switches_object():
+    """Tapping another object in Sculpt Mode switches to it and stays in Sculpt Mode"""
+    yield from reset(extra_cubes=1)
+    pen_events(pen=False)
+    x, y = region_point("Cube.001")
+    touch("NOTHING", x, y, "MOUSEMOVE")
+    yield 0.2
+    touch("PRESS", x, y)
+    yield 0.05
+    touch("RELEASE", x, y)
+    # the tap waits out the double tap time first (a double click action is set by default)
+    yield 1.0
+    active = bpy.context.view_layer.objects.active
+    check(active.name == "Cube.001", f"tap: expected Cube.001 active, got {active.name}")
+    check(mode() == "SCULPT", f"tap: expected Sculpt Mode, got {mode()}")
+    check(bpy.context.scene.objects["Cube.001"].mode == "SCULPT", "tap: Cube.001 isn't in Sculpt Mode")
+
+
+def object_tap_long_press_toggles_selection():
+    """A long press on another object adds it to the selection, a second one removes it, the active one stays"""
+    yield from reset(extra_cubes=1)
+    pen_events(pen=False)
+    other = bpy.context.scene.objects["Cube.001"]
+    check(not other.select_get(), "setup: Cube.001 is already selected")
+    x, y = region_point("Cube.001")
+    touch("NOTHING", x, y, "MOUSEMOVE")
+    yield 0.2
+    for expected in (True, False):
+        touch("PRESS", x, y)
+        yield 0.9
+        touch("RELEASE", x, y)
+        yield 0.5
+        check(other.select_get() == expected, f"long press: expected Cube.001 selected = {expected}")
+        active = bpy.context.view_layer.objects.active
+        check(active.name == "Cube", f"long press: expected Cube to stay active, got {active.name}")
+        check(mode() == "SCULPT", f"long press: expected Sculpt Mode, got {mode()}")
+
+
+def touch_drag(x: int, y: int, dx: int, dy: int):
+    """Press at x, y of the viewport region, move by dx, dy in steps, release"""
+    touch("NOTHING", x, y, "MOUSEMOVE")
+    yield 0.2
+    touch("PRESS", x, y)
+    yield 0.05
+    steps = 10
+    for step in range(1, steps + 1):
+        touch("NOTHING", x + dx * step // steps, y + dy * step // steps, "MOUSEMOVE")
+        yield 0.05
+    touch("RELEASE", x + dx, y + dy)
+    yield 0.3
+
+
+def navigation_touch_drag():
+    """A touch drag in the middle of the viewport pans the view, one between the middle and the side rails rotates
+    it, in Sculpt Mode, and neither sculpts"""
+    yield from reset()
+    pen_events(pen=False)
+    _window, _area, region = view3d()
+    view = region.data
+    before_location, before_rotation = view.view_location.copy(), view.view_rotation.copy()
+    before_vertices = [vertex.co.copy() for vertex in bpy.context.scene.objects["Cube"].data.vertices]
+    yield from touch_drag(region.width // 2, region.height // 2, 120, 60)
+    check((view.view_location - before_location).length > 0.01, "drag in the middle: the view didn't pan")
+    check(view.view_rotation.rotation_difference(before_rotation).angle < 0.001, "drag in the middle: the view rotated")
+    before_location, before_rotation = view.view_location.copy(), view.view_rotation.copy()
+    yield from touch_drag(region.width * 3 // 10, region.height // 2, 0, 120)
+    check(view.view_rotation.rotation_difference(before_rotation).angle > 0.01, "drag off the middle: no rotation")
+    check(mode() == "SCULPT", f"after the drags: expected Sculpt Mode, got {mode()}")
+    after_vertices = [vertex.co.copy() for vertex in bpy.context.scene.objects["Cube"].data.vertices]
+    check(after_vertices == before_vertices, "the drags sculpted the Cube")
+
+
 SCENARIOS = [
     detour_add_mesh,
     detour_add_mesh_adjust_last,
@@ -862,6 +951,9 @@ SCENARIOS = [
     pen_hold_momentary_tool,
     right_click_action,
     double_click_action,
+    object_tap_switches_object,
+    object_tap_long_press_toggles_selection,
+    navigation_touch_drag,
 ]
 
 # Scenarios that fail on purpose because of a known bug, with the reason. They report XFAIL and don't fail the

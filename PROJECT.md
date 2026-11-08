@@ -17,7 +17,9 @@ Guiding principles:
 
 In scope:
 
-- Viewport navigation by touch: pan, rotate and zoom regions, plus tap, double tap and long press on objects.
+- Viewport navigation by touch in the 3D View: pan, rotate and zoom regions, kept removable as a unit for when
+  Blender ships its own (ADR 0001).
+- Tap, double tap and long press on objects (sculpt workflow, not navigation).
 - An on-screen widget with up to 12 buttons per mode, an 8-slot action pie per mode, and pen side-button bindings (click and hold). All three draw from one shared action list.
 - A sculpt workflow without leaving Sculpt Mode:
   - adding primitives;
@@ -34,6 +36,7 @@ Out of scope for now:
 - Edit Mode modeling tools beyond what the action list exposes.
 - Curve arrays, deferred until linear and circular arrays have settled.
 - Keyboard shortcut customization: the add-on works alongside Blender's keymap and doesn't replace it.
+- Touch navigation in 2D editors (Node, Image and UV Editor, View2D): dropped, left to Blender (ADR 0001).
 
 ## Structure
 
@@ -86,6 +89,9 @@ source/
     interface/             what otherwise needs the keyboard
       toggles.py             Toggle Sidebar, Tools Region Swap, next Pivot mode
       list_drag.py           left-click drag scrolls UI lists and menus (View2D Buttons List keymap)
+    object_tap/
+      tap.py                 tap to select or switch objects, double tap, long press to toggle selection; its
+                             keymap entries; the drag handoff navigation plugs into
   surfaces/              Action Surfaces, each with its settings and sidebar panels
     action_slots.py        the per-mode Action slots shared by the Widget and the Action Pie (property group, drawing)
     widget/                the Widget: on-screen buttons and the floating touch toggle
@@ -105,9 +111,15 @@ source/
     clicks/                double click and right click (mouse and touch)
       action.py              the double click and right click operators and their keymap entries
       panel.py               Right Click and Double Click sidebar panels
+  navigation/            touch navigation in the 3D View, removable as a unit (ADR 0001): delete the package and its
+                         lines in source/__init__.py; nothing else imports it
+    touch.py               the touch navigation operator (pan, rotate and zoom regions), the object tap's handoff
+    view.py                Recenter View, Lock Rotation, Toggle Touch Controls
+    keymaps.py             the touch press and Alt T keymap entries
+    overlay.py             touch region overlay
+    panel.py               Control Zones sidebar panel
   ops/                   operators
-    actions.py             Recenter View, Rotation Lock, Toggle Touch Controls, Save/Revert Default Settings
-    touch.py               touch navigation, tap/double tap/long press on objects
+    actions.py             Save/Revert Default Settings
     gizmo.py               Cycle Control Gizmo (an Action for the object gizmos)
     pen.py                 Previous Brush and Invert Brush
   ui/                    drawing
@@ -116,8 +128,6 @@ source/
     constants.py           enums, defaults
     actions.py             runs an Action by idname (operator, menu, pie, asset shelf, tool), tool and object history
     settings.py            default settings (add-on user folder) and per-file settings (scene property), unsaved check
-    keymaps.py             keymap registration of touch navigation (the surfaces register their own)
-    overlay.py             touch region overlay
     blender.py             preferences access, safe area and other UI helpers
 ```
 
@@ -127,6 +137,7 @@ How the tools fit together:
 - **Arrays** are Geometry Nodes modifiers built by the add-on, one node group per kind, versioned by a custom property. The real mesh stays in place and sculptable, and the copies are instances that follow it. The node trees lay out the copies as if the object's scale were already applied, so copies don't warp while a scale is being dragged.
 - **Mirror** is a Geometry Nodes modifier too. Its planes are the Mirror Object's, or the world origin's when none is set (an empty Object Info gives the identity matrix), turned into the object's space with Self Object, so they stay put in the world while the mesh moves. The reflection is an instance until applied; applying realizes it with flipped faces, merges the vertices on the planes and deletes the faces lying on them.
 - **Tool gizmos** start operators that share the drag handling in `core/drag.py`. Each operator's `description()` provides the hovered gizmo's tooltip.
+- **Object tap and navigation** share a touch press. Each has its own keymap entry, and navigation passes on the presses the object tap takes (`takes_press`), so their order doesn't matter. The object tap waits to see whether the touch is a tap, a double tap or a long press; when it moves, it starts navigation through the `drag_handoff` that navigation sets while registered. Without navigation the object tap only takes touches on an object a tap would select or switch to.
 
 Development notes (Blender 5.2):
 

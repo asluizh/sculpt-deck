@@ -183,6 +183,7 @@ Or drag `sculpt_deck.zip` into Blender.
 <details open><summary><b>v0.1.0 (unreleased)</b></summary><br>
 
 - `CHANGED`: Renamed from Touchview to Sculpt Deck, with a new extension ID (`sculpt_deck`), focused on sculpting without a keyboard. Settings, keymaps and file data saved by Touchview are not carried over.
+- `REMOVED`: touch navigation in the Node and Image editors (including the UV Editor), with their sidebar panels and header toggle. Double click and right click actions now only run in the 3D View.
 - `ADDED`: Add Mesh shapes: Icosphere and Quad Sphere (with subdivisions), and Capsule (with radius and length).
 - `ADDED`: Add Mesh shape options: sphere segments and rings, cylinder and cone base vertices (for prisms and pyramids), torus outer and inner radius and segments.
 - `ADDED`: Add Mesh _Smooth_ (shade smooth, on by default) and _Round Edges_ (cube, cylinder, cone) options.
