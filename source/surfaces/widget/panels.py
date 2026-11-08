@@ -27,6 +27,7 @@ class WidgetPanel:
 
 class SCULPT_DECK_PT_gizmo_bar(WidgetPanel, Panel):
     bl_label = "Gizmo"
+    bl_order = 20  # see SculptDeckPanel in ui/panel.py
 
     def draw(self, context):
         prefs = preferences()
@@ -49,6 +50,7 @@ class SCULPT_DECK_PT_gizmo_bar(WidgetPanel, Panel):
 
 class SCULPT_DECK_PT_widget_buttons(WidgetPanel, Panel):
     bl_label = "Widget Buttons"
+    bl_order = 50  # see SculptDeckPanel in ui/panel.py
 
     def draw_header(self, context):
         self.layout.prop(preferences(), "show_menu", text="")

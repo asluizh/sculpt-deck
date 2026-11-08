@@ -49,6 +49,10 @@ def draw_click_binding(layout: UILayout, prefs, mode: str, slot: str, enable: st
     draw_binding(col, pen_set, slot, "Action")
 
 
+# Every sidebar sub-panel of SCULPT_DECK_PT_view_3d_panel sets its place with bl_order, spaced in tens, wherever
+# it's defined (here, the surfaces, the features), so the order users see doesn't depend on which package registers
+# first: Control Zones 10, Gizmo 20, Right Click 30, Double Click 40, Widget Buttons 50, Action Pie 60,
+# Pen Buttons 70, Tool Options 80, Viewport Options 90, Default Settings 100.
 class SculptDeckPanel:
     bl_label = "Sculpt Deck Settings"
     bl_space_type = "VIEW_3D"
@@ -83,6 +87,7 @@ class SCULPT_DECK_PT_view_3d_panel(SculptDeckPanel, Panel):
 
 class SCULPT_DECK_PT_control_zones(SculptDeckPanel, Panel):
     bl_label = "Control Zones"
+    bl_order = 10
     bl_parent_id = "SCULPT_DECK_PT_view_3d_panel"
     bl_options = {"DEFAULT_CLOSED"}
 
@@ -144,6 +149,7 @@ class ClickPanel(SculptDeckPanel):
 
 class SCULPT_DECK_PT_right_click(ClickPanel, Panel):
     bl_label = "Right Click"
+    bl_order = 30
     slot = "right_click"
     enable = "enable_right_click"
     note = "Mouse and touch, not the pen"
@@ -151,6 +157,7 @@ class SCULPT_DECK_PT_right_click(ClickPanel, Panel):
 
 class SCULPT_DECK_PT_double_click(ClickPanel, Panel):
     bl_label = "Double Click"
+    bl_order = 40
     slot = "double_click"
     enable = "enable_double_click"
     note = "Double tap or mouse double click"
@@ -158,6 +165,7 @@ class SCULPT_DECK_PT_double_click(ClickPanel, Panel):
 
 class SCULPT_DECK_PT_pen_buttons(SculptDeckPanel, Panel):
     bl_label = "Pen Buttons"
+    bl_order = 70
     bl_parent_id = "SCULPT_DECK_PT_view_3d_panel"
     bl_options = {"DEFAULT_CLOSED"}
 
@@ -172,8 +180,7 @@ class SCULPT_DECK_PT_pen_buttons(SculptDeckPanel, Panel):
 
 class SCULPT_DECK_PT_tool_settings(SculptDeckPanel, Panel):
     bl_label = "Tool Options"
-    # after the surfaces' panels, which register later (bl_order sorts sub-panels before registration does)
-    bl_order = 1
+    bl_order = 80
     bl_parent_id = "SCULPT_DECK_PT_view_3d_panel"
     bl_options = {"DEFAULT_CLOSED"}
 
@@ -189,7 +196,7 @@ class SCULPT_DECK_PT_tool_settings(SculptDeckPanel, Panel):
 
 class SCULPT_DECK_PT_viewport_options(SculptDeckPanel, Panel):
     bl_label = "Viewport Options"
-    bl_order = 1
+    bl_order = 90
     bl_parent_id = "SCULPT_DECK_PT_view_3d_panel"
     bl_options = {"DEFAULT_CLOSED"}
 
@@ -230,7 +237,7 @@ def draw_default_settings(layout):
 
 class SCULPT_DECK_PT_default_settings(SculptDeckPanel, Panel):
     bl_label = "Default Settings"
-    bl_order = 2
+    bl_order = 100
     bl_parent_id = "SCULPT_DECK_PT_view_3d_panel"
     bl_options = {"HIDE_HEADER"}
 

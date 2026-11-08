@@ -20,6 +20,7 @@ def draw_action_pie(layout: UILayout, prefs, mode: str):
 
 class SCULPT_DECK_PT_action_pie(Panel):
     bl_label = "Action Pie"
+    bl_order = 60  # see SculptDeckPanel in ui/panel.py
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
     bl_category = "Sculpt Deck"
