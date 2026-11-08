@@ -48,6 +48,7 @@ dev/                     development tools, not shipped
   make_tool_icon.py        builds the Local Transform icon from Blender's Transform icon
   make_array_icons.py      builds the Linear/Circular Array icons
   make_mirror_icon.py      builds the Mirror icon
+  tests/                   smoke.sh + smoke_check.py: headless register check, smoke_expected.txt its expected output
 source/
   ops/                   operators
     actions.py             general actions: add mesh, join/fuse, remesh, Multires, masks, brush size/strength
@@ -84,6 +85,8 @@ How the tools fit together:
 - **Tool gizmos** start operators that share the drag handling in `ops/drag.py`. Each operator's `description()` provides the hovered gizmo's tooltip.
 
 Development notes (Blender 5.2):
+
+- Run `dev/tests/smoke.sh` after every change: it builds the zip, installs it into a throwaway profile in `bin/test/` (the flatpak can't see `/tmp`), enables, disables and re-enables the add-on, and fails on any error or warning, or when the registered operators, classes or Action Lists differ from `dev/tests/smoke_expected.txt`. When a difference is intended, accept it with `--update` and commit the new expected file with the change.
 
 - Geometry Nodes modifier inputs are read and written through `modifier.properties.inputs.<socket id>.value`, not `modifier["Socket_N"]`.
 - Gizmo offsets (`matrix_offset`) are in scene units unless `use_draw_offset_scale` is set, which makes them follow the gizmo's screen size.
