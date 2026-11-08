@@ -9,12 +9,13 @@ from bpy.types import Operator, PropertyGroup
 from bpy_extras import view3d_utils
 from mathutils import Matrix, Vector
 
-from ..features.array.operators import (array_snapshot, keep_arrays,
-                                        restore_arrays, scale_arrays)
-from ..utils.constants import CANCEL, FINISHED, object_modes
-from ..utils.undo import push_scene_undo
-from .drag import (ViewDrag, axis_on_screen, distance_along,
-                   set_world_matrix, view_plane_offset)
+from ...core.checkpoint import store_scene_checkpoint
+from ...core.drag import (ViewDrag, axis_on_screen, distance_along,
+                          set_world_matrix, view_plane_offset)
+from ...core.hop import hop
+from ...utils.constants import CANCEL, FINISHED, object_modes
+from ..array.operators import (array_snapshot, keep_arrays, restore_arrays,
+                               scale_arrays)
 
 ###
 # Local Transform
@@ -142,18 +143,14 @@ def apply_scale(context, obj) -> bool:
     if multires or dyntopo or obj.children:
         # Blender's own apply handles multires displacement, dyntopo's
         # separate mesh and keeping children in place, but only in Object Mode
-        mode = object_modes[context.mode]
-        if mode != "OBJECT":
-            bpy.ops.object.mode_set(mode="OBJECT")
-        selected = [other for other in context.selected_objects if other != obj]
-        for other in selected:
-            other.select_set(False)
-        obj.select_set(True)
-        bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
-        for other in selected:
-            other.select_set(True)
-        if mode != "OBJECT":
-            bpy.ops.object.mode_set(mode=mode)
+        with hop(context, "OBJECT"):
+            selected = [other for other in context.selected_objects if other != obj]
+            for other in selected:
+                other.select_set(False)
+            obj.select_set(True)
+            bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
+            for other in selected:
+                other.select_set(True)
         return True
     obj.data.transform(Matrix.Diagonal(Vector(obj.scale).to_4d()), shape_keys=True)
     obj.scale = (1.0, 1.0, 1.0)
@@ -413,7 +410,7 @@ class SCULPT_DECK_OT_local_transform(ViewDrag, Operator):
     def push_before(self, context):
         """Store a whole scene step of the objects before the transform, so undo moves them back: the step before
         would otherwise often be a Sculpt step, which doesn't hold where objects are"""
-        push_scene_undo(context, f"Before {self.bl_label}")
+        store_scene_checkpoint(context, f"Before {self.bl_label}")
 
     def confirmed(self, context):
         # the objects go back to their start for a moment, for the step before
@@ -511,9 +508,16 @@ class SCULPT_DECK_OT_apply_object_scale(Operator):
 
     def execute(self, context):
         meshes = [obj for obj in transform_objects(context) if obj.type == "MESH"]
-        if not all([apply_scale(context, obj) for obj in meshes]):
+        stretched = [obj for obj in meshes if not unit_scale(obj)]
+        if any(obj.data.users > 1 for obj in stretched):
+            # checked first, so nothing is applied and no step is stored
             self.report({"WARNING"}, "Can't apply the scale of a mesh shared with other objects")
             return CANCEL
+        if stretched:
+            # the scale is an object transform, which a Sculpt step before this one wouldn't hold
+            store_scene_checkpoint(context, f"Before {self.bl_label}")
+        for obj in meshes:
+            apply_scale(context, obj)
         return FINISHED
 
 

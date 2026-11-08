@@ -281,6 +281,23 @@ def local_transform_adjust_last():
     check(mode() == "SCULPT", f"Adjust Last Operation: expected Sculpt Mode, got {mode()}")
 
 
+def local_transform_two_objects():
+    """Local Transform moves every selected object, and undo moves them all back"""
+    yield from reset(extra_cubes=1)
+    bpy.context.scene.objects["Cube.001"].select_set(True)
+    call("sculpt_deck.local_transform", mode="MOVE", axis="X", distance=1.0)
+    yield 0.5
+    both = (location_x(), location_x("Cube.001"))
+    check(both == (1.0, 4.0), f"move two objects: expected x = 1 and 4, got {both}")
+    yield undo()
+    both = (location_x(), location_x("Cube.001"))
+    check(both == (0.0, 3.0), f"undo move of two objects: expected x = 0 and 3, got {both}")
+    check(mode() == "SCULPT", f"undo move of two objects: expected Sculpt Mode, got {mode()}")
+    yield redo()
+    both = (location_x(), location_x("Cube.001"))
+    check(both == (1.0, 4.0), f"redo move of two objects: expected x = 1 and 4, got {both}")
+
+
 def cube():
     return bpy.context.scene.objects["Cube"]
 
@@ -311,10 +328,10 @@ def start_tool(idname: str, modifier: str):
     check(mode() == "SCULPT", f"{idname}: expected Sculpt Mode, got {mode()}")
 
 
-def count_hops() -> list[str]:
-    """Record the target mode of every Hop Array's apply makes from now on, in the returned list"""
+def count_hops(feature: str = "array") -> list[str]:
+    """Record the target mode of every Hop the feature's operators make from now on, in the returned list"""
     hops: list[str] = []
-    module = sys.modules[PACKAGE + ".source.features.array.operators"]
+    module = sys.modules[PACKAGE + f".source.features.{feature}.operators"]
     original = sys.modules[PACKAGE + ".source.core.hop"].hop
 
     def recording(context, target):
@@ -410,6 +427,89 @@ def hop_modes():
     yield undo()
     check(location_x() == 0.0, f"undo after the Hops: expected the move undone (x = 0), got {location_x()}")
     check(mode() == "SCULPT", f"undo after the Hops: expected Sculpt Mode, got {mode()}")
+
+
+def stretched_cube(dyntopo: bool = False, multires: bool = False):
+    """The Cube stretched to twice its width in Object Mode, then in Sculpt Mode with Dyntopo or a subdivided
+    Multires modifier. Stretched in Object Mode with an undo step, as a user would, since Sculpt undo steps don't
+    hold object transforms."""
+    with override():
+        bpy.ops.wm.read_homefile("EXEC_DEFAULT")
+    yield 0.5
+    call("transform.resize", value=(2.0, 1.0, 1.0))
+    if multires:
+        call("object.modifier_add", type="MULTIRES")
+        call("object.multires_subdivide", modifier="Multires", mode="CATMULL_CLARK")
+        check(modifier_names() == ["Multires"], f"setup: expected a Multires modifier, got {modifier_names()}")
+    call("object.mode_set", mode="SCULPT")
+    yield 0.3
+    check(mode() == "SCULPT", f"setup: expected Sculpt Mode, got {mode()}")
+    if dyntopo:
+        call("sculpt.dynamic_topology_toggle")
+        yield 0.3
+        check(cube().use_dynamic_topology_sculpting, "setup: Dyntopo didn't turn on")
+    check(round(cube().scale.x, 4) == 2.0, f"setup: expected scale x = 2, got {cube().scale.x}")
+
+
+def mesh_width() -> float:
+    """Width of the Cube's own mesh along its X axis, without the object's scale"""
+    xs = [vertex.co.x for vertex in cube().data.vertices]
+    return round(max(xs) - min(xs), 4)
+
+
+def apply_scale(feature_hops: list[str], expected_hops: list[str]):
+    call("sculpt_deck.apply_object_scale")
+    yield 0.5
+    check(tuple(cube().scale) == (1.0, 1.0, 1.0), f"Apply Scale: expected scale 1, got {tuple(cube().scale)}")
+    check(round(cube().dimensions.x, 4) == 4.0, f"Apply Scale: expected width 4, got {cube().dimensions.x}")
+    check(mode() == "SCULPT", f"Apply Scale: expected Sculpt Mode, got {mode()}")
+    check(feature_hops == expected_hops, f"Apply Scale: expected Hops to {expected_hops}, got {feature_hops}")
+
+
+def apply_scale_undo():
+    """Apply Scale on a plain mesh needs no Hop. Its undo goes back past a Sculpt step, which doesn't hold the
+    scale, so it relies on the "Before Apply Scale" Scene Checkpoint"""
+    yield from stretched_cube()
+    hops = count_hops("local_transform")
+    yield from apply_scale(hops, [])
+    check(mesh_width() == 4.0, f"Apply Scale: expected the mesh 4 wide, got {mesh_width()}")
+    yield undo()
+    check(round(cube().scale.x, 4) == 2.0, f"undo Apply Scale: expected scale x = 2, got {cube().scale.x}")
+    check(mesh_width() == 2.0, f"undo Apply Scale: expected the mesh 2 wide again, got {mesh_width()}")
+    check(mode() == "SCULPT", f"undo Apply Scale: expected Sculpt Mode, got {mode()}")
+
+
+def hop_apply_scale_multires():
+    """Apply Scale with Multires uses Blender's own apply, which only runs in Object Mode, so it makes a Hop there
+    and stays in Sculpt Mode, keeping the Multires modifier"""
+    yield from stretched_cube(multires=True)
+    hops = count_hops("local_transform")
+    yield from apply_scale(hops, ["OBJECT"])
+    check(modifier_names() == ["Multires"], f"Apply Scale: expected the Multires modifier kept, got {modifier_names()}")
+    yield undo()
+    check(round(cube().scale.x, 4) == 2.0, f"undo Apply Scale: expected scale x = 2, got {cube().scale.x}")
+    check(round(cube().dimensions.x, 4) == 4.0, f"undo Apply Scale: expected width 4, got {cube().dimensions.x}")
+    check(mode() == "SCULPT", f"undo Apply Scale: expected Sculpt Mode, got {mode()}")
+
+
+def hop_apply_scale_dyntopo():
+    yield from stretched_cube(dyntopo=True)
+    hops = count_hops("local_transform")
+    yield from apply_scale(hops, ["OBJECT"])
+    check(cube().use_dynamic_topology_sculpting, "Apply Scale: Dyntopo changed")
+    call("object.mode_set", undo=False, mode="OBJECT")
+    yield 0.3
+    check(mesh_width() == 4.0, f"leaving Sculpt Mode after Apply Scale: expected the mesh 4 wide, got {mesh_width()}")
+
+
+def hop_apply_scale_dyntopo_undo():
+    yield from stretched_cube(dyntopo=True)
+    hops = count_hops("local_transform")
+    yield from apply_scale(hops, ["OBJECT"])
+    yield undo()
+    state = (round(cube().scale.x, 4), round(cube().dimensions.x, 4), mode(), cube().use_dynamic_topology_sculpting)
+    check(state == (2.0, 4.0, "SCULPT", True), "undo Apply Scale: expected (scale x, width, mode, Dyntopo) = "
+          f"(2, 4, SCULPT, on), got {state}")
 
 
 def mirror_apply():
@@ -590,10 +690,15 @@ SCENARIOS = [
     detour_fuse_difference,
     local_transform_undo,
     local_transform_adjust_last,
+    local_transform_two_objects,
     hop_modes,
     array_apply,
     hop_array_apply_dyntopo,
     hop_array_apply_dyntopo_undo,
+    apply_scale_undo,
+    hop_apply_scale_multires,
+    hop_apply_scale_dyntopo,
+    hop_apply_scale_dyntopo_undo,
     mirror_apply,
     pen_hold_momentary_brush,
     pen_click_brush,
@@ -608,6 +713,8 @@ KNOWN_FAILURES = {
     "hop_array_apply_dyntopo_undo": "#17: leaving and entering Sculpt Mode with Dyntopo on pushes Blender's own "
     "Dynamic topology disable and enable steps, so the Hop shows in the undo history: one undo leaves the array "
     "applied, the next brings it back with Dyntopo off",
+    "hop_apply_scale_dyntopo_undo": "#17: the same with Apply Scale's Hop: one undo lands on Blender's "
+    "Dynamic topology disable step, with the scale back but Dyntopo off and the Cube 2 wide instead of 4",
 }
 
 

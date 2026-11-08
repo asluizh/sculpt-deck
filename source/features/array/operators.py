@@ -8,10 +8,10 @@ from bpy.types import Operator, PropertyGroup
 from bpy_extras import view3d_utils
 from mathutils import Matrix, Vector
 
+from ...core.drag import (ScreenAngle, ViewDrag, axis_on_screen,
+                          distance_along, facing_sign, set_world_matrix,
+                          view_plane_offset)
 from ...core.hop import hop
-from ...ops.drag import (ScreenAngle, ViewDrag, axis_on_screen,
-                         distance_along, facing_sign, set_world_matrix,
-                         view_plane_offset)
 from ...utils.actions import tool_history
 from ...utils.constants import CANCEL, FINISHED, object_modes
 

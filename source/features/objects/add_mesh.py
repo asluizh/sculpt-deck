@@ -10,8 +10,8 @@ from bpy.types import Menu, Operator
 from mathutils import Matrix
 
 from ...core.detour import Detour
-from ...ops.local_transform import TOOL_ID
 from ...utils.constants import object_modes, primitive_items
+from ..local_transform.operators import TOOL_ID
 
 
 def revolve(name: str, profile: list[tuple[float, float]], segments: int):

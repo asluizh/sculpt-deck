@@ -4,9 +4,9 @@ import bpy
 from bpy.types import Operator
 
 from ...core.detour import Detour
-from ...ops.local_transform import TOOL_ID
 from ...utils.actions import object_history
 from ...utils.constants import object_modes
+from ..local_transform.operators import TOOL_ID
 
 
 class ActiveMesh(Detour):

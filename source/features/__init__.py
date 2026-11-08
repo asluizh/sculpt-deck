@@ -3,12 +3,14 @@
 from types import ModuleType
 
 from ..core import register_parts, unregister_parts
-from . import array, mirror, objects
+from . import array, local_transform, mirror, objects
 
 # modules with register()/unregister(), registered in this order and unregistered in reverse
 PARTS: list[ModuleType] = [
     objects,
-    # toolbar tools join the end of Local Transform's section in registration order: Mirror, then the arrays
+    # Local Transform starts its own toolbar section, and the other tools join its end in registration order:
+    # Mirror, then the arrays
+    local_transform,
     mirror,
     array,
 ]

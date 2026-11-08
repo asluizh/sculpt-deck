@@ -5,9 +5,8 @@ import bpy
 from bpy.types import GizmoGroup, WorkSpaceTool
 from mathutils import Matrix
 
-from ..ops.local_transform import (TOOL_ID, SCULPT_DECK_OT_local_transform,
-                                   pivot_point, settings, transform_objects,
-                                   unit_scale)
+from .operators import (TOOL_ID, SCULPT_DECK_OT_local_transform, pivot_point,
+                        settings, transform_objects, unit_scale)
 
 ###
 # Local Transform tool
@@ -22,7 +21,7 @@ from ..ops.local_transform import (TOOL_ID, SCULPT_DECK_OT_local_transform,
 
 # Blender joins this to its icon folder, an absolute path points at ours
 ICON = os.path.normpath(
-    os.path.join(os.path.dirname(__file__), "..", "..", "icons", "ops.sculpt_deck.local_transform")
+    os.path.join(os.path.dirname(__file__), "..", "..", "..", "icons", "ops.sculpt_deck.local_transform")
 )
 
 # turn a gizmo's Z axis onto the X, Y or Z axis

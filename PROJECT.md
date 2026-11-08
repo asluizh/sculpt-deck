@@ -57,11 +57,16 @@ source/
     checkpoint.py          Scene Checkpoint: a whole scene undo step in Sculpt and Edit Mode
     detour.py              Detour: base for operators that go through Object Mode, return mode on undo and redo
     hop.py                 Hop: a context manager that switches to a mode, runs the body and switches back
-  features/              sculpt workflow features, one sub-package each (PARTS: Mirror before the arrays, for toolbar order)
+    drag.py                ViewDrag: the modal drag tool gizmos share (confirm on release, tap keeps running)
+  features/              sculpt workflow features, one sub-package each (PARTS: Local Transform, Mirror, then the
+                         arrays, for toolbar order)
     objects/               object actions, each a Detour
       add_mesh.py            Add Mesh operator and menu
       duplicate_delete.py    Duplicate and Delete
       combine.py             Join Selected, Fuse (Union) and Fuse (Difference)
+    local_transform/       Local Transform and Apply Scale
+      operators.py           settings (Scene.sculpt_deck_local_transform), Local Transform and Apply Scale operators
+      tools.py               toolbar tool, header and 3D gizmos
     array/                 Linear and Circular Array
       operators.py           node groups, settings (Scene.sculpt_deck_array), add/apply/remove/axis/edit operators
       tools.py               toolbar tools, headers and 3D gizmos
@@ -83,18 +88,14 @@ source/
     touch.py               touch navigation, tap/double tap/long press on objects
     gizmo.py               widget and action pie operators
     pen.py                 Previous Brush and Invert Brush
-    drag.py                shared modal drag for tool gizmos (confirm on release, tap keeps running)
-    local_transform.py     Local Transform tool operator, settings, Apply Scale
   ui/                    drawing
     gizmo_group_2d.py      on-screen widget
     gizmo_2d.py, gizmo_config.py  widget button types and layout
     panel.py               sidebar panels and menus (action pie, All Actions)
-    local_transform.py     Local Transform toolbar tool, header and 3D gizmos
   utils/                 shared helpers
     constants.py           enums, defaults
     actions.py             runs an Action by idname (operator, menu, pie, asset shelf, tool), tool history
     brush.py               brush history, polled every 0.25 s along with the tool history
-    undo.py                push_scene_undo: the Scene Checkpoint under its old name, for Local Transform
     settings.py            default settings (add-on user folder) and per-file settings (scene property), unsaved check
     keymaps.py             keymap registration of touch navigation (the surfaces register their own)
     overlay.py             touch region overlay
@@ -106,7 +107,7 @@ How the tools fit together:
 - **Local Transform** moves, rotates and scales whole objects (the active one and the other selected ones, leaving out children of those) instead of their vertices, so the origin stays with the mesh. Scale is applied to the mesh when each scale ends, so stretches never skew. The **Instances** pivot, which is the default, turns or scales each selected object and each array copy in place, the copies by turning the array settings back by the same amount. Moves and rotations follow the active object's axes, scaling follows each object's own.
 - **Arrays** are Geometry Nodes modifiers built by the add-on, one node group per kind, versioned by a custom property. The real mesh stays in place and sculptable, and the copies are instances that follow it. The node trees lay out the copies as if the object's scale were already applied, so copies don't warp while a scale is being dragged.
 - **Mirror** is a Geometry Nodes modifier too. Its planes are the Mirror Object's, or the world origin's when none is set (an empty Object Info gives the identity matrix), turned into the object's space with Self Object, so they stay put in the world while the mesh moves. The reflection is an instance until applied; applying realizes it with flipped faces, merges the vertices on the planes and deletes the faces lying on them.
-- **Tool gizmos** start operators that share the drag handling in `ops/drag.py`. Each operator's `description()` provides the hovered gizmo's tooltip.
+- **Tool gizmos** start operators that share the drag handling in `core/drag.py`. Each operator's `description()` provides the hovered gizmo's tooltip.
 
 Development notes (Blender 5.2):
 
@@ -118,11 +119,11 @@ Development notes (Blender 5.2):
 - Data can't be changed while gizmos draw, so tools change data from a `bpy.app.timers` callback.
 - Python edits to mesh data in Sculpt Mode, and Python operators with `UNDO`, both undo correctly. `object.transform_apply` doesn't run in Sculpt Mode, but `object.modifier_apply` does.
 - Sculpt and Edit Mode undo steps can't add or remove objects. Operators that do (Add Mesh, Duplicate, Delete, Join, Fuse) are Detours (`core/detour.py`): a subclass supplies only `object_mode_work`, and the `Detour` base stores a Scene Checkpoint first (`core/checkpoint.py`, which hides the active object so Blender picks a whole scene step), finishes in Object Mode so the operator's own step is a whole scene step too, and returns to the starting mode from a timer. Those steps are saved in Object Mode, so the object carries a `sculpt_deck_return_mode` property and undo/redo handlers switch it back. The Detour records its starting mode once, in a hidden property, so a repeat from Adjust Last Operation, which can run before that mode is back, still ends there; and it stores the checkpoint once, so each Detour leaves exactly one extra "Before ..." undo step. A Detour run by another one (Delete adding a cube when no mesh is left) gets `checkpoint=False` and the caller's `start_mode`.
-- Sculpt Mode undo steps don't hold object transforms (or modifier settings), so undoing a move to a Sculpt step leaves the objects moved. Outside Object Mode, Local Transform stores a Scene Checkpoint (`push_scene_undo`, re-exported from `core/checkpoint.py` by `utils/undo.py`) of the objects at their start right before its own step, when the drag is confirmed, so undo moves them back and Adjust Last Operation goes back to that state. Each move leaves that extra "Before Local Transform" step. It also stores each object's starting matrix, array vectors and mesh size (and its children's matrices) in a hidden property, and starts from them when run again.
+- Sculpt Mode undo steps don't hold object transforms (or modifier settings), so undoing a move to a Sculpt step leaves the objects moved. Outside Object Mode, Local Transform stores a Scene Checkpoint (`store_scene_checkpoint`, `core/checkpoint.py`) of the objects at their start right before its own step, when the drag is confirmed, so undo moves them back and Adjust Last Operation goes back to that state. Each move leaves that extra "Before Local Transform" step. It also stores each object's starting matrix, array vectors and mesh size (and its children's matrices) in a hidden property, and starts from them when run again. Apply Scale changes the object's scale too, so it stores a "Before Apply Scale" checkpoint the same way. With Multires, Dyntopo or children, Apply Scale uses Blender's own apply, which only runs in Object Mode, through a Hop (`core/hop.py`).
 - Operators called from Python push no undo steps, but `object.transfer_mode` still saves its "Change Active" step (with the new object still in Object Mode) and then skips the step of entering the mode, so undo lands in Object Mode. The tap calls it with `undo=True`.
 - Run `dev/tests/scenarios.sh` (or `dev/tests/scenarios.sh <name> ...`) after changes to undo, modes, Detours or pen buttons. Its `adjust_last` runs `ed.undo_redo` with an undo step: called from Python without one, the repeated operator stores no step of its own and runs while still in Object Mode (`detour_repeat_from_object_mode` uses that on purpose). Real Sculpt undo steps only exist in the full UI, so it starts `weston --backend=headless --renderer=gl --xwayland` and runs Blender's flatpak on its Xwayland display with `--enable-event-simulate`, driving it from a timer under a `temp_override` of the 3D viewport. A scenario is a generator in `dev/tests/scenarios.py` that calls operators with an undo step, checks the result and yields seconds to wait; add it to `SCENARIOS`. A scenario failing because of a known bug goes in `KNOWN_FAILURES` with the reason. `window.event_simulate` can't make tablet events, so the pen scenarios make the add-on take simulated presses for pen presses (`is_pen` in `surfaces/pen/button.py`), and the click scenarios turn that back off.
 - Undo can be tested in the UI with operators called from a timer as `bpy.ops.<op>("EXEC_DEFAULT", True, ...)` (the `True` pushes an undo step) and `bpy.context.window_manager.print_undo_steps()`.
-- `bpy.utils.register_tool(after=...)` puts a tool at the end of the separator section holding `after`, so the order inside a section is the registration order (`ui/__init__.py`, then `features/__init__.py`).
+- `bpy.utils.register_tool(after=...)` puts a tool at the end of the separator section holding `after`, so the order inside a section is the registration order (the `PARTS` order in `features/__init__.py`: Local Transform starts the section, then Mirror and the arrays).
 - Popup menus opened with `wm.call_menu` run their operator buttons with `EXEC_REGION_WIN`, so operators that need `invoke` (Save's file browser, Search) fail or vanish. `draw_action` sets `operator_context = "INVOKE_REGION_WIN"`.
 - Add-on `unregister()` runs when Blender quits normally, but not after a crash. Changing add-on preferences from Python or the sidebar doesn't mark Blender's preferences as unsaved.
 - Headless tests run with `flatpak run --filesystem=home org.blender.Blender -b --factory-startup --python <script>`, with the add-on linked into a scripts folder through `BLENDER_USER_SCRIPTS`. Gizmos, drags and headers need testing in the UI.
@@ -160,7 +161,7 @@ Next:
 
 Known limitations:
 
-- Applying an array or mirror with Dyntopo on makes a Hop to Object Mode (Blender applies in Sculpt Mode with only a warning, and Dyntopo's own mesh then overwrites the result). Leaving and entering Sculpt Mode with Dyntopo pushes Blender's own "Dynamic topology disable/enable" undo steps, so this Hop shows in the undo history: one undo leaves the array applied, the next brings it back with Dyntopo off (#17, scenario `hop_array_apply_dyntopo_undo`).
+- Applying an array or mirror with Dyntopo on makes a Hop to Object Mode (Blender applies in Sculpt Mode with only a warning, and Dyntopo's own mesh then overwrites the result). Leaving and entering Sculpt Mode with Dyntopo pushes Blender's own "Dynamic topology disable/enable" undo steps, so this Hop shows in the undo history: one undo leaves the array applied, the next brings it back with Dyntopo off (#17, scenario `hop_array_apply_dyntopo_undo`). Apply Scale's Hop with Dyntopo on does the same: one undo brings the scale back with Dyntopo off and the mesh at the wrong size (scenario `hop_apply_scale_dyntopo_undo`).
 - Arrays after a Multires modifier probably don't apply as displayed. Arrays are aimed at voxel and dynamic topology meshes.
 - Blender hides generative modifiers while dynamic topology is on, so array copies may not show then.
 - Brushes only act on the real mesh, not on array copies or the mirror image, until the array or mirror is applied. Sculpt symmetry mirrors in the object's space, so it only matches the Mirror tool while the object sits on the world origin's planes.
