@@ -6,7 +6,7 @@ import bpy
 from bpy.props import EnumProperty, StringProperty
 from bpy.types import PropertyGroup, UILayout
 
-from ..core.actions import enum_items
+from ..core.actions import enum_items, find
 from ..core.constants import pie_mode, pie_mode_items
 
 WIDGET_SLOTS = 12
@@ -119,7 +119,8 @@ def ensure_mode_sets(collection, defaults: dict, kind: str):
             mode_set.mode = mode
             mode_set.kind = kind
             for slot, idname in enumerate(defaults.get(mode, ()), 1):
-                mode_set.setSlot(slot, idname)
+                # an Action whose part isn't registered (navigation's) leaves its slot empty
+                mode_set.setSlot(slot, idname if find(idname) is not None else "")
 
 
 # shared by the sidebar panels and the add-on preferences

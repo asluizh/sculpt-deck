@@ -1,8 +1,8 @@
 """Viewport navigation by touch: pan, rotate and zoom regions and their overlay, Recenter View, Lock Rotation and
 Toggle Touch Controls, the floating toggle, its settings, the input mode in the sidebar and the Control Zones panel.
-Kept apart so it can be removed as a unit once Blender ships its own touch navigation (ADR 0001): delete this package
-and its lines in source/__init__.py. Nothing else imports it; its settings are a section of the add-on preferences
-while it's registered. The object tap (features/object_tap) takes a touch first and hands it over here once it
+Kept apart so it can be removed as a unit once Blender ships its own touch navigation (ADR 0001): deleting this
+package is enough, source/__init__.py registers it only when it's there. Nothing else imports it; its settings and
+its Actions are in the add-on preferences and the Action catalog only while it's registered. The object tap (features/object_tap) takes a touch first and hands it over here once it
 moves."""
 
 from types import ModuleType

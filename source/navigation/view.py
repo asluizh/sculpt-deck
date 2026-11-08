@@ -1,8 +1,10 @@
-"""Navigation Actions: Recenter View, Lock Rotation and Toggle Touch Controls (also on Alt T, see keymaps.py)."""
+"""Navigation Actions: Recenter View, Lock Rotation and Toggle Touch Controls (also on Alt T, see keymaps.py), added to
+the Action catalog while navigation is registered."""
 
 import bpy
 from bpy.types import Operator
 
+from ..core.actions import ANY_MODE, action, add_actions, remove_actions
 from ..core.constants import CANCEL, FINISHED
 from .settings import navigation_settings
 
@@ -75,5 +77,22 @@ classes = (
     SCULPT_DECK_OT_viewport_recenter,
 )
 
+# the Actions of every mode these operators are, each placed after an Action of the catalog
+ACTIONS = (
+    ("ed.redo", action("sculpt_deck.viewport_recenter", "Recenter on Selected", "CURSOR", ANY_MODE)),
+    ("sculpt_deck.toggle_n_panel", action("sculpt_deck.viewport_lock", "Toggle Rotation Lock", "LOCKED", ANY_MODE)),
+    ("screen.region_quadview", action("sculpt_deck.toggle_touch", "Toggle Touch Controls", "VIEW_PAN", ANY_MODE)),
+)
 
-register, unregister = bpy.utils.register_classes_factory(classes)
+
+def register():
+    for cls in classes:
+        bpy.utils.register_class(cls)
+    for after, entry in ACTIONS:
+        add_actions(after, entry)
+
+
+def unregister():
+    remove_actions(*(entry for _, entry in ACTIONS))
+    for cls in reversed(classes):
+        bpy.utils.unregister_class(cls)

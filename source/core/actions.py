@@ -5,6 +5,9 @@ whether it is a Resolution Change. A Gesture's Action List in a mode is the surf
 Nothing, Previous/Specific Brush, Empty), then the mode's Actions minus what the Gesture can't do, then Custom.
 Adding an Action here makes it appear on every Gesture where it fits. See GLOSSARY.md for the terms.
 
+A part that can be removed (navigation) adds its own Actions with add_actions when it registers, at the place they
+take in the catalog, and takes them out with remove_actions, so without the part they're in no Action List.
+
 An idname is an operator, a menu (_MT_; opened as a pie when it ends in _pie), a brush asset shelf (_AST_) or a
 tool (TOOL:). Choices are stored by identifier.
 """
@@ -216,11 +219,8 @@ CATALOG: list[Action] = [
     action("SCULPT_DECK_MT_all_actions", "All Actions", "THREE_DOTS", ANY_MODE),
     action("ed.undo", "Undo", "LOOP_BACK", ANY_MODE),
     action("ed.redo", "Redo", "LOOP_FORWARDS", ANY_MODE),
-    action("sculpt_deck.viewport_recenter", "Recenter on Selected", "CURSOR", ANY_MODE),
     action("sculpt_deck.toggle_n_panel", "Toggle Sidebar", "EVENT_N", ANY_MODE),
-    action("sculpt_deck.viewport_lock", "Toggle Rotation Lock", "LOCKED", ANY_MODE),
     action("screen.region_quadview", "Toggle Quad View", "IMGDISPLAY", ANY_MODE),
-    action("sculpt_deck.toggle_touch", "Toggle Touch Controls", "VIEW_PAN", ANY_MODE),
     action("ed.undo_history", "Undo History", "RECOVER_LAST", ANY_MODE),
     action("screen.repeat_last", "Repeat Last", "FILE_REFRESH", ANY_MODE),
     action("screen.redo_last", "Adjust Last Operation", "OPTIONS", ANY_MODE),
@@ -241,6 +241,24 @@ CATALOG: list[Action] = [
     action("wm.search_menu", "Search", "VIEWZOOM", ANY_MODE),
     action("wm.save_mainfile", "Save", "FILE_TICK", ANY_MODE),
 ]
+
+
+def add_actions(after: str, *entries: Action):
+    """Add a part's own Actions to the catalog right after the Action `after`, the place they'd have if the catalog
+    listed them, and build the Action Lists again"""
+    index = next((i for i, entry in enumerate(CATALOG) if entry.idname == after), None)
+    assert index is not None, f"{after} isn't in the catalog"
+    for entry in entries:
+        assert find(entry.idname) is None, f"{entry.idname} is in the catalog already"
+    CATALOG[index + 1 : index + 1] = entries
+    clear_cache()
+    _check_catalog()
+
+
+def remove_actions(*entries: Action):
+    """Take out Actions added with add_actions, when their part unregisters"""
+    CATALOG[:] = [entry for entry in CATALOG if not any(entry is removed for removed in entries)]
+    clear_cache()
 
 
 # idname -> Action, built when first needed and again after clear_cache()
@@ -373,6 +391,8 @@ def enum_number(idname: str) -> int:
 
 # dynamic enum items must stay referenced while Blender uses them
 _enum_cache: dict[tuple[str, str], list] = {}
+# lists handed to Blender before clear_cache(): kept, since Blender may still read the last items it was given
+_retired: list[list] = []
 
 
 def enum_items(gesture: str, mode: str) -> list:
@@ -395,6 +415,7 @@ def enum_items(gesture: str, mode: str) -> list:
 
 def clear_cache():
     """After changing the catalog, so the lists are built again"""
+    _retired.extend(_enum_cache.values())
     _enum_cache.clear()
     _index.clear()
 
