@@ -10,6 +10,7 @@ from mathutils import Matrix
 
 from ..utils import settings
 from ..utils.actions import object_history
+from ..utils.undo import push_scene_undo
 from ..utils.blender import preferences
 from .local_transform import TOOL_ID
 from ..utils.constants import (CANCEL, FINISHED, object_modes,
@@ -354,20 +355,6 @@ class TOUCHVIEW_OT_reveal_all(Operator):
     def execute(self, context):
         bpy.ops.paint.hide_show_all(action="SHOW")
         return FINISHED
-
-
-def push_scene_undo(context, message: str):
-    """Store an undo step of the whole scene, even in Sculpt or Edit Mode.
-
-    Sculpt undo steps can't add or remove objects. An operator that does, run in Sculpt Mode, would leave its
-    objects behind on undo, and every redo from Adjust Last Operation would add more. Blender picks the step type
-    from the active object, so hiding it gives a full scene step to undo back to. (Edit Mode still gets an edit
-    step, which works: undoing to one also restores the scene from the last full scene step.)
-    """
-    if context.mode == "OBJECT":
-        return
-    with context.temp_override(active_object=None, edit_object=None, object=None):
-        bpy.ops.ed.undo_push(message=message)
 
 
 # custom property marking the mode an object returns to: saved in the undo step, cleared once back in that mode

@@ -10,6 +10,7 @@ from bpy_extras import view3d_utils
 from mathutils import Matrix, Vector
 
 from ..utils.constants import CANCEL, FINISHED, object_modes
+from ..utils.undo import push_scene_undo
 from .array import array_snapshot, keep_arrays, restore_arrays, scale_arrays
 from .drag import (ViewDrag, axis_on_screen, distance_along,
                    set_world_matrix, view_plane_offset)
@@ -299,9 +300,13 @@ class TOUCHVIEW_OT_local_transform(ViewDrag, Operator):
             self.pivot = pivot_point(context, transform_objects(context))
             self.use_pivot = True
             self.instances = settings(context).pivot == "INSTANCES"
+        repeat = self.use_start
         self.begin(context)
         if not self.targets:
             return CANCEL
+        if not repeat:
+            # Adjust Last Operation goes back to this step itself
+            self.push_before(context)
         self.set_matrices()
         if self.mode == "SCALE":
             self.apply_scale(context)
@@ -404,7 +409,17 @@ class TOUCHVIEW_OT_local_transform(ViewDrag, Operator):
             obj.matrix_world = start
             restore_arrays(obj, arrays)
 
+    def push_before(self, context):
+        """Store a whole scene step of the objects before the transform, so undo moves them back: the step before
+        would otherwise often be a Sculpt step, which doesn't hold where objects are"""
+        push_scene_undo(context, f"Before {self.bl_label}")
+
     def confirmed(self, context):
+        # the objects go back to their start for a moment, for the step before
+        if context.mode != "OBJECT":
+            self.restore(context)
+            self.push_before(context)
+            self.set_matrices()
         if self.mode == "SCALE":
             self.apply_scale(context)
 
