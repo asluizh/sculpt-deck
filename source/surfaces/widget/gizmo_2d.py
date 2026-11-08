@@ -1,10 +1,10 @@
 import bpy
 from mathutils import Matrix, Vector
 
-from ..core.actions import find
-from ..utils.actions import TOOL_PREFIX, operator_exists
-from ..utils.blender import *
-from ..utils.constants import (action_toggles, multires_actions,
+from ...core.actions import find
+from ...utils.actions import TOOL_PREFIX, operator_exists
+from ...utils.blender import *
+from ...utils.constants import (action_toggles, multires_actions,
                                popup_actions, voxel_actions)
 from .gizmo_config import gizmo_colors, toggle_colors
 

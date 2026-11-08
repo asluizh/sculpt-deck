@@ -1,6 +1,7 @@
 """Smoke check, run inside Blender by dev/tests/smoke.sh: enables, disables and re-enables Sculpt Deck, and prints
-what got registered (operators and every Action List) in a stable form. Then checks the Action List rules, that an
-Action added to the catalog appears where it fits, and that settings survive a save and load. Not part of the add-on."""
+what got registered (operators, classes, the sidebar panel order and every Action List) in a stable form. Then
+checks the Action List rules, that an Action added to the catalog appears where it fits, and that settings survive a
+save and load. Not part of the add-on."""
 
 import json
 import re
@@ -24,12 +25,34 @@ def enum_choices(owner, prop: str) -> list[str]:
     raise AssertionError(f"{owner}.{prop} accepted an invalid value")
 
 
+def subclasses(cls):
+    for sub in cls.__subclasses__():
+        yield sub
+        yield from subclasses(sub)
+
+
+def sidebar_panels() -> list[str]:
+    """The Sculpt Deck sidebar's sub-panels in the order users see them. Blender sorts sub-panels by bl_order,
+    then by registration; every one sets its own bl_order, so no two may share one"""
+    panels = {
+        cls.__name__: cls
+        for cls in subclasses(bpy.types.Panel)
+        if cls.is_registered and getattr(cls, "bl_parent_id", "") == "SCULPT_DECK_PT_view_3d_panel"
+    }
+    orders = [getattr(cls, "bl_order", 0) for cls in panels.values()]
+    assert len(set(orders)) == len(orders), f"sidebar sub-panels share a bl_order: {sorted(orders)}"
+    ordered = sorted(panels.values(), key=lambda cls: getattr(cls, "bl_order", 0))
+    return [f"{getattr(cls, 'bl_order', 0)} {cls.__name__} ({cls.bl_label})" for cls in ordered]
+
+
 def report(lines: list[str]):
     prefs = bpy.context.preferences.addons[MODULE].preferences
     lines.append("# operators")
     lines += [f"sculpt_deck.{name}" for name in sorted(dir(bpy.ops.sculpt_deck))]
     lines.append("# classes")
     lines += sorted(name for name in dir(bpy.types) if name.startswith("SCULPT_DECK_"))
+    lines.append("# sidebar panels")
+    lines += sidebar_panels()
     lines.append("# action lists")
     for surface, sets, gestures in (
         ("pie", prefs.menu_sets, ("menu_choice_1",)),

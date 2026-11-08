@@ -6,11 +6,10 @@
 # layout (vertical, horizontal, etc)
 # to be managed through inheritance.
 ###
-from . import gizmo_group_2d, local_transform, panel
+from . import local_transform, panel
 
 
 def register():
-    gizmo_group_2d.register()
     panel.register()
     # the Mirror and array tools (features/) join the end of Local Transform's toolbar section
     local_transform.register()
@@ -18,5 +17,4 @@ def register():
 
 def unregister():
     local_transform.unregister()
-    gizmo_group_2d.unregister()
     panel.unregister()

@@ -42,7 +42,7 @@ def register():
     bpy.context.preferences.addons[__package__].preferences.load()  # type: ignore
 
 
-# the reverse of register: the preferences hold property groups that parts of source register
+# in reverse: the preferences hold property groups the parts register (e.g. the surfaces' Action slots)
 def unregister():
     preferences.unregister()
     source.unregister()

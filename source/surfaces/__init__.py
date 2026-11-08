@@ -3,10 +3,13 @@
 from types import ModuleType
 
 from ..core import register_parts, unregister_parts
-from . import clicks, pen
+from . import action_slots, clicks, pen, pie, widget
 
 # modules with register()/unregister(), registered in this order and unregistered in reverse
 PARTS: list[ModuleType] = [
+    action_slots,
+    widget,
+    pie,
     pen,
     clicks,
 ]
