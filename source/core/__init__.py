@@ -3,8 +3,12 @@ settings and preferences. See GLOSSARY.md for the terms."""
 
 from types import ModuleType
 
+from . import detour
+
 # modules with register()/unregister(), registered in this order and unregistered in reverse
-PARTS: list[ModuleType] = []
+PARTS: list[ModuleType] = [
+    detour,
+]
 
 
 def register_parts(parts: list[ModuleType]):
