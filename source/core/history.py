@@ -1,7 +1,7 @@
 """Histories polled from one timer, since Blender doesn't notify add-ons of these changes: the recently used tools
 per mode, the recently active meshes, and any history a part adds with `watch` (the brush history)."""
 
-from typing import Callable
+from typing import Callable, Collection
 
 import bpy
 
@@ -28,7 +28,7 @@ class ToolHistory:
         recent.append(tool)
         del recent[: -self.size]
 
-    def previous(self, mode: str, skip: set[str], default: str) -> str:
+    def previous(self, mode: str, skip: Collection[str], default: str) -> str:
         for tool in reversed(self.recent.get(mode, [])):
             if tool not in skip:
                 return tool

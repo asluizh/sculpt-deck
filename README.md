@@ -202,6 +202,7 @@ Or drag `sculpt_deck.zip` into Blender.
 - `FIXED`: Multires Level Up and Down stored no undo step, so undo skipped them and undid the step before. In Sculpt Mode each press now adds a _Before …_ step too.
 - `FIXED`: Join Selected and Fuse ignored arrays and mirrors: the other objects' copies were lost, the active object's array copied what was joined into it, and a cutter's copies cut nothing. Modifiers are now applied first (Join asks when the active object's would act differently), and Object Mode's Join is Sculpt Deck's too.
 - `FIXED`: Adjust Last Operation did nothing on Join Selected and Fuse (Fuse's _Voxel Size_ couldn't be changed afterwards).
+- `FIXED`: Undo after starting the Linear Array, Circular Array or Mirror tool in Sculpt Mode left the modifier on the mesh. Undo now takes it away (with a _Before …_ step, or with Dyntopo kept on) and goes back to the tool used before, and redo brings both back.
 
 </details>
 

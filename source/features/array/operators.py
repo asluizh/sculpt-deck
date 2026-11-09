@@ -1,6 +1,7 @@
 import math
 
 import bpy
+from bpy.app.handlers import persistent
 from bpy.props import (
     BoolProperty,
     EnumProperty,
@@ -14,6 +15,7 @@ from bpy.types import Operator, PropertyGroup
 from bpy_extras import view3d_utils
 from mathutils import Matrix, Vector
 
+from ...core.checkpoint import store_scene_checkpoint
 from ...core.constants import CANCEL, FINISHED, object_modes
 from ...core.drag import (
     ScreenAngle,
@@ -25,7 +27,7 @@ from ...core.drag import (
     view_plane_offset,
 )
 from ...core.history import tool_history
-from ...core.hop import cancel_step_over, hop
+from ...core.hop import active_object, cancel_step_over, hop
 
 ###
 # Arrays
@@ -36,7 +38,8 @@ from ...core.hop import cancel_step_over, hop
 #  applying the modifier turns the copies into real mesh. Each kind has its
 #  own tool, so a circular array can be stacked on a linear one. A tool adds
 #  its array when it starts, and hands back to the previous tool once the
-#  array is applied or removed, or the active mesh has none.
+#  array is applied or removed, or the active mesh has none, also when undo
+#  takes the array away; redo brings both back.
 ###
 
 LINEAR_TOOL_ID = "sculpt_deck.linear_array"
@@ -434,15 +437,41 @@ def ensure_array(object_name: str, kind: str, view_rotation):
     if current_array(obj, kind) is not None:
         return
     window = windows[0]
-    add_array(obj, kind, window.scene.sculpt_deck_array.orientation, view_rotation)  # type: ignore
-    with bpy.context.temp_override(window=window):
-        bpy.ops.ed.undo_push(message=f"Add {kind_names[kind]}")
+    orientation = window.scene.sculpt_deck_array.orientation  # type: ignore
+    tool = next(tool for tool, tool_kind in ARRAY_TOOLS.items() if tool_kind == kind)
+    add_modifier_step(obj, tool, f"Add {kind_names[kind]}", lambda: add_array(obj, kind, orientation, view_rotation))
+
+
+def add_modifier_step(obj, tool: str, message: str, add):
+    """Run `add`, which adds the tool's modifier to the mesh in Sculpt Mode, as an undo step named `message` that
+    undo takes back. Sculpt undo steps don't hold modifiers, so a Scene Checkpoint comes first; with Dyntopo, whose
+    "Dynamic topology" steps a checkpoint would be undone to with Dyntopo off, a Hop to Object Mode that is the
+    whole action instead (core/hop.py).
+
+    Only while the tool is still active: its gizmos also start again after an undo or redo loads a whole scene step,
+    when the tool may be on its way out, its modifier gone (leave_tool_without_modifier)."""
+    with bpy.context.temp_override(window=bpy.context.window_manager.windows[0]):
+        if active_tool(bpy.context) != tool:
+            return
+        undone_tools.clear()
+        cancel_step_over()
+        if obj.use_dynamic_topology_sculpting:
+            with hop(bpy.context, "OBJECT", whole_action=True):
+                add()
+        else:
+            store_scene_checkpoint(bpy.context, f"Before {message}")
+            add()
+        bpy.ops.ed.undo_push(message=message)
 
 
 ARRAY_TOOLS = {LINEAR_TOOL_ID: "LINEAR", CIRCULAR_TOOL_ID: "CIRCULAR"}
-# tools that add a modifier when they start, never handed back to; the
-# mirror tool adds itself
-modifier_tools = set(ARRAY_TOOLS)
+# tools that add a modifier when they start, never handed back to, each with
+# how to find its modifier on a mesh; the mirror tool adds itself
+modifier_tools = {tool: (lambda obj, kind=kind: current_array(obj, kind)) for tool, kind in ARRAY_TOOLS.items()}
+# (tool, mesh) for each modifier undo took away, latest last, for redo to take the tool again with the modifier
+undone_tools: list[tuple[str, str]] = []
+# (mesh, tools whose modifier it has) before the undo or redo running now
+before_step: tuple[str, set[str]] = ("", set())
 
 
 def active_tool(context) -> str:
@@ -456,8 +485,8 @@ def leave_tool(context):
     bpy.ops.wm.tool_set_by_id(name=tool, space_type="VIEW_3D")
 
 
-def leave_tool_later(tool_id: str):
-    """leave_tool() from a drawing callback, when the tool is still active"""
+def in_viewport_later(callback):
+    """callback(context) in the 3D viewport, right after the drawing callback or undo step running now"""
 
     def run():
         windows = bpy.context.window_manager.windows
@@ -466,11 +495,89 @@ def leave_tool_later(tool_id: str):
         window = windows[0]
         area = next((a for a in window.screen.areas if a.type == "VIEW_3D"), None)
         with bpy.context.temp_override(window=window, area=area):
-            if active_tool(bpy.context) == tool_id:
-                leave_tool(bpy.context)
+            callback(bpy.context)
         return None
 
     bpy.app.timers.register(run, first_interval=0.0)
+
+
+def leave_tool_later(tool_id: str):
+    """leave_tool() from a drawing callback, when the tool is still active"""
+
+    def leave(context):
+        if active_tool(context) == tool_id:
+            leave_tool(context)
+
+    in_viewport_later(leave)
+
+
+def tools_with_modifier(obj) -> set[str]:
+    return {tool for tool, find in modifier_tools.items() if find(obj) is not None}
+
+
+def leave_tool_without_modifier(context):
+    """After undo or redo: the tool whose modifier it took away has nothing to edit"""
+    obj = context.active_object
+    tool = active_tool(context)
+    if obj is not None and context.mode == "SCULPT" and tool in modifier_tools and modifier_tools[tool](obj) is None:
+        leave_tool(context)
+
+
+def retake_undone_tool(tool: str):
+    """After redo: the tool undo took the modifier of, which redo brought back. Only while the modifier is still
+    there: the tool adds one when it starts on a mesh without it."""
+
+    def retake(context):
+        if context.mode == "SCULPT" and modifier_tools[tool](context.active_object) is not None:
+            bpy.ops.wm.tool_set_by_id(name=tool, space_type="VIEW_3D")
+
+    in_viewport_later(retake)
+
+
+# after each undo or redo, including the extra ones a Hop makes; the modifiers are read right away, since the
+# extra undo or redo can run before a timer, the tool is switched from one
+@persistent
+def modifiers_before_step(*_):
+    global before_step
+    obj = active_object()
+    before_step = (obj.name, tools_with_modifier(obj)) if obj is not None else ("", set())
+
+
+def changed_modifiers(obj) -> tuple[set[str], set[str]]:
+    """The tools whose modifier the undo or redo just made took away from the active mesh, and brought to it"""
+    if obj is None or obj.name != before_step[0]:
+        return set(), set()
+    now = tools_with_modifier(obj)
+    return before_step[1] - now, now - before_step[1]
+
+
+@persistent
+def tool_after_undo(*_):
+    obj = active_object()
+    undone_tools.extend((tool, obj.name) for tool in changed_modifiers(obj)[0])
+    in_viewport_later(leave_tool_without_modifier)
+
+
+@persistent
+def tool_after_redo(*_):
+    obj = active_object()
+    if undone_tools and undone_tools[-1] in {(tool, obj.name) for tool in changed_modifiers(obj)[1]}:
+        retake_undone_tool(undone_tools.pop()[0])
+    in_viewport_later(leave_tool_without_modifier)
+
+
+@persistent
+def forget_undone_tools(*_):
+    undone_tools.clear()
+
+
+handlers = (
+    (bpy.app.handlers.undo_pre, modifiers_before_step),
+    (bpy.app.handlers.redo_pre, modifiers_before_step),
+    (bpy.app.handlers.undo_post, tool_after_undo),
+    (bpy.app.handlers.redo_post, tool_after_redo),
+    (bpy.app.handlers.load_post, forget_undone_tools),
+)
 
 
 def array_poll(context) -> bool:
@@ -867,9 +974,14 @@ def register():
     for cls in classes:
         bpy.utils.register_class(cls)
     bpy.types.Scene.sculpt_deck_array = PointerProperty(type=SCULPT_DECK_PG_array)  # type: ignore
+    for handler_list, handler in handlers:
+        handler_list.append(handler)
 
 
 def unregister():
+    for handler_list, handler in handlers:
+        if handler in handler_list:
+            handler_list.remove(handler)
     del bpy.types.Scene.sculpt_deck_array  # type: ignore
     for cls in reversed(classes):
         bpy.utils.unregister_class(cls)
