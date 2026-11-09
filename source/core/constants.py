@@ -47,6 +47,11 @@ object_modes = {
     "PAINT_TEXTURE": "TEXTURE_PAINT",
 }
 
+# context.mode values where actions that change objects (transforms, modifiers and their settings) are offered: their undo steps hold
+# them, or a Scene Checkpoint does. Not Edit Mode, whose undo steps hold only the mesh being edited, and push
+# nothing else even from Python, so undo and redo couldn't take such a change back (#33)
+object_data_modes = {mode for mode in object_modes if mode != "EDIT_MESH"}
+
 # modes with their own Action slots and pen buttons; any other mode uses "OTHER"
 pie_mode_items = [
     ("OBJECT", "Object Mode", ""),

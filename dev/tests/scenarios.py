@@ -628,7 +628,8 @@ def settle():
     step_over = sys.modules[PACKAGE + ".source.core.step_over"]
     for _ in range(20):
         yield 0.25
-        if step_over.scheduled == 0 and STEP_OVER not in cube():
+        active = bpy.context.view_layer.objects.active
+        if step_over.scheduled == 0 and (active is None or STEP_OVER not in active):
             break
     yield 0.25
 
@@ -1370,7 +1371,8 @@ def checkpoint_undo_reaches_stroke():
 
 
 def checkpoint_edit_mode_steps():
-    """Detours in Edit Mode: each undo takes back one Add Mesh"""
+    """Detours in Edit Mode store no Scene Checkpoint, which there would be an Edit step undo can't step over: each
+    undo takes back one Add Mesh (#26, #33)"""
     yield from reset()
     call("object.mode_set", mode="EDIT")
     yield 0.3
@@ -1379,6 +1381,68 @@ def checkpoint_edit_mode_steps():
         yield 1.0
     yield from each_step("two Add Mesh in Edit Mode", lambda: (len(meshes()), mode()),
                          [(1, "EDIT_MESH"), (2, "EDIT_MESH"), (3, "EDIT_MESH")])
+
+
+def edit_mode_detours():
+    """Detours in Edit Mode, each undone, redone, then adjusted and undone (#33). Delete of the last mesh runs Add
+    Mesh inside it, with no checkpoint of its own."""
+
+    def state():
+        objects = [obj for obj in bpy.context.scene.objects if obj.type == "MESH"]
+        return len(objects), sum(len(obj.data.vertices) for obj in objects), mode()
+
+    for label, idname, extra in (
+        ("Duplicate", "sculpt_deck.duplicate_object", 0),
+        ("Delete", "sculpt_deck.delete_object", 1),
+        ("Delete the last mesh", "sculpt_deck.delete_object", 0),
+        ("Join", "sculpt_deck.join_selected", 1),
+        ("Fuse", "sculpt_deck.fuse_selected", 1),
+    ):
+        for adjust in (False, True):
+            yield from reset(extra_cubes=extra)
+            if extra:
+                bpy.context.scene.objects["Cube.001"].select_set(True)
+            call("object.mode_set", mode="EDIT")
+            yield 0.3
+            before = state()
+            call(idname)
+            yield 1.0
+            if adjust:
+                yield adjust_last()
+                yield 1.0
+            after = state()
+            name = f"{label} in Edit Mode{' adjusted' if adjust else ''}"
+            check(after != before and after[2] == "EDIT_MESH", f"{name}: expected a change, staying in Edit Mode, "
+                  f"got {before} -> {after}")
+            yield from each_step(name, state, [before, after])
+
+
+def edit_mode_object_actions_unavailable():
+    """Actions that change objects (transforms, modifiers) aren't offered in Edit Mode, whose undo steps hold only
+    the mesh: undo and redo would leave the change in place (#33). They're still offered in Object Mode, Sculpt
+    Mode and the paint modes, where undo takes them back."""
+    yield from reset()
+    yield from start_tool("sculpt_deck.circular_array", "Circular Array")
+    call("wm.tool_set_by_id", name="builtin.brush", space_type="VIEW_3D")
+    yield 0.5
+    call("wm.tool_set_by_id", name="sculpt_deck.mirror", space_type="VIEW_3D")
+    for _ in range(10):
+        yield 0.3
+        if "Mirror" in modifier_names():
+            break
+    check(modifier_names() == ["Circular Array", "Mirror"], f"setup: expected an array and a mirror, got "
+          f"{modifier_names()}")
+    call("wm.tool_set_by_id", name="builtin.brush", space_type="VIEW_3D")
+    yield 0.5
+    actions = ("local_transform", "apply_object_scale", "array_apply", "array_remove", "array_axis", "array_edit",
+               "mirror_apply", "mirror_remove", "increment_multires", "decrement_multires")
+    for target, offered in (("EDIT", False), ("VERTEX_PAINT", True), ("OBJECT", True), ("SCULPT", True)):
+        call("object.mode_set", mode=target)
+        yield 0.5
+        with override():
+            polls = {name: getattr(bpy.ops.sculpt_deck, name).poll() for name in actions}
+        wrong = sorted(name for name, poll in polls.items() if poll != offered)
+        check(not wrong, f"{target}: expected {'all' if offered else 'none'} of these offered, wrong for {wrong}")
 
 
 def checkpoint_failed_action():
@@ -1873,6 +1937,8 @@ SCENARIOS = [
     checkpoint_failed_action,
     checkpoint_adjust_last,
     checkpoint_edit_mode_steps,
+    edit_mode_detours,
+    edit_mode_object_actions_unavailable,
     checkpoint_history_jump,
     masks_invert,
     interface_toggle_sidebar,
@@ -1892,8 +1958,6 @@ SCENARIOS = [
 # Scenarios that fail on purpose because of a known bug, with the reason. They report XFAIL and don't fail the
 # run; once the bug is fixed they report XPASS, which does, so the entry gets removed.
 KNOWN_FAILURES = {
-    "checkpoint_edit_mode_steps": "a Scene Checkpoint in Edit Mode is an Edit step, which doesn't load the object's "
-    "properties, so its mark never comes back and undo doesn't step over it (#26)",
 }
 
 

@@ -17,7 +17,7 @@ from mathutils import Matrix, Vector
 
 from ...core.blender import active_object
 from ...core.checkpoint import store_scene_checkpoint
-from ...core.constants import CANCEL, FINISHED, object_modes
+from ...core.constants import CANCEL, FINISHED, object_data_modes
 from ...core.drag import (
     ScreenAngle,
     ViewDrag,
@@ -584,7 +584,7 @@ handlers = (
 
 def array_poll(context) -> bool:
     obj = context.active_object
-    return obj is not None and obj.type == "MESH" and context.mode in object_modes
+    return obj is not None and obj.type == "MESH" and context.mode in object_data_modes
 
 
 def apply_modifier(context, modifier):
