@@ -738,29 +738,30 @@ def voxel_size() -> float:
     return round(bpy.context.scene.objects["Cube"].data.remesh_voxel_size, 6)
 
 
-def vertex_count() -> int:
+def mesh_vertex_count() -> int:
+    """Vertices of the Cube's own mesh data (not evaluated), for the voxel remesh and mask checks"""
     return len(bpy.context.scene.objects["Cube"].data.vertices)
 
 
 def resolution_density_up():
     yield from reset()
     bpy.context.scene.objects["Cube"].data.remesh_voxel_size = 0.2
-    before_size, before_count = voxel_size(), vertex_count()
+    before_size, before_count = voxel_size(), mesh_vertex_count()
     call("sculpt_deck.density_up")
     yield 0.5
     check(voxel_size() == round(before_size * 0.8, 6), f"Voxel Density Up: expected voxel size {before_size * 0.8}, "
           f"got {voxel_size()}")
-    check(vertex_count() > before_count, f"Voxel Density Up: expected more than {before_count} vertices, "
-          f"got {vertex_count()}")
+    check(mesh_vertex_count() > before_count, f"Voxel Density Up: expected more than {before_count} vertices, "
+          f"got {mesh_vertex_count()}")
     check(mode() == "SCULPT", f"Voxel Density Up: expected Sculpt Mode, got {mode()}")
-    after_count = vertex_count()
+    after_count = mesh_vertex_count()
     yield undo()
-    check(vertex_count() == before_count, f"undo Voxel Density Up: expected {before_count} vertices, "
-          f"got {vertex_count()}")
+    check(mesh_vertex_count() == before_count, f"undo Voxel Density Up: expected {before_count} vertices, "
+          f"got {mesh_vertex_count()}")
     check(mode() == "SCULPT", f"undo Voxel Density Up: expected Sculpt Mode, got {mode()}")
     yield redo()
-    check(vertex_count() == after_count, f"redo Voxel Density Up: expected {after_count} vertices, "
-          f"got {vertex_count()}")
+    check(mesh_vertex_count() == after_count, f"redo Voxel Density Up: expected {after_count} vertices, "
+          f"got {mesh_vertex_count()}")
     check(voxel_size() == round(before_size * 0.8, 6), f"redo Voxel Density Up: expected voxel size "
           f"{before_size * 0.8}, got {voxel_size()}")
     check(mode() == "SCULPT", f"redo Voxel Density Up: expected Sculpt Mode, got {mode()}")
@@ -790,22 +791,22 @@ def resolution_density_down_undo():
     bpy.context.scene.objects["Cube"].data.remesh_voxel_size = 0.2
     call("sculpt_deck.mask_invert")
     yield 0.5
-    before_count = vertex_count()
+    before_count = mesh_vertex_count()
     call("sculpt_deck.density_down")
     yield 0.5
     check(voxel_size() == 0.25, f"Voxel Density Down: expected voxel size 0.25, got {voxel_size()}")
-    check(vertex_count() != before_count, f"Voxel Density Down: expected a remesh, still {before_count} vertices")
+    check(mesh_vertex_count() != before_count, f"Voxel Density Down: expected a remesh, still {before_count} vertices")
     check(mode() == "SCULPT", f"Voxel Density Down: expected Sculpt Mode, got {mode()}")
-    after_count = vertex_count()
+    after_count = mesh_vertex_count()
     yield undo()
     check(voxel_size() == 0.2, f"undo Voxel Density Down: expected voxel size 0.2, got {voxel_size()}")
-    check(vertex_count() == before_count, f"undo Voxel Density Down: expected {before_count} vertices, "
-          f"got {vertex_count()}")
+    check(mesh_vertex_count() == before_count, f"undo Voxel Density Down: expected {before_count} vertices, "
+          f"got {mesh_vertex_count()}")
     check(mode() == "SCULPT", f"undo Voxel Density Down: expected Sculpt Mode, got {mode()}")
     yield redo()
     check(voxel_size() == 0.25, f"redo Voxel Density Down: expected voxel size 0.25, got {voxel_size()}")
-    check(vertex_count() == after_count, f"redo Voxel Density Down: expected {after_count} vertices, "
-          f"got {vertex_count()}")
+    check(mesh_vertex_count() == after_count, f"redo Voxel Density Down: expected {after_count} vertices, "
+          f"got {mesh_vertex_count()}")
     check(mode() == "SCULPT", f"redo Voxel Density Down: expected Sculpt Mode, got {mode()}")
     yield undo()
     yield undo()
@@ -981,7 +982,7 @@ def resolution_density_undo_keeps_stroke():
 def mask_values() -> list[float]:
     attribute = bpy.context.scene.objects["Cube"].data.attributes.get(".sculpt_mask")
     if attribute is None:
-        return [0.0] * vertex_count()
+        return [0.0] * mesh_vertex_count()
     return [round(item.value, 4) for item in attribute.data]
 
 
