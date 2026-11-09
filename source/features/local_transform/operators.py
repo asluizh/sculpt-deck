@@ -9,7 +9,7 @@ from bpy_extras import view3d_utils
 from mathutils import Matrix, Vector
 
 from ...core.checkpoint import store_scene_checkpoint
-from ...core.constants import CANCEL, FINISHED, object_modes
+from ...core.constants import CANCEL, FINISHED, object_data_modes
 from ...core.drag import ViewDrag, axis_on_screen, distance_along, set_world_matrix, view_plane_offset
 from ...core.hop import hop
 from ...core.step_over import cancel_step_over
@@ -221,7 +221,7 @@ class SCULPT_DECK_OT_local_transform(ViewDrag, Operator):
 
     @classmethod
     def poll(cls, context):
-        return context.active_object is not None
+        return context.active_object is not None and context.mode in object_data_modes
 
     @classmethod
     def description(cls, context, properties):
@@ -507,7 +507,7 @@ class SCULPT_DECK_OT_apply_object_scale(Operator):
     @classmethod
     def poll(cls, context):
         obj = context.active_object
-        return obj is not None and obj.type == "MESH" and context.mode in object_modes
+        return obj is not None and obj.type == "MESH" and context.mode in object_data_modes
 
     def execute(self, context):
         cancel_step_over()
