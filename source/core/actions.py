@@ -67,6 +67,8 @@ def again(earlier: Action, *modes: str) -> Action:
     return replace(earlier, modes=modes)
 
 
+# Blender's own Join drops the other meshes' modifiers, so Object Mode gets ours too
+_join = action("sculpt_deck.join_selected", "Join Selected", "OBJECT_DATA", OBJECT)
 _cycle_gizmo = action("sculpt_deck.cycle_control_gizmo", "Cycle Object Gizmo", "ORIENTATION_LOCAL", OBJECT, EDIT)
 
 # In catalog order. A mode's Actions come in this order, so an Action shared by several modes sits where all of
@@ -79,7 +81,7 @@ CATALOG: list[Action] = [
     action("object.delete", "Delete", "X", OBJECT),
     action("object.duplicate_move", "Duplicate", "DUPLICATE", OBJECT),
     action("object.duplicate_move_linked", "Duplicate Linked", "LINKED", OBJECT),
-    action("object.join", "Join", "OBJECT_DATA", OBJECT),
+    _join,
     action("VIEW3D_MT_edit_mesh_select_mode", "Select Mode", "VERTEXSEL", EDIT),
     action("VIEW3D_AST_brush_sculpt", "Brushes", "BRUSHES_ALL", SCULPT),
     action("VIEW3D_AST_brush_vertex_paint", "Brushes", "BRUSHES_ALL", VERTEX),
@@ -94,7 +96,7 @@ CATALOG: list[Action] = [
     action("sculpt_deck.brush_resize", "Brush Size", "ANTIALIASED", *BRUSH_MODES),
     action("sculpt_deck.brush_strength", "Brush Strength", "SMOOTHCURVE", *BRUSH_MODES),
     action("sculpt_deck.stroke_method", "Stroke Method", "STROKE", *MESH_PAINT),
-    action("sculpt_deck.join_selected", "Join Selected", "OBJECT_DATA", SCULPT),
+    again(_join, SCULPT),
     action("sculpt_deck.fuse_selected", "Fuse (Union)", "SELECT_EXTEND", OBJECT, SCULPT, resolution_change=True),
     action("sculpt_deck.fuse_difference", "Fuse (Difference)", "SELECT_DIFFERENCE", OBJECT, SCULPT,
            resolution_change=True),

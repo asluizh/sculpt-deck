@@ -3,7 +3,8 @@ from bpy.types import Operator
 from mathutils import Matrix
 
 from ...core.constants import CANCEL, FINISHED
-from ..array.operators import active_tool, apply_modifier, array_poll, get_input, leave_tool, modifier_tools, set_input
+from ..array.operators import (active_tool, apply_modifier, array_poll, get_input, leave_tool, modifier_tools,
+                               realize)
 
 ###
 # Mirror
@@ -240,7 +241,7 @@ class SCULPT_DECK_OT_mirror_apply(MirrorOperator, Operator):
         modifier = current_mirror(obj)
         if modifier is None:
             return CANCEL
-        set_input(obj, modifier, "Realize", True)
+        realize(obj, modifier)
         apply_modifier(context, modifier)
         self.leave(context, obj)
         return FINISHED

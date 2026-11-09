@@ -75,20 +75,25 @@ def redo():
     return 0.5
 
 
-def adjust_last(undo: bool = True, **props):
+def adjust_last(undo: bool = True, cancelled: bool = False, **props):
     """Adjust Last Operation: change the last operator's settings and run it again from the step before it.
 
     With `undo` it runs with an undo step, like `call` and like the Adjust Last Operation panel. Without one, Blender
     treats it as called from a script: the repeated operator stores no undo step (the history stays one step
     behind) and runs before the mode of the step undone to is back, in Object Mode, which is how a Detour that
     took its mode from the current one ended in the wrong mode (#13).
+
+    Fails unless the operator ran again, or with `cancelled`, unless it cancelled: Blender cancels without a word
+    when the operator's poll fails on the state after it, before undoing (#29).
     """
     with override():
         last = bpy.context.active_operator
         check(last is not None, "no last operation to adjust")
         for name, value in props.items():
             setattr(last.properties, name, value)
-        bpy.ops.ed.undo_redo("EXEC_DEFAULT", undo)
+        result = bpy.ops.ed.undo_redo("EXEC_DEFAULT", undo)
+    expected = {"CANCELLED"} if cancelled else {"FINISHED"}
+    check(result == expected, f"Adjust Last Operation on {last.bl_idname}: expected {expected}, got {result}")
     return 0.5
 
 
@@ -257,6 +262,225 @@ def detour_fuse_difference():
     yield redo()
     check(meshes() == ["Cube"], f"redo Fuse (Difference): expected only the Cube, got {meshes()}")
     check(mode() == "SCULPT", f"redo Fuse (Difference): expected Sculpt Mode, got {mode()}")
+
+
+def array_on(name: str):
+    """A Linear Array on the named mesh, as its tool adds it: three copies stepping along X"""
+    obj = bpy.context.scene.objects[name]
+    sys.modules[PACKAGE + ".source.features.array.operators"].add_array(obj, "LINEAR", "LOCAL", None)
+    obj.update_tag()
+
+
+def modifiers_of(name: str = "Cube") -> list[str]:
+    return [modifier.name for modifier in bpy.context.scene.objects[name].modifiers]
+
+
+def real_vertices() -> int:
+    """Vertices of the Cube's own mesh: array copies count only once applied"""
+    return len(bpy.context.scene.objects["Cube"].data.vertices)
+
+
+def max_x() -> float:
+    obj = bpy.context.scene.objects["Cube"]
+    return max((obj.matrix_world @ vertex.co).x for vertex in obj.data.vertices)
+
+
+def combine_join_applies_others_modifiers():
+    """Join keeps what each mesh shows: the other mesh's array is applied before joining (#29)"""
+    yield from reset(extra_cubes=1)
+    array_on("Cube.001")
+    bpy.context.scene.objects["Cube.001"].select_set(True)
+    call("sculpt_deck.join_selected")
+    yield 1.0
+    check(meshes() == ["Cube"], f"Join: expected only the Cube, got {meshes()}")
+    check(modifiers_of() == [], f"Join: expected no modifiers, got {modifiers_of()}")
+    check(real_vertices() == 32, f"Join: expected the copies joined as mesh (32 vertices), got {real_vertices()}")
+    check(mode() == "SCULPT", f"Join: expected to end in Sculpt Mode, got {mode()}")
+    yield undo()
+    check(meshes() == ["Cube", "Cube.001"], f"undo Join: expected both cubes, got {meshes()}")
+    check(modifiers_of("Cube.001") == ["Linear Array"], f"undo Join: expected the array back, got "
+          f"{modifiers_of('Cube.001')}")
+    check(mode() == "SCULPT", f"undo Join: expected Sculpt Mode, got {mode()}")
+    yield redo()
+    check(meshes() == ["Cube"] and real_vertices() == 32, f"redo Join: expected the Cube with 32 vertices, got "
+          f"{meshes()}, {real_vertices()}")
+
+
+def combine_join_keeps_matching_modifiers():
+    """Arrays that step the same way in the world stay as the active mesh's array, without asking (#29)"""
+    yield from reset(extra_cubes=1)
+    array_on("Cube")
+    array_on("Cube.001")
+    bpy.context.scene.objects["Cube.001"].select_set(True)
+    with override():
+        result = bpy.ops.sculpt_deck.join_selected("INVOKE_DEFAULT", True)
+    check(result == {"FINISHED"}, f"Join: expected it to run without asking, got {result}")
+    yield 1.0
+    check(meshes() == ["Cube"], f"Join: expected only the Cube, got {meshes()}")
+    check(modifiers_of() == ["Linear Array"], f"Join: expected the array kept, got {modifiers_of()}")
+    check(real_vertices() == 16, f"Join: expected both cubes as mesh, the copies as instances (16 vertices), got "
+          f"{real_vertices()}")
+    check(mode() == "SCULPT", f"Join: expected to end in Sculpt Mode, got {mode()}")
+
+
+def combine_join_differing_modifiers():
+    """The active mesh's array would act differently on the other mesh: Apply All applies it, Keep Active's
+    Modifiers keeps it, and Adjust Last Operation switches between them (#29)"""
+    yield from reset(extra_cubes=1)
+    array_on("Cube")
+    bpy.context.scene.objects["Cube.001"].select_set(True)
+    call("sculpt_deck.join_selected")
+    yield 1.0
+    check(modifiers_of() == [], f"Join (Apply All): expected no modifiers, got {modifiers_of()}")
+    check(real_vertices() == 32, f"Join (Apply All): expected 32 vertices, got {real_vertices()}")
+    yield adjust_last(modifiers="KEEP_ACTIVE")
+    yield 0.5
+    check(meshes() == ["Cube"], f"Keep Active's Modifiers: expected only the Cube, got {meshes()}")
+    check(modifiers_of() == ["Linear Array"], f"Keep Active's Modifiers: expected the array kept, got {modifiers_of()}")
+    check(real_vertices() == 16, f"Keep Active's Modifiers: expected 16 vertices, got {real_vertices()}")
+    check(mode() == "SCULPT", f"Keep Active's Modifiers: expected Sculpt Mode, got {mode()}")
+    yield undo()
+    check(meshes() == ["Cube", "Cube.001"], f"undo Join: expected both cubes, got {meshes()}")
+    check(mode() == "SCULPT", f"undo Join: expected Sculpt Mode, got {mode()}")
+
+
+def combine_join_asks():
+    """From the UI, Join asks first when the active mesh's modifiers would act differently; cancelling changes
+    nothing (#29)"""
+    yield from reset(extra_cubes=1)
+    array_on("Cube")
+    bpy.context.scene.objects["Cube.001"].select_set(True)
+    with override():
+        result = bpy.ops.sculpt_deck.join_selected("INVOKE_DEFAULT", True)
+    check(result == {"RUNNING_MODAL"}, f"Join: expected the question, got {result}")
+    yield 0.5
+    check(meshes() == ["Cube", "Cube.001"], f"Join asking: expected both cubes still, got {meshes()}")
+    simulate("ESC", "PRESS")
+    simulate("ESC", "RELEASE")
+    yield 0.5
+    check(meshes() == ["Cube", "Cube.001"], f"Join cancelled: expected both cubes, got {meshes()}")
+    check(modifiers_of() == ["Linear Array"], f"Join cancelled: expected the array, got {modifiers_of()}")
+    check(mode() == "SCULPT", f"Join cancelled: expected Sculpt Mode, got {mode()}")
+
+
+def circular_on(name: str):
+    """A Circular Array of 4 on the named mesh around the world point (6, 0, 0), turning about the world Z axis"""
+    from mathutils import Vector
+
+    operators = sys.modules[PACKAGE + ".source.features.array.operators"]
+    obj = bpy.context.scene.objects[name]
+    bpy.context.view_layer.update()
+    modifier = obj.modifiers.new("Circular Array", "NODES")
+    modifier.node_group = operators.node_group("CIRCULAR")
+    operators.set_input(obj, modifier, "Count", 4)
+    operators.set_input(obj, modifier, "Center", obj.matrix_world.inverted() @ Vector((6.0, 0.0, 0.0)))
+    axis = obj.matrix_world.to_3x3().inverted() @ Vector((0.0, 0.0, 1.0))
+    operators.set_input(obj, modifier, "Axis", axis.normalized())
+
+
+def drawn_points() -> list[tuple]:
+    """Every vertex drawn, real or instanced, in the world"""
+    points = set()
+    for instance in bpy.context.evaluated_depsgraph_get().object_instances:
+        if instance.object.type == "MESH":
+            for vertex in instance.object.data.vertices:
+                points.add(tuple(round(value, 3) for value in instance.matrix_world @ vertex.co))
+    return sorted(points)
+
+
+def invoke_join():
+    with override():
+        return bpy.ops.sculpt_deck.join_selected("INVOKE_DEFAULT", True)
+
+
+def combine_join_circular_scaled():
+    """Circular arrays turning about the same world centre and axis draw the same under any rotation and scale: Join
+    keeps the active's without asking, and every copy stays where it was (#29)"""
+    yield from reset(extra_cubes=1)
+    bpy.context.scene.objects["Cube"].scale = (1.0, 2.0, 1.0)
+    bpy.context.scene.objects["Cube.001"].scale = (0.5, 1.0, 1.5)
+    bpy.context.scene.objects["Cube.001"].rotation_euler.z = 0.7
+    circular_on("Cube")
+    circular_on("Cube.001")
+    bpy.context.scene.objects["Cube.001"].select_set(True)
+    yield 0.3
+    before = drawn_points()
+    result = invoke_join()
+    check(result == {"FINISHED"}, f"Join: expected it to run without asking, got {result}")
+    yield 1.0
+    check(modifiers_of() == ["Circular Array"], f"Join: expected the array kept, got {modifiers_of()}")
+    after = drawn_points()
+    check(after == before, f"Join: expected every copy where it was, {len(set(before) ^ set(after))} points moved")
+
+
+def combine_join_circular_sheared():
+    """Under a shear the same circular array turns the copies differently, so Join asks (#29)"""
+    yield from reset(extra_cubes=1)
+    with override():
+        bpy.ops.object.mode_set(mode="OBJECT")
+        bpy.ops.object.empty_add()
+        stretched = bpy.context.active_object
+        stretched.scale = (1.0, 3.0, 1.0)
+        bpy.ops.object.empty_add()
+        turned = bpy.context.active_object
+        turned.parent = stretched
+        turned.rotation_euler.z = 0.6
+    bpy.context.scene.objects["Cube"].parent = turned
+    yield from reset_selection_to_sculpt()
+    circular_on("Cube")
+    circular_on("Cube.001")
+    bpy.context.scene.objects["Cube.001"].select_set(True)
+    result = invoke_join()
+    check(result == {"RUNNING_MODAL"}, f"Join: expected the question, got {result}")
+    yield 0.5
+    simulate("ESC", "PRESS")
+    simulate("ESC", "RELEASE")
+    yield 0.5
+    check(meshes() == ["Cube", "Cube.001"], f"Join cancelled: expected both cubes, got {meshes()}")
+
+
+def reset_selection_to_sculpt():
+    """Back to the Cube alone selected and active, in Sculpt Mode"""
+    with override():
+        bpy.ops.object.select_all(action="DESELECT")
+    cube().select_set(True)
+    bpy.context.view_layer.objects.active = cube()
+    call("object.mode_set", mode="SCULPT")
+    yield 0.3
+
+
+def combine_join_asks_preselects_possible():
+    """Shape keys on the active mesh stop Apply All, so the question starts on Keep Active's Modifiers, and
+    confirming it joins (#29)"""
+    yield from reset(extra_cubes=1)
+    cube().shape_key_add(name="Basis")
+    array_on("Cube")
+    bpy.context.scene.objects["Cube.001"].select_set(True)
+    result = invoke_join()
+    check(result == {"RUNNING_MODAL"}, f"Join: expected the question, got {result}")
+    yield 0.5
+    simulate("RET", "PRESS")
+    simulate("RET", "RELEASE")
+    yield 1.0
+    check(meshes() == ["Cube"], f"Join confirmed: expected only the Cube, got {meshes()}")
+    check(modifiers_of() == ["Linear Array"], f"Join confirmed: expected the array kept, got {modifiers_of()}")
+
+
+def combine_fuse_applies_modifiers():
+    """Fuse applies every modifier first: the other mesh's copies are fused in, not lost (#29)"""
+    yield from reset(extra_cubes=1)
+    array_on("Cube.001")
+    bpy.context.scene.objects["Cube.001"].select_set(True)
+    call("sculpt_deck.fuse_selected", voxel_size=0.2)
+    yield 1.0
+    check(meshes() == ["Cube"], f"Fuse: expected only the Cube, got {meshes()}")
+    check(modifiers_of() == [], f"Fuse: expected no modifiers, got {modifiers_of()}")
+    # Cube.001 spans x 2..4, its copies step 2.2 along X, so the last one ends at 8.4
+    check(max_x() > 8.0, f"Fuse: expected the copies fused in (reaching x = 8.4), got {max_x():.2f}")
+    check(mode() == "SCULPT", f"Fuse: expected to end in Sculpt Mode, got {mode()}")
+    yield undo()
+    check(modifiers_of("Cube.001") == ["Linear Array"], f"undo Fuse: expected the array back, got "
+          f"{modifiers_of('Cube.001') if 'Cube.001' in meshes() else meshes()}")
 
 
 def local_transform_undo():
@@ -479,7 +703,7 @@ def hop_array_apply_dyntopo_adjust_last():
     """Adjust Last Operation undoes onto the Hop's last step and runs Apply Array again, which finds nothing left to
     apply: it stays applied, and isn't undone afterwards"""
     yield from add_and_apply_array(dyntopo=True)
-    yield adjust_last()
+    yield adjust_last(cancelled=True)
     yield from settle_hop()
     check_dyntopo_state("Adjust Last Operation on Apply Array", [], 6.4)
     yield from hop_undo()
@@ -1364,6 +1588,14 @@ SCENARIOS = [
     detour_duplicate,
     detour_fuse,
     detour_fuse_difference,
+    combine_join_applies_others_modifiers,
+    combine_join_keeps_matching_modifiers,
+    combine_join_differing_modifiers,
+    combine_join_asks,
+    combine_join_circular_scaled,
+    combine_join_circular_sheared,
+    combine_join_asks_preselects_possible,
+    combine_fuse_applies_modifiers,
     local_transform_undo,
     local_transform_adjust_last,
     local_transform_two_objects,
