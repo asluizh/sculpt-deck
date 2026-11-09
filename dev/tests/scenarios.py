@@ -9,7 +9,9 @@ Operation go through Blender's own operators. Pen buttons need tablet events, wh
 can't make, so `pen_events` makes the add-on treat simulated presses as pen presses.
 """
 
+import os
 import sys
+import tempfile
 import traceback
 
 import bpy
@@ -334,9 +336,9 @@ def count_hops(feature: str = "array") -> list[str]:
     module = sys.modules[PACKAGE + f".source.features.{feature}.operators"]
     original = sys.modules[PACKAGE + ".source.core.hop"].hop
 
-    def recording(context, target):
+    def recording(context, target, *args, **kwargs):
         hops.append(target)
-        return original(context, target)
+        return original(context, target, *args, **kwargs)
 
     module.hop = recording
     return hops
@@ -392,15 +394,109 @@ def hop_array_apply_dyntopo():
     yield from check_applied_array_kept()
 
 
+# the custom property a Hop under Dyntopo marks its undo steps with (core/hop.py), never left on the object
+HOP_STEP = "sculpt_deck_hop_step"
+
+
+def settle_hop():
+    """Wait for the extra undos or redos stepping over a Hop's steps under Dyntopo, each run from a timer"""
+    hop = sys.modules[PACKAGE + ".source.core.hop"]
+    for _ in range(20):
+        yield 0.25
+        if hop.scheduled == 0 and HOP_STEP not in cube():
+            break
+    yield 0.25
+
+
+def hop_undo():
+    yield undo()
+    yield from settle_hop()
+
+
+def hop_redo():
+    yield redo()
+    yield from settle_hop()
+
+
+def check_dyntopo_state(when: str, modifiers: list[str], width: float, dyntopo: bool | None = None):
+    """The Cube's modifiers and width (its mesh's, with Dyntopo too), in Sculpt Mode with Dyntopo as given, and no
+    Hop mark left. Dyntopo isn't checked when None: Blender 5.2 turns it off whenever undo or redo lands on a whole
+    scene step in Sculpt Mode, so it's off after redoing an apply too, as after redoing any whole scene step."""
+    state = (modifier_names(), round(cube().dimensions.x, 4), mode())
+    check(state == (modifiers, width, "SCULPT"), f"{when}: expected (modifiers, width, mode) = "
+          f"{(modifiers, width, 'SCULPT')}, got {state}")
+    if dyntopo is not None:
+        expected = "on" if dyntopo else "off"
+        check(cube().use_dynamic_topology_sculpting == dyntopo, f"{when}: expected Dyntopo {expected}")
+    check(HOP_STEP not in cube(), f"{when}: the Hop's undo mark was left on the Cube")
+
+
 def hop_array_apply_dyntopo_undo():
     yield from add_and_apply_array(dyntopo=True)
-    yield undo()
-    check(modifier_names() == ["Linear Array"], f"undo Apply Array: expected the array back, got {modifier_names()}")
-    check(mode() == "SCULPT", f"undo Apply Array: expected Sculpt Mode, got {mode()}")
-    check(cube().use_dynamic_topology_sculpting, "undo Apply Array: expected Dyntopo still on")
-    yield redo()
-    check(modifier_names() == [], f"redo Apply Array: expected no modifiers left, got {modifier_names()}")
-    check(mode() == "SCULPT", f"redo Apply Array: expected Sculpt Mode, got {mode()}")
+    check_dyntopo_state("Apply Array", [], 6.4, dyntopo=True)
+    yield from hop_undo()
+    check_dyntopo_state("undo Apply Array", ["Linear Array"], 2.0, dyntopo=True)
+    yield from hop_redo()
+    check_dyntopo_state("redo Apply Array", [], 6.4)
+    yield from check_applied_array_kept()
+
+
+def hop_array_apply_dyntopo_twice():
+    """Two arrays added and applied in a row: each undo and redo goes one action back or forward"""
+    yield from add_and_apply_array(dyntopo=True)
+    yield from start_tool("sculpt_deck.linear_array", "Linear Array")
+    call("sculpt_deck.array_apply", kind="LINEAR")
+    yield 0.5
+    check_dyntopo_state("second Apply Array", [], 20.48, dyntopo=True)
+    steps = [
+        # the second apply, the second Add Linear Array, the first apply
+        (["Linear Array"], 6.4, True),
+        ([], 6.4, None),
+        (["Linear Array"], 2.0, True),
+    ]
+    for index, (modifiers, width, dyntopo) in enumerate(steps):
+        yield from hop_undo()
+        check_dyntopo_state(f"undo {index + 1}", modifiers, width, dyntopo)
+    for index, (modifiers, width) in enumerate([([], 6.4), (["Linear Array"], 6.4), ([], 20.48)]):
+        yield from hop_redo()
+        check_dyntopo_state(f"redo {index + 1}", modifiers, width)
+
+
+def hop_array_apply_dyntopo_history():
+    """Jumping in the Undo History list onto one of the Hop's steps steps over them too"""
+    yield from add_and_apply_array(dyntopo=True)
+    # the indexes follow the Hop's steps (the runner prints the history on failure): 3 Add Linear Array, 4-6 the
+    # Dyntopo toggle before the Hop, 7-8 leaving Sculpt Mode, 9-10 back in it, 11 Apply Array
+    for item, modifiers, width, dyntopo in ((8, ["Linear Array"], 2.0, True), (10, [], 6.4, None),
+                                            (9, ["Linear Array"], 2.0, True)):
+        with override():
+            bpy.ops.ed.undo_history(item=item)
+        yield from settle_hop()
+        check_dyntopo_state(f"jump to undo step {item}", modifiers, width, dyntopo)
+
+
+def hop_array_apply_dyntopo_adjust_last():
+    """Adjust Last Operation undoes onto the Hop's last step and runs Apply Array again, which finds nothing left to
+    apply: it stays applied, and isn't undone afterwards"""
+    yield from add_and_apply_array(dyntopo=True)
+    yield adjust_last()
+    yield from settle_hop()
+    check_dyntopo_state("Adjust Last Operation on Apply Array", [], 6.4)
+    yield from hop_undo()
+    check_dyntopo_state("undo after Adjust Last Operation", ["Linear Array"], 2.0, dyntopo=True)
+
+
+def hop_mark_cleared_on_load():
+    """A file saved while on one of the Hop's steps would keep its mark: opening it drops the mark"""
+    yield from reset()
+    cube()[HOP_STEP] = "INSIDE"
+    path = os.path.join(tempfile.gettempdir(), "sculpt_deck_hop_mark.blend")
+    with override():
+        bpy.ops.wm.save_as_mainfile(filepath=path, copy=True)
+        bpy.ops.wm.open_mainfile(filepath=path)
+    yield 0.5
+    check(HOP_STEP not in cube(), "opening a file: the Hop's undo mark was kept")
+    os.remove(path)
 
 
 def hop_modes():
@@ -506,10 +602,37 @@ def hop_apply_scale_dyntopo_undo():
     yield from stretched_cube(dyntopo=True)
     hops = count_hops("local_transform")
     yield from apply_scale(hops, ["OBJECT"])
-    yield undo()
+    yield from hop_undo()
     state = (round(cube().scale.x, 4), round(cube().dimensions.x, 4), mode(), cube().use_dynamic_topology_sculpting)
     check(state == (2.0, 4.0, "SCULPT", True), "undo Apply Scale: expected (scale x, width, mode, Dyntopo) = "
           f"(2, 4, SCULPT, on), got {state}")
+    yield from hop_redo()
+    state = (round(cube().scale.x, 4), round(cube().dimensions.x, 4), mode())
+    check(state == (1.0, 4.0, "SCULPT"), "redo Apply Scale: expected (scale x, width, mode) = (1, 4, SCULPT), got "
+          f"{state}")
+    check(HOP_STEP not in cube(), "redo Apply Scale: the Hop's undo mark was left on the Cube")
+    call("object.mode_set", undo=False, mode="OBJECT")
+    yield 0.3
+    check(mesh_width() == 4.0, f"leaving Sculpt Mode after redo Apply Scale: expected the mesh 4 wide, got "
+          f"{mesh_width()}")
+
+
+def hop_apply_scale_dyntopo_adjust_last():
+    """Adjust Last Operation undoes onto the Hop's last step and runs Apply Scale again, which finds nothing left to
+    scale and finishes: the extra undos waiting mustn't undo that run, nor its step keep the Hop's mark"""
+    yield from stretched_cube(dyntopo=True)
+    hops = count_hops("local_transform")
+    yield from apply_scale(hops, ["OBJECT"])
+    yield adjust_last()
+    yield from settle_hop()
+    state = (round(cube().scale.x, 4), round(cube().dimensions.x, 4), mode())
+    check(state == (1.0, 4.0, "SCULPT"), "Adjust Last Operation on Apply Scale: expected (scale x, width, mode) = "
+          f"(1, 4, SCULPT), got {state}")
+    check(HOP_STEP not in cube(), "Adjust Last Operation on Apply Scale: the Hop's undo mark was left on the Cube")
+    yield from hop_undo()
+    state = (round(cube().scale.x, 4), round(cube().dimensions.x, 4), mode(), cube().use_dynamic_topology_sculpting)
+    check(state == (2.0, 4.0, "SCULPT", True), "undo after Adjust Last Operation: expected (scale x, width, mode, "
+          f"Dyntopo) = (2, 4, SCULPT, on), got {state}")
 
 
 def mirror_apply():
@@ -526,6 +649,26 @@ def mirror_apply():
     check(modifier_names() == ["Mirror"], f"undo Apply Mirror: expected the mirror back, got {modifier_names()}")
     check(vertex_count() == 8, f"undo Apply Mirror: expected 8 vertices, got {vertex_count()}")
     check(mode() == "SCULPT", f"undo Apply Mirror: expected Sculpt Mode, got {mode()}")
+
+
+def hop_mirror_apply_dyntopo_undo():
+    yield from reset()
+    cube().location.x = 2.0
+    call("sculpt.dynamic_topology_toggle")
+    yield 0.3
+    yield from start_tool("sculpt_deck.mirror", "Mirror")
+    call("sculpt_deck.mirror_apply")
+    yield 0.5
+    # both halves, 2 apart: from -3 to 3 in the Cube's own space
+    check_dyntopo_state("Apply Mirror", [], 6.0, dyntopo=True)
+    yield from hop_undo()
+    check_dyntopo_state("undo Apply Mirror", ["Mirror"], 2.0, dyntopo=True)
+    yield from hop_redo()
+    check_dyntopo_state("redo Apply Mirror", [], 6.0)
+    call("object.mode_set", undo=False, mode="OBJECT")
+    yield 0.3
+    count = len(cube().data.vertices)
+    check(count == 16, f"leaving Sculpt Mode after Apply Mirror: expected both halves kept (16 vertices), got {count}")
 
 
 def pen_events(pen: bool = True):
@@ -1227,11 +1370,17 @@ SCENARIOS = [
     array_apply,
     hop_array_apply_dyntopo,
     hop_array_apply_dyntopo_undo,
+    hop_array_apply_dyntopo_twice,
+    hop_array_apply_dyntopo_history,
+    hop_array_apply_dyntopo_adjust_last,
+    hop_mark_cleared_on_load,
     apply_scale_undo,
     hop_apply_scale_multires,
     hop_apply_scale_dyntopo,
     hop_apply_scale_dyntopo_undo,
+    hop_apply_scale_dyntopo_adjust_last,
     mirror_apply,
+    hop_mirror_apply_dyntopo_undo,
     pen_hold_momentary_brush,
     resolution_density_up,
     resolution_density_up_undo_voxel_size,
@@ -1258,11 +1407,6 @@ SCENARIOS = [
 # Scenarios that fail on purpose because of a known bug, with the reason. They report XFAIL and don't fail the
 # run; once the bug is fixed they report XPASS, which does, so the entry gets removed.
 KNOWN_FAILURES = {
-    "hop_array_apply_dyntopo_undo": "#17: leaving and entering Sculpt Mode with Dyntopo on pushes Blender's own "
-    "Dynamic topology disable and enable steps, so the Hop shows in the undo history: one undo leaves the array "
-    "applied, the next brings it back with Dyntopo off",
-    "hop_apply_scale_dyntopo_undo": "#17: the same with Apply Scale's Hop: one undo lands on Blender's "
-    "Dynamic topology disable step, with the scale back but Dyntopo off and the Cube 2 wide instead of 4",
 }
 
 
