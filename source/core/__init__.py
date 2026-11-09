@@ -3,7 +3,7 @@ modal drag the tool gizmos share, settings and preferences. See GLOSSARY.md for 
 
 from types import ModuleType
 
-from . import detour, history, hop, settings, ui
+from . import detour, history, settings, step_over, ui
 
 # modules with register()/unregister(), registered in this order and unregistered in reverse
 PARTS: list[ModuleType] = [
@@ -11,7 +11,7 @@ PARTS: list[ModuleType] = [
     # the main sidebar panel, before the parts' sub-panels
     ui,
     detour,
-    hop,
+    step_over,
     history,
 ]
 

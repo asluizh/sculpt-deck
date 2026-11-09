@@ -7,6 +7,7 @@ from bpy.props import BoolProperty, StringProperty
 
 from .checkpoint import store_scene_checkpoint
 from .constants import CANCEL, FINISHED, object_modes
+from .step_over import cancel_step_over
 
 # custom property marking the mode an object returns to: saved in the undo step, cleared once back in that mode
 RETURN_MODE = "sculpt_deck_return_mode"
@@ -92,6 +93,8 @@ class Detour:
                 raise TypeError(f"{cls.__name__} is a Detour: supply object_mode_work, not execute")
 
     def execute(self, context):
+        # Adjust Last Operation runs it again right after undoing onto its checkpoint
+        cancel_step_over()
         problem = self.blocker(context)
         if problem:
             self.report({"ERROR"}, problem)

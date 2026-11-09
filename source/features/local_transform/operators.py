@@ -11,7 +11,8 @@ from mathutils import Matrix, Vector
 from ...core.checkpoint import store_scene_checkpoint
 from ...core.constants import CANCEL, FINISHED, object_modes
 from ...core.drag import ViewDrag, axis_on_screen, distance_along, set_world_matrix, view_plane_offset
-from ...core.hop import cancel_step_over, hop
+from ...core.hop import hop
+from ...core.step_over import cancel_step_over
 from ..array.operators import array_snapshot, keep_arrays, restore_arrays, scale_arrays
 
 ###
@@ -293,6 +294,8 @@ class SCULPT_DECK_OT_local_transform(ViewDrag, Operator):
             self.orientation = settings(context).orientation
 
     def execute(self, context):
+        # Adjust Last Operation runs it again right after undoing onto its checkpoint
+        cancel_step_over()
         self.use_settings(context)
         if not self.use_pivot:
             self.pivot = pivot_point(context, transform_objects(context))

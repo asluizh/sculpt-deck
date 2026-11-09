@@ -618,28 +618,29 @@ def hop_array_apply_dyntopo():
     yield from check_applied_array_kept()
 
 
-# the custom property a Hop under Dyntopo marks its undo steps with (core/hop.py), never left on the object
-HOP_STEP = "sculpt_deck_hop_step"
+# the custom property marking the undo steps undo and redo step over (core/step_over.py): Scene Checkpoints and a
+# Hop's steps under Dyntopo, never left on the object
+STEP_OVER = "sculpt_deck_step_over"
 
 
-def settle_hop():
-    """Wait for the extra undos or redos stepping over a Hop's steps under Dyntopo, each run from a timer"""
-    hop = sys.modules[PACKAGE + ".source.core.hop"]
+def settle():
+    """Wait for the extra undos or redos stepping over marked steps, each run from a timer"""
+    step_over = sys.modules[PACKAGE + ".source.core.step_over"]
     for _ in range(20):
         yield 0.25
-        if hop.scheduled == 0 and HOP_STEP not in cube():
+        if step_over.scheduled == 0 and STEP_OVER not in cube():
             break
     yield 0.25
 
 
-def hop_undo():
+def settled_undo():
     yield undo()
-    yield from settle_hop()
+    yield from settle()
 
 
-def hop_redo():
+def settled_redo():
     yield redo()
-    yield from settle_hop()
+    yield from settle()
 
 
 def check_dyntopo_state(when: str, modifiers: list[str], width: float, dyntopo: bool | None = None):
@@ -652,15 +653,15 @@ def check_dyntopo_state(when: str, modifiers: list[str], width: float, dyntopo: 
     if dyntopo is not None:
         expected = "on" if dyntopo else "off"
         check(cube().use_dynamic_topology_sculpting == dyntopo, f"{when}: expected Dyntopo {expected}")
-    check(HOP_STEP not in cube(), f"{when}: the Hop's undo mark was left on the Cube")
+    check(STEP_OVER not in cube(), f"{when}: the Hop's undo mark was left on the Cube")
 
 
 def hop_array_apply_dyntopo_undo():
     yield from add_and_apply_array(dyntopo=True)
     check_dyntopo_state("Apply Array", [], 6.4, dyntopo=True)
-    yield from hop_undo()
+    yield from settled_undo()
     check_dyntopo_state("undo Apply Array", ["Linear Array"], 2.0, dyntopo=True)
-    yield from hop_redo()
+    yield from settled_redo()
     check_dyntopo_state("redo Apply Array", [], 6.4)
     yield from check_applied_array_kept()
 
@@ -679,10 +680,10 @@ def hop_array_apply_dyntopo_twice():
         (["Linear Array"], 2.0, True),
     ]
     for index, (modifiers, width, dyntopo) in enumerate(steps):
-        yield from hop_undo()
+        yield from settled_undo()
         check_dyntopo_state(f"undo {index + 1}", modifiers, width, dyntopo)
     for index, (modifiers, width) in enumerate([([], 6.4), (["Linear Array"], 6.4), ([], 20.48)]):
-        yield from hop_redo()
+        yield from settled_redo()
         check_dyntopo_state(f"redo {index + 1}", modifiers, width)
 
 
@@ -696,7 +697,7 @@ def hop_array_apply_dyntopo_history():
                                             (16, ["Linear Array"], 2.0, True)):
         with override():
             bpy.ops.ed.undo_history(item=item)
-        yield from settle_hop()
+        yield from settle()
         check_dyntopo_state(f"jump to undo step {item}", modifiers, width, dyntopo)
 
 
@@ -705,22 +706,22 @@ def hop_array_apply_dyntopo_adjust_last():
     apply: it stays applied, and isn't undone afterwards"""
     yield from add_and_apply_array(dyntopo=True)
     yield adjust_last(cancelled=True)
-    yield from settle_hop()
+    yield from settle()
     check_dyntopo_state("Adjust Last Operation on Apply Array", [], 6.4)
-    yield from hop_undo()
+    yield from settled_undo()
     check_dyntopo_state("undo after Adjust Last Operation", ["Linear Array"], 2.0, dyntopo=True)
 
 
 def hop_mark_cleared_on_load():
     """A file saved while on one of the Hop's steps would keep its mark: opening it drops the mark"""
     yield from reset()
-    cube()[HOP_STEP] = "INSIDE"
+    cube()[STEP_OVER] = "INSIDE"
     path = os.path.join(tempfile.gettempdir(), "sculpt_deck_hop_mark.blend")
     with override():
         bpy.ops.wm.save_as_mainfile(filepath=path, copy=True)
         bpy.ops.wm.open_mainfile(filepath=path)
     yield 0.5
-    check(HOP_STEP not in cube(), "opening a file: the Hop's undo mark was kept")
+    check(STEP_OVER not in cube(), "opening a file: the Hop's undo mark was kept")
     os.remove(path)
 
 
@@ -827,15 +828,15 @@ def hop_apply_scale_dyntopo_undo():
     yield from stretched_cube(dyntopo=True)
     hops = count_hops("local_transform")
     yield from apply_scale(hops, ["OBJECT"])
-    yield from hop_undo()
+    yield from settled_undo()
     state = (round(cube().scale.x, 4), round(cube().dimensions.x, 4), mode(), cube().use_dynamic_topology_sculpting)
     check(state == (2.0, 4.0, "SCULPT", True), "undo Apply Scale: expected (scale x, width, mode, Dyntopo) = "
           f"(2, 4, SCULPT, on), got {state}")
-    yield from hop_redo()
+    yield from settled_redo()
     state = (round(cube().scale.x, 4), round(cube().dimensions.x, 4), mode())
     check(state == (1.0, 4.0, "SCULPT"), "redo Apply Scale: expected (scale x, width, mode) = (1, 4, SCULPT), got "
           f"{state}")
-    check(HOP_STEP not in cube(), "redo Apply Scale: the Hop's undo mark was left on the Cube")
+    check(STEP_OVER not in cube(), "redo Apply Scale: the Hop's undo mark was left on the Cube")
     call("object.mode_set", undo=False, mode="OBJECT")
     yield 0.3
     check(mesh_width() == 4.0, f"leaving Sculpt Mode after redo Apply Scale: expected the mesh 4 wide, got "
@@ -849,12 +850,12 @@ def hop_apply_scale_dyntopo_adjust_last():
     hops = count_hops("local_transform")
     yield from apply_scale(hops, ["OBJECT"])
     yield adjust_last()
-    yield from settle_hop()
+    yield from settle()
     state = (round(cube().scale.x, 4), round(cube().dimensions.x, 4), mode())
     check(state == (1.0, 4.0, "SCULPT"), "Adjust Last Operation on Apply Scale: expected (scale x, width, mode) = "
           f"(1, 4, SCULPT), got {state}")
-    check(HOP_STEP not in cube(), "Adjust Last Operation on Apply Scale: the Hop's undo mark was left on the Cube")
-    yield from hop_undo()
+    check(STEP_OVER not in cube(), "Adjust Last Operation on Apply Scale: the Hop's undo mark was left on the Cube")
+    yield from settled_undo()
     state = (round(cube().scale.x, 4), round(cube().dimensions.x, 4), mode(), cube().use_dynamic_topology_sculpting)
     check(state == (2.0, 4.0, "SCULPT", True), "undo after Adjust Last Operation: expected (scale x, width, mode, "
           f"Dyntopo) = (2, 4, SCULPT, on), got {state}")
@@ -886,9 +887,9 @@ def hop_mirror_apply_dyntopo_undo():
     yield 0.5
     # both halves, 2 apart: from -3 to 3 in the Cube's own space
     check_dyntopo_state("Apply Mirror", [], 6.0, dyntopo=True)
-    yield from hop_undo()
+    yield from settled_undo()
     check_dyntopo_state("undo Apply Mirror", ["Mirror"], 2.0, dyntopo=True)
-    yield from hop_redo()
+    yield from settled_redo()
     check_dyntopo_state("redo Apply Mirror", [], 6.0)
     call("object.mode_set", undo=False, mode="OBJECT")
     yield 0.3
@@ -915,16 +916,16 @@ def tool_add_undo_redo(idname: str, modifier: str, previous: str | None = "built
     start = location_x()
     yield from start_tool(idname, modifier)
     added = location_x()
-    yield from hop_undo()
+    yield from settled_undo()
     expected = ([], start, "SCULPT", previous or "builtin.brush")
     state = (modifier_names(), location_x(), mode(), tool())
     check(state == expected, f"undo {idname}: expected (modifiers, x, mode, tool) = {expected}, got {state}")
     if dyntopo:
         check(cube().use_dynamic_topology_sculpting, f"undo {idname}: expected Dyntopo on")
-        check(HOP_STEP not in cube(), f"undo {idname}: the Hop's undo mark was left on the Cube")
+        check(STEP_OVER not in cube(), f"undo {idname}: the Hop's undo mark was left on the Cube")
     if not previous:
         check(brush() == "Draw", f"undo {idname}: expected the Draw brush, got {brush()}")
-    yield from hop_redo()
+    yield from settled_redo()
     expected = ([modifier], added, "SCULPT", idname)
     state = (modifier_names(), location_x(), mode(), tool())
     check(state == expected, f"redo {idname}: expected (modifiers, x, mode, tool) = {expected}, got {state}")
@@ -951,9 +952,9 @@ def hop_tool_add_undo_dyntopo():
 
 
 def tool_add_two_undo_redo():
-    """Two tools added in a row, both undone: each redo brings back one modifier with its tool. The second add's
-    "Before Add Circular Array" step holds the same state as the first add's own step, so one undo and one redo in
-    between change nothing (#26)."""
+    """Two tools added in a row, both undone: each undo takes back one modifier, each redo brings back one with its
+    tool. Each add's "Before Add …" step holds the same state as the step before it, which undo and redo step over
+    (#26)."""
     yield from reset()
     yield from start_tool("sculpt_deck.linear_array", "Linear Array")
     call("wm.tool_set_by_id", name="sculpt_deck.circular_array", space_type="VIEW_3D")
@@ -962,14 +963,12 @@ def tool_add_two_undo_redo():
         if "Circular Array" in modifier_names():
             break
     for when, step, modifiers, expected_tool in (
-        ("undo 1", undo, ["Linear Array"], "builtin.brush"),
-        ("undo 2", undo, ["Linear Array"], "builtin.brush"),
-        ("undo 3", undo, [], "builtin.brush"),
-        ("redo 1", redo, ["Linear Array"], "sculpt_deck.linear_array"),
-        ("redo 2", redo, ["Linear Array"], "sculpt_deck.linear_array"),
-        ("redo 3", redo, ["Linear Array", "Circular Array"], "sculpt_deck.circular_array"),
+        ("undo 1", settled_undo, ["Linear Array"], "builtin.brush"),
+        ("undo 2", settled_undo, [], "builtin.brush"),
+        ("redo 1", settled_redo, ["Linear Array"], "sculpt_deck.linear_array"),
+        ("redo 2", settled_redo, ["Linear Array", "Circular Array"], "sculpt_deck.circular_array"),
     ):
-        yield step()
+        yield from step()
         state = (modifier_names(), tool())
         check(state == (modifiers, expected_tool), f"{when}: expected (modifiers, tool) = "
               f"{(modifiers, expected_tool)}, got {state}")
@@ -978,9 +977,9 @@ def tool_add_two_undo_redo():
 def hop_array_apply_dyntopo_undo_add():
     """Two undos after Apply Array under Dyntopo take back the apply, then the add, with Dyntopo still on"""
     yield from add_and_apply_array(dyntopo=True)
-    yield from hop_undo()
+    yield from settled_undo()
     check_dyntopo_state("undo Apply Array", ["Linear Array"], 2.0, dyntopo=True)
-    yield from hop_undo()
+    yield from settled_undo()
     check_dyntopo_state("undo Add Linear Array", [], 2.0, dyntopo=True)
 
 
@@ -1098,8 +1097,8 @@ def mask_full() -> bool:
 
 
 def resolution_density_down_undo():
-    """Undo and redo bring back both the geometry and the voxel size, and the press leaves one extra step: after
-    a mask, the first undo undoes the press, the second its Scene Checkpoint, and the third the mask"""
+    """Undo and redo bring back both the geometry and the voxel size. The press leaves one extra step, its Scene
+    Checkpoint, which undo steps over: after a mask, the first undo undoes the press, and the second the mask"""
     yield from reset()
     bpy.context.scene.objects["Cube"].data.remesh_voxel_size = 0.2
     call("sculpt_deck.mask_invert")
@@ -1121,12 +1120,11 @@ def resolution_density_down_undo():
     check(mesh_vertex_count() == after_count, f"redo Voxel Density Down: expected {after_count} vertices, "
           f"got {mesh_vertex_count()}")
     check(mode() == "SCULPT", f"redo Voxel Density Down: expected Sculpt Mode, got {mode()}")
-    yield undo()
-    yield undo()
-    check(mask_full() and voxel_size() == 0.2, f"second undo after Voxel Density Down: expected the mask and "
-          f"voxel size 0.2 kept, got mask {mask_values()[:4]}..., size {voxel_size()}")
-    yield undo()
-    check(not mask_full(), "third undo after Voxel Density Down: expected the mask undone")
+    yield from settled_undo()
+    check(mask_full() and voxel_size() == 0.2, f"undo Voxel Density Down: expected the mask and voxel size 0.2 "
+          f"kept, got mask {mask_values()[:4]}..., size {voxel_size()}")
+    yield from settled_undo()
+    check(not mask_full(), "second undo after Voxel Density Down: expected the mask undone")
 
 
 def multires_cube():
@@ -1290,6 +1288,154 @@ def resolution_density_undo_keeps_stroke():
 
     yield from stroke_survives("Voxel Density Up", remeshed_cube, run, lambda: voxel_size() == 0.1,
                                lambda: voxel_size() == 0.08)
+
+
+def each_step(label: str, state, states: list):
+    """With `states` the state after each action, oldest first, and the last one now: each undo goes back one
+    action and each redo forward one, none landing on a Scene Checkpoint, which looks the same as the step before
+    it (#26)"""
+    check(state() == states[-1], f"{label}: expected {states[-1]}, got {state()}")
+    for index in range(len(states) - 2, -1, -1):
+        yield from settled_undo()
+        check(state() == states[index], f"{label}, undo {len(states) - 1 - index}: expected {states[index]}, "
+              f"got {state()}")
+    for index in range(1, len(states)):
+        yield from settled_redo()
+        check(state() == states[index], f"{label}, redo {index}: expected {states[index]}, got {state()}")
+
+
+def checkpoint_local_transform_steps():
+    yield from reset()
+    for _ in range(2):
+        call("sculpt_deck.local_transform", mode="MOVE", axis="X", distance=1.0)
+        yield 0.5
+    yield from each_step("two moves", lambda: (location_x(), mode()),
+                         [(0.0, "SCULPT"), (1.0, "SCULPT"), (2.0, "SCULPT")])
+
+
+def checkpoint_add_mesh_steps():
+    yield from reset()
+    for _ in range(2):
+        call("sculpt_deck.add_primitive", primitive="CUBE")
+        yield 1.0
+    yield from each_step("two Add Mesh", lambda: (len(meshes()), mode()),
+                         [(1, "SCULPT"), (2, "SCULPT"), (3, "SCULPT")])
+
+
+def checkpoint_multires_steps():
+    yield from multires_cube()
+    for _ in range(2):
+        call("sculpt_deck.decrement_multires")
+        yield 0.5
+    yield from each_step("two Multires Level Down", lambda: (multires_levels(), mode()),
+                         [((2, 2), "SCULPT"), ((1, 2), "SCULPT"), ((0, 2), "SCULPT")])
+
+
+def checkpoint_density_steps():
+    yield from remeshed_cube()
+    for _ in range(2):
+        call("sculpt_deck.density_up")
+        yield 0.5
+    yield from each_step("two Voxel Density Up", lambda: (voxel_size(), mode()),
+                         [(0.1, "SCULPT"), (0.08, "SCULPT"), (0.064, "SCULPT")])
+
+
+def checkpoint_apply_scale_steps():
+    yield from stretched_cube()
+    call("sculpt_deck.local_transform", mode="MOVE", axis="X", distance=1.0)
+    yield 0.5
+    call("sculpt_deck.apply_object_scale")
+    yield 0.5
+    yield from each_step("move, Apply Scale", lambda: (location_x(), round(cube().scale.x, 4), mode()),
+                         [(0.0, 2.0, "SCULPT"), (1.0, 2.0, "SCULPT"), (1.0, 1.0, "SCULPT")])
+
+
+def checkpoint_undo_reaches_stroke():
+    """The issue's case: after a stroke and an action storing a Scene Checkpoint, the first undo takes back the
+    action and keeps the stroke, the second takes back the stroke"""
+    yield from remeshed_cube()
+    before = shape()
+    yield from stroke()
+    stroked = shape()
+    check(not same_shape(stroked, before), "stroke: expected the Draw brush to change the Cube's shape")
+    yield from remeshed_cube()
+    yield from stroke()
+    call("sculpt_deck.local_transform", mode="MOVE", axis="X", distance=1.0)
+    yield 0.5
+    yield from settled_undo()
+    check(location_x() == 0.0, f"undo move: expected x = 0, got {location_x()}")
+    yield from settled_undo()
+    check(same_shape(shape(), before), "second undo: expected the stroke undone, the shape differs")
+    check(mode() == "SCULPT", f"second undo: expected Sculpt Mode, got {mode()}")
+
+
+def checkpoint_edit_mode_steps():
+    """Detours in Edit Mode: each undo takes back one Add Mesh"""
+    yield from reset()
+    call("object.mode_set", mode="EDIT")
+    yield 0.3
+    for _ in range(2):
+        call("sculpt_deck.add_primitive", primitive="CUBE")
+        yield 1.0
+    yield from each_step("two Add Mesh in Edit Mode", lambda: (len(meshes()), mode()),
+                         [(1, "EDIT_MESH"), (2, "EDIT_MESH"), (3, "EDIT_MESH")])
+
+
+def checkpoint_failed_action():
+    """An action that fails after storing its Scene Checkpoint (Multires Level Down at level 0, with nothing to
+    rebuild) leaves the checkpoint as its one step. The Sculpt steps after it mustn't bring its mark back (undoing
+    to a Sculpt step keeps the mark of the last whole scene step loaded): undoing a move after a mask takes back
+    only the move"""
+    with override():
+        bpy.ops.wm.read_homefile("EXEC_DEFAULT")
+    yield 0.5
+    call("object.modifier_add", type="MULTIRES")
+    call("object.mode_set", mode="SCULPT")
+    yield 0.3
+    with override():
+        result = bpy.ops.sculpt_deck.decrement_multires("EXEC_DEFAULT", True)
+    yield 0.5
+    check(result == {"CANCELLED"}, f"Multires Level Down at level 0: expected CANCELLED, got {result}")
+    call("sculpt_deck.mask_invert")
+    yield 0.5
+    check(mask_full(), "Invert Mask: expected the mask full")
+    call("sculpt_deck.local_transform", mode="MOVE", axis="X", distance=1.0)
+    yield 0.5
+    yield from settled_undo()
+    check((location_x(), mask_full()) == (0.0, True), f"undo move: expected x = 0 and the mask kept, got x = "
+          f"{location_x()}, mask {mask_values()[:4]}...")
+    yield from settled_undo()
+    check(not mask_full(), "second undo: expected the mask undone")
+
+
+def checkpoint_adjust_last():
+    """Adjust Last Operation undoes onto the move's checkpoint and moves again: the undo that would step over the
+    checkpoint mustn't run, and each undo afterwards still takes back one move"""
+    yield from reset()
+    for _ in range(2):
+        call("sculpt_deck.local_transform", mode="MOVE", axis="X", distance=1.0)
+        yield 0.5
+    yield adjust_last(distance=0.5)
+    yield from settle()
+    yield from each_step("two moves, the last adjusted", lambda: (location_x(), mode()),
+                         [(0.0, "SCULPT"), (1.0, "SCULPT"), (1.5, "SCULPT")])
+
+
+def checkpoint_history_jump():
+    """Jumping in the Undo History list onto a Scene Checkpoint steps over it too: back onto it lands on the step
+    before, forward onto it on the action"""
+    yield from reset()
+    for _ in range(2):
+        call("sculpt_deck.local_transform", mode="MOVE", axis="X", distance=1.0)
+        yield 0.5
+    # the indexes (the runner prints the history on failure): 0 Original, 1 Sculpt Mode, 2 Before Local Transform,
+    # 3 Local Transform, 4 Before Local Transform, 5 Local Transform
+    for item, expected in ((4, 1.0), (2, 0.0), (4, 2.0)):
+        with override():
+            bpy.ops.ed.undo_history(item=item)
+        yield from settle()
+        check(location_x() == expected, f"jump to undo step {item}: expected x = {expected}, got {location_x()}")
+        check(STEP_OVER not in cube(), f"jump to undo step {item}: the checkpoint's mark was left on the Cube")
 
 
 def mask_values() -> list[float]:
@@ -1718,6 +1864,16 @@ SCENARIOS = [
     resolution_multires_down_fails,
     resolution_multires_undo_keeps_stroke,
     resolution_density_undo_keeps_stroke,
+    checkpoint_local_transform_steps,
+    checkpoint_add_mesh_steps,
+    checkpoint_multires_steps,
+    checkpoint_density_steps,
+    checkpoint_apply_scale_steps,
+    checkpoint_undo_reaches_stroke,
+    checkpoint_failed_action,
+    checkpoint_adjust_last,
+    checkpoint_edit_mode_steps,
+    checkpoint_history_jump,
     masks_invert,
     interface_toggle_sidebar,
     widget_button_runs_action,
@@ -1736,6 +1892,8 @@ SCENARIOS = [
 # Scenarios that fail on purpose because of a known bug, with the reason. They report XFAIL and don't fail the
 # run; once the bug is fixed they report XPASS, which does, so the entry gets removed.
 KNOWN_FAILURES = {
+    "checkpoint_edit_mode_steps": "a Scene Checkpoint in Edit Mode is an Edit step, which doesn't load the object's "
+    "properties, so its mark never comes back and undo doesn't step over it (#26)",
 }
 
 
