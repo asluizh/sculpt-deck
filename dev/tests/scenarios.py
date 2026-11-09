@@ -730,6 +730,111 @@ def resolution_multires_down_fails():
     check(mode() == "SCULPT", f"Multires Level Down at level 0: expected Sculpt Mode, got {mode()}")
 
 
+DRAW = ("ESSENTIALS", "", "brushes/essentials_brushes-mesh_sculpt.blend/Brush/Draw")
+
+
+def shape() -> tuple:
+    """The Cube's evaluated vertex positions (Multires at its viewport level), read in Object Mode.
+
+    Sculpt Mode doesn't update the evaluated mesh after a stroke, and keeps Multires strokes in its own grids until
+    the mode is left, so this leaves it for the reading (with no undo step) and comes back. Leaving also writes the
+    strokes into the mesh, so a scenario that checks a stroke reaches an undo step reads the shape only afterwards.
+    """
+    start = mode()
+    with override():
+        bpy.ops.object.mode_set("EXEC_DEFAULT", False, mode="OBJECT")
+        obj = cube().evaluated_get(bpy.context.evaluated_depsgraph_get())
+        mesh = obj.to_mesh()
+        positions = tuple(tuple(vertex.co) for vertex in mesh.vertices)
+        obj.to_mesh_clear()
+        if start == "SCULPT":
+            bpy.ops.object.mode_set("EXEC_DEFAULT", False, mode="SCULPT")
+    return positions
+
+
+def same_shape(a: tuple, b: tuple) -> bool:
+    """The same vertex count, and every position within 0.001 (an undone stroke comes back within about 0.0001)"""
+    return len(a) == len(b) and all(abs(x - y) <= 1e-3 for u, v in zip(a, b) for x, y in zip(u, v))
+
+
+def stroke():
+    """A real Draw brush stroke across the middle of the Cube, as seen in the 3D viewport, with its undo step"""
+    from bpy_extras.view3d_utils import region_2d_to_origin_3d, region_2d_to_vector_3d
+
+    library_type, library, identifier = DRAW
+    with override():
+        bpy.ops.brush.asset_activate(asset_library_type=library_type, asset_library_identifier=library,
+                                     relative_asset_identifier=identifier)
+    _window, _area, region = view3d()
+    x, y = region_point("Cube")
+    points = []
+    for index, dx in enumerate(range(-60, 61, 20)):
+        mouse = (x + dx, y + dx // 3)
+        # an executed stroke takes each point's 3D location as given, so it's found on the surface here
+        origin = region_2d_to_origin_3d(region, region.data, mouse)
+        direction = region_2d_to_vector_3d(region, region.data, mouse)
+        hit, location, *_ = bpy.context.scene.ray_cast(bpy.context.evaluated_depsgraph_get(), origin, direction)
+        check(hit, f"stroke: the point {mouse} misses the Cube")
+        points.append({"name": "", "location": location, "mouse": mouse, "mouse_event": mouse, "is_start": index == 0,
+                       "pressure": 1.0, "size": 60.0, "time": float(index), "x_tilt": 0.0, "y_tilt": 0.0})
+    call("sculpt.brush_stroke", stroke=points)
+    yield 0.5
+
+
+def stroke_survives(label: str, setup, run, undone, done):
+    """A stroke made right before an action is kept when the action is undone.
+
+    Reading the shape flushes the stroke (see `shape`), so the stroked shape comes from a first pass (setup, stroke),
+    and a second one (setup, stroke, the action, undo) is compared with it. `undone()` and `done()` check the
+    action's own change, after undo and after redo."""
+    yield from setup()
+    before = shape()
+    yield from stroke()
+    stroked = shape()
+    check(not same_shape(stroked, before), "stroke: expected the Draw brush to change the Cube's shape")
+    yield from setup()
+    yield from stroke()
+    yield from run()
+    check(done(), f"{label}: didn't change anything")
+    yield undo()
+    check(undone(), f"undo {label}: expected it undone")
+    check(mode() == "SCULPT", f"undo {label}: expected Sculpt Mode, got {mode()}")
+    check(same_shape(shape(), stroked), f"undo {label}: expected the stroke made before it kept, the shape differs")
+    yield redo()
+    check(done(), f"redo {label}: expected it applied again")
+    check(mode() == "SCULPT", f"redo {label}: expected Sculpt Mode, got {mode()}")
+
+
+def resolution_multires_undo_keeps_stroke():
+    """Undoing a Multires level change keeps a stroke made just before it"""
+
+    def run():
+        call("sculpt_deck.increment_multires")
+        yield 0.5
+
+    yield from stroke_survives("Multires Level Up", multires_cube, run, lambda: multires_levels() == (2, 2),
+                               lambda: multires_levels() == (3, 3))
+
+
+def remeshed_cube():
+    """The Cube voxel remeshed at 0.1, in Sculpt Mode"""
+    yield from reset()
+    cube().data.remesh_voxel_size = 0.1
+    call("object.voxel_remesh")
+    yield 0.5
+
+
+def resolution_density_undo_keeps_stroke():
+    """Undoing Voxel Density Up keeps a stroke made just before it"""
+
+    def run():
+        call("sculpt_deck.density_up")
+        yield 0.5
+
+    yield from stroke_survives("Voxel Density Up", remeshed_cube, run, lambda: voxel_size() == 0.1,
+                               lambda: voxel_size() == 0.08)
+
+
 def mask_values() -> list[float]:
     attribute = bpy.context.scene.objects["Cube"].data.attributes.get(".sculpt_mask")
     if attribute is None:
@@ -1133,6 +1238,8 @@ SCENARIOS = [
     resolution_density_down_undo,
     resolution_multires_undo,
     resolution_multires_down_fails,
+    resolution_multires_undo_keeps_stroke,
+    resolution_density_undo_keeps_stroke,
     masks_invert,
     interface_toggle_sidebar,
     widget_button_runs_action,
