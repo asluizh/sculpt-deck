@@ -15,6 +15,7 @@ from bpy.types import Operator, PropertyGroup
 from bpy_extras import view3d_utils
 from mathutils import Matrix, Vector
 
+from ...core.blender import active_object
 from ...core.checkpoint import store_scene_checkpoint
 from ...core.constants import CANCEL, FINISHED, object_modes
 from ...core.drag import (
@@ -28,7 +29,7 @@ from ...core.drag import (
 )
 from ...core.history import tool_history
 from ...core.hop import hop
-from ...core.step_over import active_object, cancel_step_over
+from ...core.step_over import cancel_step_over
 
 ###
 # Arrays

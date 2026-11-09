@@ -3,6 +3,7 @@ everything it changes. See GLOSSARY.md."""
 
 import bpy
 
+from .blender import active_object
 from .step_over import CHECKPOINT, STEP_OVER
 
 
@@ -23,7 +24,7 @@ def store_scene_checkpoint(context, message: str):
     """
     if context.mode == "OBJECT":
         return
-    obj = context.view_layer.objects.active
+    obj = active_object(context)
     if obj is not None:
         obj[STEP_OVER] = CHECKPOINT
     try:
