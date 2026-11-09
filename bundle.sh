@@ -24,7 +24,7 @@ bundle() {
     fi
   done
   cd "$dest"
-  zip -r "sculpt_deck.zip" "sculpt_deck"
+  zip -r "sculpt_deck.zip" "sculpt_deck" -x "*__pycache__*" "*.pyc"
   cd ".."
   rm -rf "$dir"
 }
