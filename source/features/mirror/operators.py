@@ -213,7 +213,7 @@ def ensure_mirror(object_name: str):
         return
     if current_mirror(obj) is not None:
         return
-    add_modifier_step(obj, "Add Mirror", lambda: add_mirror(obj))
+    add_modifier_step(obj, MIRROR_TOOL_ID, "Add Mirror", lambda: add_mirror(obj))
 
 
 # OPERATORS

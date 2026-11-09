@@ -899,7 +899,8 @@ def hop_mirror_apply_dyntopo_undo():
 def tool_add_undo_redo(idname: str, modifier: str, previous: str | None = "builtin.box_mask", dyntopo: bool = False):
     """Start a tool that adds its modifier, then undo and redo (#28). Sculpt undo steps don't hold modifiers: undo
     must take the modifier away, staying in Sculpt Mode (with Dyntopo on too) and handing back to the tool used
-    before, or with none, to the brush tool (Draw in the startup file); redo brings the modifier and the tool back.
+    before, or with none, to the brush tool (with the brush active before, Draw in the startup file); redo brings
+    the modifier and the tool back.
     The Circular Array also moves the mesh aside, which undo and redo follow."""
     yield from reset()
     if dyntopo:
@@ -941,12 +942,37 @@ def tool_mirror_add_undo():
     yield from tool_add_undo_redo("sculpt_deck.mirror", "Mirror")
 
 
-def tool_add_undo_falls_back_to_draw():
+def tool_add_undo_falls_back_to_brush():
     yield from tool_add_undo_redo("sculpt_deck.linear_array", "Linear Array", previous=None)
 
 
 def hop_tool_add_undo_dyntopo():
     yield from tool_add_undo_redo("sculpt_deck.linear_array", "Linear Array", dyntopo=True)
+
+
+def tool_add_two_undo_redo():
+    """Two tools added in a row, both undone: each redo brings back one modifier with its tool. The second add's
+    "Before Add Circular Array" step holds the same state as the first add's own step, so one undo and one redo in
+    between change nothing (#26)."""
+    yield from reset()
+    yield from start_tool("sculpt_deck.linear_array", "Linear Array")
+    call("wm.tool_set_by_id", name="sculpt_deck.circular_array", space_type="VIEW_3D")
+    for _ in range(10):
+        yield 0.3
+        if "Circular Array" in modifier_names():
+            break
+    for when, step, modifiers, expected_tool in (
+        ("undo 1", undo, ["Linear Array"], "builtin.brush"),
+        ("undo 2", undo, ["Linear Array"], "builtin.brush"),
+        ("undo 3", undo, [], "builtin.brush"),
+        ("redo 1", redo, ["Linear Array"], "sculpt_deck.linear_array"),
+        ("redo 2", redo, ["Linear Array"], "sculpt_deck.linear_array"),
+        ("redo 3", redo, ["Linear Array", "Circular Array"], "sculpt_deck.circular_array"),
+    ):
+        yield step()
+        state = (modifier_names(), tool())
+        check(state == (modifiers, expected_tool), f"{when}: expected (modifiers, tool) = "
+              f"{(modifiers, expected_tool)}, got {state}")
 
 
 def hop_array_apply_dyntopo_undo_add():
@@ -1680,7 +1706,8 @@ SCENARIOS = [
     tool_linear_array_add_undo,
     tool_circular_array_add_undo,
     tool_mirror_add_undo,
-    tool_add_undo_falls_back_to_draw,
+    tool_add_undo_falls_back_to_brush,
+    tool_add_two_undo_redo,
     hop_tool_add_undo_dyntopo,
     hop_array_apply_dyntopo_undo_add,
     pen_hold_momentary_brush,
