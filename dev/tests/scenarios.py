@@ -628,7 +628,8 @@ def settle():
     step_over = sys.modules[PACKAGE + ".source.core.step_over"]
     for _ in range(20):
         yield 0.25
-        if step_over.scheduled == 0 and STEP_OVER not in cube():
+        active = bpy.context.view_layer.objects.active
+        if step_over.scheduled == 0 and (active is None or STEP_OVER not in active):
             break
     yield 0.25
 
@@ -1383,27 +1384,37 @@ def checkpoint_edit_mode_steps():
 
 
 def edit_mode_detours():
-    """Detours in Edit Mode, each undone, redone, then adjusted and undone (#33)"""
-    for label, idname, props, extra, after in (
-        ("Duplicate", "sculpt_deck.duplicate_object", {}, 0, 2),
-        ("Join", "sculpt_deck.join_selected", {}, 1, 1),
-        ("Fuse", "sculpt_deck.fuse_selected", {}, 1, 1),
+    """Detours in Edit Mode, each undone, redone, then adjusted and undone (#33). Delete of the last mesh runs Add
+    Mesh inside it, with no checkpoint of its own."""
+
+    def state():
+        objects = [obj for obj in bpy.context.scene.objects if obj.type == "MESH"]
+        return len(objects), sum(len(obj.data.vertices) for obj in objects), mode()
+
+    for label, idname, extra in (
+        ("Duplicate", "sculpt_deck.duplicate_object", 0),
+        ("Delete", "sculpt_deck.delete_object", 1),
+        ("Delete the last mesh", "sculpt_deck.delete_object", 0),
+        ("Join", "sculpt_deck.join_selected", 1),
+        ("Fuse", "sculpt_deck.fuse_selected", 1),
     ):
         for adjust in (False, True):
             yield from reset(extra_cubes=extra)
             if extra:
-                cube_001 = bpy.context.scene.objects["Cube.001"]
-                cube_001.select_set(True)
+                bpy.context.scene.objects["Cube.001"].select_set(True)
             call("object.mode_set", mode="EDIT")
             yield 0.3
-            before = len(meshes())
-            call(idname, **props)
+            before = state()
+            call(idname)
             yield 1.0
             if adjust:
                 yield adjust_last()
                 yield 1.0
+            after = state()
             name = f"{label} in Edit Mode{' adjusted' if adjust else ''}"
-            yield from each_step(name, lambda: (len(meshes()), mode()), [(before, "EDIT_MESH"), (after, "EDIT_MESH")])
+            check(after != before and after[2] == "EDIT_MESH", f"{name}: expected a change, staying in Edit Mode, "
+                  f"got {before} -> {after}")
+            yield from each_step(name, state, [before, after])
 
 
 def edit_mode_object_actions_unavailable():
@@ -1424,7 +1435,7 @@ def edit_mode_object_actions_unavailable():
     call("wm.tool_set_by_id", name="builtin.brush", space_type="VIEW_3D")
     yield 0.5
     actions = ("local_transform", "apply_object_scale", "array_apply", "array_remove", "array_axis", "array_edit",
-               "mirror_apply", "mirror_remove")
+               "mirror_apply", "mirror_remove", "increment_multires", "decrement_multires")
     for target, offered in (("EDIT", False), ("VERTEX_PAINT", True), ("OBJECT", True), ("SCULPT", True)):
         call("object.mode_set", mode=target)
         yield 0.5

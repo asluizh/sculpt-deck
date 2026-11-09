@@ -10,7 +10,7 @@ import bpy
 from bpy.types import Operator
 
 from ...core.checkpoint import store_scene_checkpoint
-from ...core.constants import CANCEL, FINISHED
+from ...core.constants import CANCEL, FINISHED, object_data_modes
 from ...core.step_over import cancel_step_over
 from .settings import resolution_settings
 
@@ -27,6 +27,13 @@ def level_name(context) -> str:
     return "sculpt_levels" if context.mode == "SCULPT" else "levels"
 
 
+class MultiresOperator:
+    @classmethod
+    def poll(cls, context):
+        # a level is modifier data, which Edit Mode undo steps don't hold (see object_data_modes)
+        return context.active_object is not None and context.mode in object_data_modes
+
+
 def run_blender(operator: Operator, blender_operator, modifier: str) -> set[str]:
     """Run Blender's (un)subdivide on the modifier, cancelling with its message when it fails. The checkpoint
     already stored then stays, as the one extra step."""
@@ -38,7 +45,7 @@ def run_blender(operator: Operator, blender_operator, modifier: str) -> set[str]
     return FINISHED
 
 
-class SCULPT_DECK_OT_increase_multires(Operator):
+class SCULPT_DECK_OT_increase_multires(MultiresOperator, Operator):
     """Increase the Multires level, subdividing when at the highest level"""
 
     bl_label = "Increment Multires modifier by 1 or add subdivision level"
@@ -60,7 +67,7 @@ class SCULPT_DECK_OT_increase_multires(Operator):
         return run_blender(self, bpy.ops.object.multires_subdivide, mod.name)
 
 
-class SCULPT_DECK_OT_decrease_multires(Operator):
+class SCULPT_DECK_OT_decrease_multires(MultiresOperator, Operator):
     """Decrease the Multires level, unsubdividing when at the lowest level"""
 
     bl_label = "decrement Multires modifier by 1"

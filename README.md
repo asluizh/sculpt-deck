@@ -204,7 +204,7 @@ Or drag `sculpt_deck.zip` into Blender.
 - `FIXED`: Adjust Last Operation did nothing on Join Selected and Fuse (Fuse's _Voxel Size_ couldn't be changed afterwards).
 - `FIXED`: Undo after starting the Linear Array, Circular Array or Mirror tool in Sculpt Mode left the modifier on the mesh. Undo now takes it away (with a _Before …_ step, or with Dyntopo kept on) and goes back to the tool used before, and redo brings both back.
 - `FIXED`: After an action that adds a _Before …_ step (Add Mesh, Duplicate, Delete, Join, Fuse, Local Transform, Apply Scale, Voxel Density, Multires Level, adding an array or mirror), the second undo seemed to do nothing. Undo and redo now step over the _Before …_ step in Sculpt Mode, so each one takes back or redoes one action.
-- `FIXED`: In Edit Mode, undo and redo didn't take back Local Transform, Apply Scale, or applying or removing an array or mirror (run from the search menu), since Edit Mode undo steps hold only the mesh. These actions are no longer offered in Edit Mode. Undoing a Detour (Add Mesh, Duplicate, Join, Fuse) in Edit Mode no longer needs a second undo either.
+- `FIXED`: In Edit Mode, undo and redo didn't take back Local Transform, Apply Scale, Multires Level Up or Down, or applying or removing an array or mirror (run from the search menu), since Edit Mode undo steps hold only the mesh. These actions are no longer offered in Edit Mode, and Local Transform no longer runs in Pose Mode or the other edit modes (curves, armatures and so on) either. Undoing a Detour (Add Mesh, Duplicate, Join, Fuse) in Edit Mode no longer needs a second undo either.
 
 </details>
 
