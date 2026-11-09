@@ -1,7 +1,16 @@
-"""UI helpers: region sizes, the UI scale, the viewport's safe area for gizmos, redrawing viewports."""
+"""Blender helpers: the active object, region sizes, the UI scale, the viewport's safe area for gizmos, redrawing
+viewports."""
 
 import bpy
 from mathutils import Vector
+
+
+def active_object(context=None):
+    """The view layer's active object, or None. Unlike `context.active_object`, it works from timers and undo
+    handlers, where the context may have no view layer, and isn't hidden by a `temp_override(active_object=None)`.
+    `context` defaults to `bpy.context`."""
+    view_layer = (context or bpy.context).view_layer
+    return view_layer.objects.active if view_layer else None
 
 
 # preference changes made outside the viewport (e.g. in the Preferences window)

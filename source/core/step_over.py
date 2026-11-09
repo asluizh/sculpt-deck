@@ -10,17 +10,14 @@ loading the step brings the mark back. The Undo History list still shows the ste
 import bpy
 from bpy.app.handlers import persistent
 
+from .blender import active_object
+
 # custom property marking a step to step over, saved in the step, and never left on the object afterwards:
 # - CHECKPOINT: a Scene Checkpoint, with everything as in the step before it
 # - BEFORE, START, INSIDE: the steps a Hop under Dyntopo stores (core/hop.py, dyntopo_hop)
 STEP_OVER = "sculpt_deck_step_over"
 CHECKPOINT = "CHECKPOINT"
 BEFORE, START, INSIDE = "BEFORE", "START", "INSIDE"
-
-
-def active_object():
-    view_layer = bpy.context.view_layer
-    return view_layer.objects.active if view_layer else None
 
 
 def drop_mark():

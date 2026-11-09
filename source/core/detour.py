@@ -5,6 +5,7 @@ import bpy
 from bpy.app.handlers import persistent
 from bpy.props import BoolProperty, StringProperty
 
+from .blender import active_object
 from .checkpoint import store_scene_checkpoint
 from .constants import CANCEL, FINISHED, object_modes
 from .step_over import cancel_step_over
@@ -19,7 +20,7 @@ def enter_mode(window, area, mode: str, tool: str = ""):
     def run():
         try:
             with bpy.context.temp_override(window=window, area=area):
-                obj = bpy.context.view_layer.objects.active
+                obj = active_object()
                 if obj is None:
                     return None
                 if bpy.context.mode == "OBJECT":
@@ -44,7 +45,7 @@ def finish_in_mode(context, mode: str, tool: str = ""):
     """
     if mode == "OBJECT":
         return
-    obj = context.view_layer.objects.active
+    obj = active_object(context)
     if obj is not None:
         obj[RETURN_MODE] = mode
     enter_mode(context.window, context.area, mode, tool)
@@ -54,7 +55,7 @@ def finish_in_mode(context, mode: str, tool: str = ""):
 def restore_mode(*_):
     """After undo or redo: put an object marked by finish_in_mode back in its mode"""
     context = bpy.context
-    obj = context.view_layer.objects.active if context.view_layer else None
+    obj = active_object(context)
     if obj is None or RETURN_MODE not in obj:
         return
     # the mode may still change while the undo finishes, so the timer checks it

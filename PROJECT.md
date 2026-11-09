@@ -70,7 +70,7 @@ source/                  the parts, registered in order: core, features, surface
                            property), the unsaved check, Save and Revert Default Settings
     ui.py                  SculptDeckPanel and the main sidebar panel (sub-panel bl_order documented there), the
                            Default Settings panel
-    blender.py             safe area, UI scale and other UI helpers
+    blender.py             the active object, safe area, UI scale and other UI helpers
     constants.py           event and operator result names, the modes, shared by several parts
   features/              sculpt workflow features, one sub-package each (PARTS: Local Transform, Mirror, then the
                          arrays, for toolbar order)
