@@ -11,7 +11,7 @@ from mathutils import Matrix, Vector
 from ...core.checkpoint import store_scene_checkpoint
 from ...core.constants import CANCEL, FINISHED, object_modes
 from ...core.drag import ViewDrag, axis_on_screen, distance_along, set_world_matrix, view_plane_offset
-from ...core.hop import hop
+from ...core.hop import cancel_step_over, hop
 from ..array.operators import array_snapshot, keep_arrays, restore_arrays, scale_arrays
 
 ###
@@ -123,8 +123,9 @@ def unit_scale(obj) -> bool:
     return all(abs(factor - 1.0) < 1e-5 for factor in obj.scale)
 
 
-def apply_scale(context, obj) -> bool:
-    """Bake the object's scale into its mesh, staying in the current mode"""
+def apply_scale(context, obj, whole_action: bool = False) -> bool:
+    """Bake the object's scale into its mesh, staying in the current mode. `whole_action`: the action changes
+    nothing before this, so a Hop under Dyntopo can step over its undo steps (see `hop`)."""
     if obj.type != "MESH":
         return True
     if unit_scale(obj):
@@ -133,14 +134,15 @@ def apply_scale(context, obj) -> bool:
         return True
     if obj.data.users > 1:
         return False
-    # arrays are in the object's space, they scale with the mesh
-    scale_arrays(obj, Vector(obj.scale))
+    scale = Vector(obj.scale)
     multires = any(modifier.type == "MULTIRES" for modifier in obj.modifiers)
     dyntopo = context.mode == "SCULPT" and obj.use_dynamic_topology_sculpting
     if multires or dyntopo or obj.children:
         # Blender's own apply handles multires displacement, dyntopo's
         # separate mesh and keeping children in place, but only in Object Mode
-        with hop(context, "OBJECT"):
+        with hop(context, "OBJECT", whole_action):
+            # arrays are in the object's space, they scale with the mesh
+            scale_arrays(obj, scale)
             selected = [other for other in context.selected_objects if other != obj]
             for other in selected:
                 other.select_set(False)
@@ -149,6 +151,7 @@ def apply_scale(context, obj) -> bool:
             for other in selected:
                 other.select_set(True)
         return True
+    scale_arrays(obj, scale)
     obj.data.transform(Matrix.Diagonal(Vector(obj.scale).to_4d()), shape_keys=True)
     obj.scale = (1.0, 1.0, 1.0)
     obj.data.update()
@@ -504,13 +507,21 @@ class SCULPT_DECK_OT_apply_object_scale(Operator):
         return obj is not None and obj.type == "MESH" and context.mode in object_modes
 
     def execute(self, context):
+        cancel_step_over()
         meshes = [obj for obj in transform_objects(context) if obj.type == "MESH"]
         stretched = [obj for obj in meshes if not unit_scale(obj)]
         if any(obj.data.users > 1 for obj in stretched):
             # checked first, so nothing is applied and no step is stored
             self.report({"WARNING"}, "Can't apply the scale of a mesh shared with other objects")
             return CANCEL
-        if stretched:
+        active = context.active_object
+        if context.mode == "SCULPT" and active in stretched and active.use_dynamic_topology_sculpting:
+            # its Hop stores the objects as they are before anything changes, and returns undo to them with
+            # Dyntopo still on, so it goes first, and no Scene Checkpoint is needed (undoing to one would turn
+            # Dyntopo off)
+            apply_scale(context, active, whole_action=True)
+            meshes.remove(active)
+        elif stretched:
             # the scale is an object transform, which a Sculpt step before this one wouldn't hold
             store_scene_checkpoint(context, f"Before {self.bl_label}")
         for obj in meshes:

@@ -25,7 +25,7 @@ from ...core.drag import (
     view_plane_offset,
 )
 from ...core.history import tool_history
-from ...core.hop import hop
+from ...core.hop import cancel_step_over, hop
 
 ###
 # Arrays
@@ -475,18 +475,15 @@ def array_poll(context) -> bool:
 
 def apply_modifier(context, modifier):
     """Apply, staying in the current mode where Blender allows it"""
+    cancel_step_over()
     obj = context.active_object
     if obj.mode == "SCULPT" and obj.use_dynamic_topology_sculpting:
         # with dynamic topology on, Blender applies with only a warning ("Not supported in dyntopo"): the mesh
         # gets the copies, but the dynamic topology mesh being sculpted doesn't, and overwrites them when Sculpt
-        # Mode ends, so the copies are lost. In Object Mode it applies properly, but the new mesh doesn't keep
-        # dynamic topology on, so it's turned back on (an operator called from Python, so no extra undo step).
-        try:
-            with hop(context, "OBJECT"):
-                bpy.ops.object.modifier_apply(modifier=modifier.name)
-        finally:
-            if obj.mode == "SCULPT" and not obj.use_dynamic_topology_sculpting:
-                bpy.ops.sculpt.dynamic_topology_toggle()
+        # Mode ends, so the copies are lost. In Object Mode it applies properly, and the Hop turns dynamic
+        # topology back on. The apply is the whole action, so undo returns to before it with dynamic topology on.
+        with hop(context, "OBJECT", whole_action=True):
+            bpy.ops.object.modifier_apply(modifier=modifier.name)
         return
     try:
         bpy.ops.object.modifier_apply(modifier=modifier.name)
