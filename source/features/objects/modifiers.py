@@ -8,7 +8,7 @@ keeps the look it had. Only modifiers shown in the viewport count: hidden ones d
 import bpy
 from mathutils import Matrix, Vector
 
-from ..array.operators import array_kind, get_input, set_input
+from ..array.operators import array_kind, get_input, realize
 from ..mirror.operators import AXES, is_mirror
 
 # how far apart two values may be and still count as the same
@@ -28,7 +28,6 @@ UI_SETTINGS = {
     "use_pin_to_last",
     "persistent_uid",
     "execution_time",
-    "use_apply_on_spline",
 }
 
 
@@ -40,8 +39,10 @@ def drawing(obj, modifier) -> tuple:
     """What the modifier draws, in terms that compare across objects.
 
     The arrays' vectors are in the object's space, so they're compared in the world: two arrays whose copies step
-    the same way in the world draw the same on a mesh joined from one object into the other. The mirror's planes are
-    in the world already. Any other modifier is compared by its settings, and on an object placed exactly the same,
+    the same way in the world draw the same on a mesh joined from one object into the other. A circular array turns
+    its copies with the object's scale applied, so they turn rigidly in the world under any rotation and scale, but
+    not under a shear (a non-uniformly scaled parent turned under it): there it only matches an object with the
+    same rotation, scale and shear. The mirror's planes are in the world already. Any other modifier is compared by its settings, and on an object placed exactly the same,
     since its settings are in the object's space too.
     """
     kind = array_kind(modifier)
@@ -55,6 +56,7 @@ def drawing(obj, modifier) -> tuple:
             get_input(modifier, "Arc"),
             obj.matrix_world @ get_input(modifier, "Center"),
             (rotation_scale @ get_input(modifier, "Axis")).normalized(),
+            rotation_scale if sheared(rotation_scale) else None,
         )
     if is_mirror(modifier):
         return (
@@ -64,6 +66,12 @@ def drawing(obj, modifier) -> tuple:
             get_input(modifier, "Merge Distance"),
         )
     return (modifier.type, settings(modifier), obj.matrix_world)
+
+
+def sheared(matrix: Matrix) -> bool:
+    """Whether the axes of a 3x3 matrix are no longer at right angles"""
+    axes = [matrix.col[i].normalized() for i in range(3)]
+    return any(abs(axes[i].dot(axes[j])) > TOLERANCE for i, j in ((0, 1), (0, 2), (1, 2)))
 
 
 def settings(modifier) -> tuple:
@@ -136,5 +144,5 @@ def apply_shown(context, obj):
     with context.temp_override(object=obj, active_object=obj):
         for modifier in shown(obj):
             if array_kind(modifier) or is_mirror(modifier):
-                set_input(obj, modifier, "Realize", True)
+                realize(obj, modifier)
             bpy.ops.object.modifier_apply(modifier=modifier.name)

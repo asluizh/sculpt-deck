@@ -252,6 +252,11 @@ def set_input(obj, modifier, name: str, value):
     redraw()
 
 
+def realize(obj, modifier):
+    """Have an array (or a mirror, which shares this input) make its copies real mesh when applied next"""
+    set_input(obj, modifier, "Realize", True)
+
+
 def redraw():
     # header buttons only redraw the header, show the new copies right away
     for window in bpy.context.window_manager.windows:
@@ -541,7 +546,7 @@ class SCULPT_DECK_OT_array_apply(ArrayOperator, Operator):
         obj, modifier = self.target(context)
         if modifier is None:
             return CANCEL
-        set_input(obj, modifier, "Realize", True)
+        realize(obj, modifier)
         apply_modifier(context, modifier)
         self.leave(context, obj)
         return FINISHED

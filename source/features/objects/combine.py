@@ -87,6 +87,14 @@ def differing(active, others) -> bool:
     return bool(shown(active)) and not all(draws_like(active, obj) for obj in others)
 
 
+def applied_with(active, others, choice: str) -> list:
+    """The meshes whose modifiers Join applies with this choice (join_modifier_items)"""
+    if choice == "APPLY_ALL":
+        return [active, *others]
+    # the active mesh's modifiers stay; a mesh they'd draw the same on is joined as it is
+    return [obj for obj in others if not draws_like(active, obj)]
+
+
 class SCULPT_DECK_OT_join_selected(SelectedMeshes, Operator):
     """Join the selected meshes into the active one, staying in the current mode. What each mesh shows is kept:
     modifiers are applied first unless the active mesh's would draw the same"""
@@ -107,25 +115,39 @@ class SCULPT_DECK_OT_join_selected(SelectedMeshes, Operator):
     differed: BoolProperty(options={"HIDDEN", "SKIP_SAVE"})  # type: ignore
 
     def invoke(self, context, event):
-        if differing(*selection(context)):
-            return context.window_manager.invoke_props_dialog(self, title="Join Selected", confirm_text="Join")
-        return self.execute(context)
+        active, others = selection(context)
+        if not (others and differing(active, others)):
+            return self.execute(context)
+        blocked = {choice: apply_blocker(applied_with(active, others, choice)) for choice, *_ in join_modifier_items}
+        if all(blocked.values()):
+            # nothing to choose from: execute reports why
+            return self.execute(context)
+        if blocked[self.modifiers]:
+            self.modifiers = next(choice for choice, problem in blocked.items() if not problem)
+        return context.window_manager.invoke_props_dialog(self, title="Join Selected", confirm_text="Join")
 
     def draw(self, context):
         layout = self.layout
-        if not (self.differed or differing(*selection(context))):
+        active, others = selection(context)
+        if not (self.differed or (others and differing(active, others))):
             return
         column = layout.column(align=True)
         column.label(text="The active mesh's modifiers would act", icon="ERROR")
         column.label(text="differently on the other meshes.")
         layout.prop(self, "modifiers", expand=True)
+        if others:
+            # still to run (the dialog): say which choice can't be done
+            for choice, label, _description in join_modifier_items:
+                problem = apply_blocker(applied_with(active, others, choice))
+                if problem:
+                    layout.label(text=f"{label}: {problem}", icon="INFO")
 
     def to_apply(self, active, others) -> list:
-        self.differed = differing(active, others)
-        if self.differed and self.modifiers == "APPLY_ALL":
-            return [active, *others]
-        # the active mesh's modifiers stay; a mesh they'd draw the same on is joined as it is
-        return [obj for obj in others if not draws_like(active, obj)]
+        return applied_with(active, others, self.modifiers if differing(active, others) else "KEEP_ACTIVE")
+
+    def object_mode_work(self, context):
+        self.differed = differing(*selection(context))
+        super().object_mode_work(context)
 
 
 class SCULPT_DECK_OT_fuse_selected(Fuse, Operator):

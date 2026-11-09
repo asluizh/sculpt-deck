@@ -363,6 +363,109 @@ def combine_join_asks():
     check(mode() == "SCULPT", f"Join cancelled: expected Sculpt Mode, got {mode()}")
 
 
+def circular_on(name: str):
+    """A Circular Array of 4 on the named mesh around the world point (6, 0, 0), turning about the world Z axis"""
+    from mathutils import Vector
+
+    operators = sys.modules[PACKAGE + ".source.features.array.operators"]
+    obj = bpy.context.scene.objects[name]
+    bpy.context.view_layer.update()
+    modifier = obj.modifiers.new("Circular Array", "NODES")
+    modifier.node_group = operators.node_group("CIRCULAR")
+    operators.set_input(obj, modifier, "Count", 4)
+    operators.set_input(obj, modifier, "Center", obj.matrix_world.inverted() @ Vector((6.0, 0.0, 0.0)))
+    axis = obj.matrix_world.to_3x3().inverted() @ Vector((0.0, 0.0, 1.0))
+    operators.set_input(obj, modifier, "Axis", axis.normalized())
+
+
+def drawn_points() -> list[tuple]:
+    """Every vertex drawn, real or instanced, in the world"""
+    points = set()
+    for instance in bpy.context.evaluated_depsgraph_get().object_instances:
+        if instance.object.type == "MESH":
+            for vertex in instance.object.data.vertices:
+                points.add(tuple(round(value, 3) for value in instance.matrix_world @ vertex.co))
+    return sorted(points)
+
+
+def invoke_join():
+    with override():
+        return bpy.ops.sculpt_deck.join_selected("INVOKE_DEFAULT", True)
+
+
+def combine_join_circular_scaled():
+    """Circular arrays turning about the same world centre and axis draw the same under any rotation and scale: Join
+    keeps the active's without asking, and every copy stays where it was (#29)"""
+    yield from reset(extra_cubes=1)
+    bpy.context.scene.objects["Cube"].scale = (1.0, 2.0, 1.0)
+    bpy.context.scene.objects["Cube.001"].scale = (0.5, 1.0, 1.5)
+    bpy.context.scene.objects["Cube.001"].rotation_euler.z = 0.7
+    circular_on("Cube")
+    circular_on("Cube.001")
+    bpy.context.scene.objects["Cube.001"].select_set(True)
+    yield 0.3
+    before = drawn_points()
+    result = invoke_join()
+    check(result == {"FINISHED"}, f"Join: expected it to run without asking, got {result}")
+    yield 1.0
+    check(modifiers_of() == ["Circular Array"], f"Join: expected the array kept, got {modifiers_of()}")
+    after = drawn_points()
+    check(after == before, f"Join: expected every copy where it was, {len(set(before) ^ set(after))} points moved")
+
+
+def combine_join_circular_sheared():
+    """Under a shear the same circular array turns the copies differently, so Join asks (#29)"""
+    yield from reset(extra_cubes=1)
+    with override():
+        bpy.ops.object.mode_set(mode="OBJECT")
+        bpy.ops.object.empty_add()
+        stretched = bpy.context.active_object
+        stretched.scale = (1.0, 3.0, 1.0)
+        bpy.ops.object.empty_add()
+        turned = bpy.context.active_object
+        turned.parent = stretched
+        turned.rotation_euler.z = 0.6
+    bpy.context.scene.objects["Cube"].parent = turned
+    yield from reset_selection_to_sculpt()
+    circular_on("Cube")
+    circular_on("Cube.001")
+    bpy.context.scene.objects["Cube.001"].select_set(True)
+    result = invoke_join()
+    check(result == {"RUNNING_MODAL"}, f"Join: expected the question, got {result}")
+    yield 0.5
+    simulate("ESC", "PRESS")
+    simulate("ESC", "RELEASE")
+    yield 0.5
+    check(meshes() == ["Cube", "Cube.001"], f"Join cancelled: expected both cubes, got {meshes()}")
+
+
+def reset_selection_to_sculpt():
+    """Back to the Cube alone selected and active, in Sculpt Mode"""
+    with override():
+        bpy.ops.object.select_all(action="DESELECT")
+    cube().select_set(True)
+    bpy.context.view_layer.objects.active = cube()
+    call("object.mode_set", mode="SCULPT")
+    yield 0.3
+
+
+def combine_join_asks_preselects_possible():
+    """Shape keys on the active mesh stop Apply All, so the question starts on Keep Active's Modifiers, and
+    confirming it joins (#29)"""
+    yield from reset(extra_cubes=1)
+    cube().shape_key_add(name="Basis")
+    array_on("Cube")
+    bpy.context.scene.objects["Cube.001"].select_set(True)
+    result = invoke_join()
+    check(result == {"RUNNING_MODAL"}, f"Join: expected the question, got {result}")
+    yield 0.5
+    simulate("RET", "PRESS")
+    simulate("RET", "RELEASE")
+    yield 1.0
+    check(meshes() == ["Cube"], f"Join confirmed: expected only the Cube, got {meshes()}")
+    check(modifiers_of() == ["Linear Array"], f"Join confirmed: expected the array kept, got {modifiers_of()}")
+
+
 def combine_fuse_applies_modifiers():
     """Fuse applies every modifier first: the other mesh's copies are fused in, not lost (#29)"""
     yield from reset(extra_cubes=1)
@@ -1489,6 +1592,9 @@ SCENARIOS = [
     combine_join_keeps_matching_modifiers,
     combine_join_differing_modifiers,
     combine_join_asks,
+    combine_join_circular_scaled,
+    combine_join_circular_sheared,
+    combine_join_asks_preselects_possible,
     combine_fuse_applies_modifiers,
     local_transform_undo,
     local_transform_adjust_last,
