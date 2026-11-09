@@ -198,6 +198,8 @@ Or drag `sculpt_deck.zip` into Blender.
 - `FIXED`: Adjust Last Operation on Local Transform in Sculpt Mode put the object back where it was long before, often at the world origin, losing earlier transforms. It now only changes the last operation.
 - `FIXED`: Settings were only saved when Blender quit normally or the add-on was disabled, and into the add-on's folder, so a crash or an add-on update lost them. Defaults now live in the add-on's user folder.
 - `FIXED`: In Sculpt or Edit Mode, undoing Add Mesh, Join or Fuse left the objects behind, and changing Add Mesh settings in _Adjust Last Operation_ added a new copy each time.
+- `FIXED`: Undo after Voxel Density Up or Down in Sculpt Mode brought the geometry back but not the voxel size, so the next press started from the wrong size. Each press now adds a _Before …_ step, and undo and redo bring back both.
+- `FIXED`: Multires Level Up and Down stored no undo step, so undo skipped them and undid the step before. In Sculpt Mode each press now adds a _Before …_ step too.
 
 </details>
 
