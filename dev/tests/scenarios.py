@@ -675,7 +675,7 @@ def hop_array_apply_dyntopo_twice():
     steps = [
         # the second apply, the second Add Linear Array, the first apply
         (["Linear Array"], 6.4, True),
-        ([], 6.4, None),
+        ([], 6.4, True),
         (["Linear Array"], 2.0, True),
     ]
     for index, (modifiers, width, dyntopo) in enumerate(steps):
@@ -689,10 +689,11 @@ def hop_array_apply_dyntopo_twice():
 def hop_array_apply_dyntopo_history():
     """Jumping in the Undo History list onto one of the Hop's steps steps over them too"""
     yield from add_and_apply_array(dyntopo=True)
-    # the indexes follow the Hop's steps (the runner prints the history on failure): 3 Add Linear Array, 4-6 the
-    # Dyntopo toggle before the Hop, 7-8 leaving Sculpt Mode, 9-10 back in it, 11 Apply Array
-    for item, modifiers, width, dyntopo in ((8, ["Linear Array"], 2.0, True), (10, [], 6.4, None),
-                                            (9, ["Linear Array"], 2.0, True)):
+    # the indexes follow the Hop's steps (the runner prints the history on failure): 3-9 the Hop of Add Linear
+    # Array, 10 Add Linear Array, 11-13 the Dyntopo toggle before the apply's Hop, 14-15 leaving Sculpt Mode, 16-17
+    # back in it, 18 Apply Array
+    for item, modifiers, width, dyntopo in ((15, ["Linear Array"], 2.0, True), (17, [], 6.4, None),
+                                            (16, ["Linear Array"], 2.0, True)):
         with override():
             bpy.ops.ed.undo_history(item=item)
         yield from settle_hop()
@@ -893,6 +894,68 @@ def hop_mirror_apply_dyntopo_undo():
     yield 0.3
     count = len(cube().data.vertices)
     check(count == 16, f"leaving Sculpt Mode after Apply Mirror: expected both halves kept (16 vertices), got {count}")
+
+
+def tool_add_undo_redo(idname: str, modifier: str, previous: str | None = "builtin.box_mask", dyntopo: bool = False):
+    """Start a tool that adds its modifier, then undo and redo (#28). Sculpt undo steps don't hold modifiers: undo
+    must take the modifier away, staying in Sculpt Mode (with Dyntopo on too) and handing back to the tool used
+    before, or with none, to the brush tool (Draw in the startup file); redo brings the modifier and the tool back.
+    The Circular Array also moves the mesh aside, which undo and redo follow."""
+    yield from reset()
+    if dyntopo:
+        call("sculpt.dynamic_topology_toggle")
+        yield 0.3
+        check(cube().use_dynamic_topology_sculpting, "setup: Dyntopo didn't turn on")
+    if previous:
+        call("wm.tool_set_by_id", name=previous, space_type="VIEW_3D")
+        yield 0.5
+    else:
+        sys.modules[PACKAGE + ".source.core.history"].tool_history.recent.pop("SCULPT", None)
+    start = location_x()
+    yield from start_tool(idname, modifier)
+    added = location_x()
+    yield from hop_undo()
+    expected = ([], start, "SCULPT", previous or "builtin.brush")
+    state = (modifier_names(), location_x(), mode(), tool())
+    check(state == expected, f"undo {idname}: expected (modifiers, x, mode, tool) = {expected}, got {state}")
+    if dyntopo:
+        check(cube().use_dynamic_topology_sculpting, f"undo {idname}: expected Dyntopo on")
+        check(HOP_STEP not in cube(), f"undo {idname}: the Hop's undo mark was left on the Cube")
+    if not previous:
+        check(brush() == "Draw", f"undo {idname}: expected the Draw brush, got {brush()}")
+    yield from hop_redo()
+    expected = ([modifier], added, "SCULPT", idname)
+    state = (modifier_names(), location_x(), mode(), tool())
+    check(state == expected, f"redo {idname}: expected (modifiers, x, mode, tool) = {expected}, got {state}")
+
+
+def tool_linear_array_add_undo():
+    yield from tool_add_undo_redo("sculpt_deck.linear_array", "Linear Array")
+
+
+def tool_circular_array_add_undo():
+    yield from tool_add_undo_redo("sculpt_deck.circular_array", "Circular Array")
+
+
+def tool_mirror_add_undo():
+    yield from tool_add_undo_redo("sculpt_deck.mirror", "Mirror")
+
+
+def tool_add_undo_falls_back_to_draw():
+    yield from tool_add_undo_redo("sculpt_deck.linear_array", "Linear Array", previous=None)
+
+
+def hop_tool_add_undo_dyntopo():
+    yield from tool_add_undo_redo("sculpt_deck.linear_array", "Linear Array", dyntopo=True)
+
+
+def hop_array_apply_dyntopo_undo_add():
+    """Two undos after Apply Array under Dyntopo take back the apply, then the add, with Dyntopo still on"""
+    yield from add_and_apply_array(dyntopo=True)
+    yield from hop_undo()
+    check_dyntopo_state("undo Apply Array", ["Linear Array"], 2.0, dyntopo=True)
+    yield from hop_undo()
+    check_dyntopo_state("undo Add Linear Array", [], 2.0, dyntopo=True)
 
 
 def pen_events(pen: bool = True):
@@ -1614,6 +1677,12 @@ SCENARIOS = [
     hop_apply_scale_dyntopo_adjust_last,
     mirror_apply,
     hop_mirror_apply_dyntopo_undo,
+    tool_linear_array_add_undo,
+    tool_circular_array_add_undo,
+    tool_mirror_add_undo,
+    tool_add_undo_falls_back_to_draw,
+    hop_tool_add_undo_dyntopo,
+    hop_array_apply_dyntopo_undo_add,
     pen_hold_momentary_brush,
     resolution_density_up,
     resolution_density_up_undo_voxel_size,

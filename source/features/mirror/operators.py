@@ -3,8 +3,8 @@ from bpy.types import Operator
 from mathutils import Matrix
 
 from ...core.constants import CANCEL, FINISHED
-from ..array.operators import (active_tool, apply_modifier, array_poll, get_input, leave_tool, modifier_tools,
-                               realize)
+from ..array.operators import (active_tool, add_modifier_step, apply_modifier, array_poll, get_input, leave_tool,
+                               modifier_tools, realize)
 
 ###
 # Mirror
@@ -15,11 +15,11 @@ from ..array.operators import (active_tool, apply_modifier, array_poll, get_inpu
 #  moves its mirror image the other way. Applying turns the mirror image into
 #  real mesh and merges the vertices on the planes. Like the array tools, the
 #  tool adds a mirror when it starts and hands back to the previous tool once
-#  the mirror is applied or removed, or the active mesh has none.
+#  the mirror is applied or removed, or the active mesh has none, also when
+#  undo takes the mirror away.
 ###
 
 MIRROR_TOOL_ID = "sculpt_deck.mirror"
-modifier_tools.add(MIRROR_TOOL_ID)
 
 GROUP_KEY = "sculpt_deck_mirror"
 GROUP_VERSION = 1
@@ -184,6 +184,9 @@ def current_mirror(obj):
     return next((m for m in reversed(obj.modifiers) if is_mirror(m)), None)
 
 
+modifier_tools[MIRROR_TOOL_ID] = current_mirror
+
+
 def mirror_frame(modifier) -> Matrix:
     """World matrix of the mirror planes"""
     mirror_object = get_input(modifier, "Mirror Object")
@@ -210,9 +213,7 @@ def ensure_mirror(object_name: str):
         return
     if current_mirror(obj) is not None:
         return
-    add_mirror(obj)
-    with bpy.context.temp_override(window=windows[0]):
-        bpy.ops.ed.undo_push(message="Add Mirror")
+    add_modifier_step(obj, "Add Mirror", lambda: add_mirror(obj))
 
 
 # OPERATORS

@@ -1,6 +1,7 @@
 import math
 
 import bpy
+from bpy.app.handlers import persistent
 from bpy.props import (
     BoolProperty,
     EnumProperty,
@@ -14,6 +15,7 @@ from bpy.types import Operator, PropertyGroup
 from bpy_extras import view3d_utils
 from mathutils import Matrix, Vector
 
+from ...core.checkpoint import store_scene_checkpoint
 from ...core.constants import CANCEL, FINISHED, object_modes
 from ...core.drag import (
     ScreenAngle,
@@ -36,7 +38,8 @@ from ...core.hop import cancel_step_over, hop
 #  applying the modifier turns the copies into real mesh. Each kind has its
 #  own tool, so a circular array can be stacked on a linear one. A tool adds
 #  its array when it starts, and hands back to the previous tool once the
-#  array is applied or removed, or the active mesh has none.
+#  array is applied or removed, or the active mesh has none, also when undo
+#  takes the array away; redo brings both back.
 ###
 
 LINEAR_TOOL_ID = "sculpt_deck.linear_array"
@@ -434,15 +437,34 @@ def ensure_array(object_name: str, kind: str, view_rotation):
     if current_array(obj, kind) is not None:
         return
     window = windows[0]
-    add_array(obj, kind, window.scene.sculpt_deck_array.orientation, view_rotation)  # type: ignore
-    with bpy.context.temp_override(window=window):
-        bpy.ops.ed.undo_push(message=f"Add {kind_names[kind]}")
+    orientation = window.scene.sculpt_deck_array.orientation  # type: ignore
+    add_modifier_step(obj, f"Add {kind_names[kind]}", lambda: add_array(obj, kind, orientation, view_rotation))
+
+
+def add_modifier_step(obj, message: str, add):
+    """Run `add`, which adds a tool's modifier to the mesh in Sculpt Mode, as an undo step named `message` that undo
+    takes back. Sculpt undo steps don't hold modifiers, so a Scene Checkpoint comes first; with Dyntopo, whose
+    "Dynamic topology" steps a checkpoint would be undone to with Dyntopo off, a Hop to Object Mode that is the
+    whole action instead (core/hop.py)."""
+    global undone_tool
+    undone_tool = None
+    with bpy.context.temp_override(window=bpy.context.window_manager.windows[0]):
+        cancel_step_over()
+        if obj.use_dynamic_topology_sculpting:
+            with hop(bpy.context, "OBJECT", whole_action=True):
+                add()
+        else:
+            store_scene_checkpoint(bpy.context, f"Before {message}")
+            add()
+        bpy.ops.ed.undo_push(message=message)
 
 
 ARRAY_TOOLS = {LINEAR_TOOL_ID: "LINEAR", CIRCULAR_TOOL_ID: "CIRCULAR"}
-# tools that add a modifier when they start, never handed back to; the
-# mirror tool adds itself
-modifier_tools = set(ARRAY_TOOLS)
+# tools that add a modifier when they start, never handed back to, each with
+# how to find its modifier on a mesh; the mirror tool adds itself
+modifier_tools = {tool: (lambda obj, kind=kind: current_array(obj, kind)) for tool, kind in ARRAY_TOOLS.items()}
+# the tool that undo left as it took its modifier away, and its mesh, for redo to bring it back with the modifier
+undone_tool: tuple[str, str] | None = None
 
 
 def active_tool(context) -> str:
@@ -456,8 +478,8 @@ def leave_tool(context):
     bpy.ops.wm.tool_set_by_id(name=tool, space_type="VIEW_3D")
 
 
-def leave_tool_later(tool_id: str):
-    """leave_tool() from a drawing callback, when the tool is still active"""
+def in_viewport_later(callback):
+    """callback(context) in the 3D viewport, right after the drawing callback or undo step running now"""
 
     def run():
         windows = bpy.context.window_manager.windows
@@ -466,11 +488,66 @@ def leave_tool_later(tool_id: str):
         window = windows[0]
         area = next((a for a in window.screen.areas if a.type == "VIEW_3D"), None)
         with bpy.context.temp_override(window=window, area=area):
-            if active_tool(bpy.context) == tool_id:
-                leave_tool(bpy.context)
+            callback(bpy.context)
         return None
 
     bpy.app.timers.register(run, first_interval=0.0)
+
+
+def leave_tool_later(tool_id: str):
+    """leave_tool() from a drawing callback, when the tool is still active"""
+
+    def leave(context):
+        if active_tool(context) == tool_id:
+            leave_tool(context)
+
+    in_viewport_later(leave)
+
+
+def leave_undone_tool(context):
+    """After undo: the tool whose modifier it took away has nothing to edit"""
+    global undone_tool
+    obj = context.active_object
+    tool = active_tool(context)
+    if obj is not None and context.mode == "SCULPT" and tool in modifier_tools and modifier_tools[tool](obj) is None:
+        undone_tool = (tool, obj.name)
+        leave_tool(context)
+
+
+def retake_undone_tool(context):
+    """After redo: the tool undo left, once its modifier is back"""
+    global undone_tool
+    obj = context.active_object
+    if undone_tool is None or obj is None or obj.name != undone_tool[1] or context.mode != "SCULPT":
+        return
+    tool = undone_tool[0]
+    if modifier_tools[tool](obj) is not None:
+        undone_tool = None
+        bpy.ops.wm.tool_set_by_id(name=tool, space_type="VIEW_3D")
+
+
+# after each undo or redo, including the extra ones a Hop makes
+@persistent
+def tool_after_undo(*_):
+    in_viewport_later(leave_undone_tool)
+
+
+@persistent
+def tool_after_redo(*_):
+    in_viewport_later(retake_undone_tool)
+
+
+@persistent
+def forget_undone_tool(*_):
+    global undone_tool
+    undone_tool = None
+
+
+handlers = (
+    (bpy.app.handlers.undo_post, tool_after_undo),
+    (bpy.app.handlers.redo_post, tool_after_redo),
+    (bpy.app.handlers.load_post, forget_undone_tool),
+)
 
 
 def array_poll(context) -> bool:
@@ -867,9 +944,14 @@ def register():
     for cls in classes:
         bpy.utils.register_class(cls)
     bpy.types.Scene.sculpt_deck_array = PointerProperty(type=SCULPT_DECK_PG_array)  # type: ignore
+    for handler_list, handler in handlers:
+        handler_list.append(handler)
 
 
 def unregister():
+    for handler_list, handler in handlers:
+        if handler in handler_list:
+            handler_list.remove(handler)
     del bpy.types.Scene.sculpt_deck_array  # type: ignore
     for cls in reversed(classes):
         bpy.utils.unregister_class(cls)
