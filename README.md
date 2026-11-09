@@ -50,7 +50,7 @@ You may chose to switch the Pan and Rotate regions. If you lock the viewport rot
 
 Tap an object with your finger to select it in Object Mode, or to switch to it without leaving the current mode in Edit, Sculpt and Paint modes. Dragging still moves the view, and a second tap nearby makes a double tap. This can be turned off in the Control Zones settings.
 
-Long press an object to add it to or remove it from the selection, then use _Join Selected_, _Fuse (Union)_ (merge and voxel remesh into one surface) or _Fuse (Difference)_ (cut the other objects out of the active one and voxel remesh it) from the action pie or the widget, without leaving the current mode.
+Long press an object to add it to or remove it from the selection, then use _Join Selected_, _Fuse (Union)_ (merge and voxel remesh into one surface) or _Fuse (Difference)_ (cut the other objects out of the active one and voxel remesh it) from the action pie or the widget, without leaving the current mode. What you see is what gets combined: arrays, mirrors and other modifiers are applied first. Join keeps the active object's modifiers when they'd look the same on the others; when they wouldn't, it asks whether to apply them all or keep the active object's (which then act on the joined meshes too).
 
 ## Add Meshes Without Leaving Your Mode
 
@@ -200,6 +200,8 @@ Or drag `sculpt_deck.zip` into Blender.
 - `FIXED`: In Sculpt or Edit Mode, undoing Add Mesh, Join or Fuse left the objects behind, and changing Add Mesh settings in _Adjust Last Operation_ added a new copy each time.
 - `FIXED`: Undo after Voxel Density Up or Down in Sculpt Mode brought the geometry back but not the voxel size, so the next press started from the wrong size. Each press now adds a _Before …_ step, and undo and redo bring back both.
 - `FIXED`: Multires Level Up and Down stored no undo step, so undo skipped them and undid the step before. In Sculpt Mode each press now adds a _Before …_ step too.
+- `FIXED`: Join Selected and Fuse ignored arrays and mirrors: the other objects' copies were lost, the active object's array copied what was joined into it, and a cutter's copies cut nothing. Modifiers are now applied first (Join asks when the active object's would act differently), and Object Mode's Join is Sculpt Deck's too.
+- `FIXED`: Adjust Last Operation did nothing on Join Selected and Fuse (Fuse's _Voxel Size_ couldn't be changed afterwards).
 
 </details>
 

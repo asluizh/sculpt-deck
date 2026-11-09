@@ -6,7 +6,7 @@ from bpy.app.handlers import persistent
 from bpy.props import BoolProperty, StringProperty
 
 from .checkpoint import store_scene_checkpoint
-from .constants import FINISHED, object_modes
+from .constants import CANCEL, FINISHED, object_modes
 
 # custom property marking the mode an object returns to: saved in the undo step, cleared once back in that mode
 RETURN_MODE = "sculpt_deck_return_mode"
@@ -65,10 +65,11 @@ def restore_mode(*_):
 class Detour:
     """Base for operators that must go through Object Mode because they add or remove objects.
 
-    `execute` runs every step, in order: it records the mode it starts from, stores the Scene Checkpoint
+    `execute` runs every step, in order: it checks nothing blocks the work (`blocker`; if something does, it reports
+    it and cancels with nothing changed), records the mode it starts from, stores the Scene Checkpoint
     ("Before <label>"), switches to Object Mode, runs `object_mode_work`, and ends back in the starting mode, marking
-    the object so undo and redo return there too. A subclass supplies only `object_mode_work` (and, if it hands the
-    user a tool afterwards, `return_tool`); it can't override `execute`.
+    the object so undo and redo return there too. A subclass supplies only `object_mode_work` (and, if needed,
+    `blocker`, and `return_tool` when it hands the user a tool afterwards); it can't override `execute`.
 
     The starting mode is recorded once, on the first run, and kept when Blender runs the operator again (Adjust
     Last Operation undoes to the step before it, in Object Mode, and repeats it with the same properties). Each
@@ -91,6 +92,10 @@ class Detour:
                 raise TypeError(f"{cls.__name__} is a Detour: supply object_mode_work, not execute")
 
     def execute(self, context):
+        problem = self.blocker(context)
+        if problem:
+            self.report({"ERROR"}, problem)
+            return CANCEL
         if not self.start_mode:
             self.start_mode = object_modes[context.mode]
         if self.checkpoint:
@@ -108,6 +113,10 @@ class Detour:
     def object_mode_work(self, context):
         """What the action does, run in Object Mode"""
         raise NotImplementedError
+
+    def blocker(self, context) -> str:
+        """Why the work can't be done, checked before anything changes, or "" when it can"""
+        return ""
 
     def return_tool(self) -> str:
         """The tool to switch to once back in the starting mode, or "" to keep the current one"""
