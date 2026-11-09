@@ -27,7 +27,8 @@ from ...core.drag import (
     view_plane_offset,
 )
 from ...core.history import tool_history
-from ...core.hop import active_object, cancel_step_over, hop
+from ...core.hop import hop
+from ...core.step_over import active_object, cancel_step_over
 
 ###
 # Arrays

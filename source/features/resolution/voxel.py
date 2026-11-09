@@ -12,6 +12,7 @@ from bpy.types import Operator
 from ...core.checkpoint import store_scene_checkpoint
 from ...core.constants import CANCEL, FINISHED
 from ...core.hop import hop
+from ...core.step_over import cancel_step_over
 
 
 def remeshable(context) -> bool:
@@ -26,6 +27,7 @@ def remeshable(context) -> bool:
 def remesh(operator: Operator, context, factor: float) -> set[str]:
     """Scale the active mesh's voxel size by `factor` and voxel remesh it. When the remesher fails, the size is put
     back and the checkpoint already stored stays, as the one extra step."""
+    cancel_step_over()
     store_scene_checkpoint(context, f"Before {operator.bl_label}")
     mesh = context.active_object.data
     start = mesh.remesh_voxel_size

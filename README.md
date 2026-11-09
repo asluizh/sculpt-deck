@@ -203,6 +203,7 @@ Or drag `sculpt_deck.zip` into Blender.
 - `FIXED`: Join Selected and Fuse ignored arrays and mirrors: the other objects' copies were lost, the active object's array copied what was joined into it, and a cutter's copies cut nothing. Modifiers are now applied first (Join asks when the active object's would act differently), and Object Mode's Join is Sculpt Deck's too.
 - `FIXED`: Adjust Last Operation did nothing on Join Selected and Fuse (Fuse's _Voxel Size_ couldn't be changed afterwards).
 - `FIXED`: Undo after starting the Linear Array, Circular Array or Mirror tool in Sculpt Mode left the modifier on the mesh. Undo now takes it away (with a _Before …_ step, or with Dyntopo kept on) and goes back to the tool used before, and redo brings both back.
+- `FIXED`: After an action that adds a _Before …_ step (Add Mesh, Duplicate, Delete, Join, Fuse, Local Transform, Apply Scale, Voxel Density, Multires Level, adding an array or mirror), the second undo seemed to do nothing. Undo and redo now step over the _Before …_ step in Sculpt Mode, so each one takes back or redoes one action.
 
 </details>
 

@@ -13,7 +13,7 @@ A brief switch to another mode and back within one action, which the user never 
 _Avoid_: mode switch, temporary mode
 
 **Scene Checkpoint**:
-A whole scene undo step stored right before an action whose own undo step would not hold everything it changes (objects added or removed, object transforms in Sculpt Mode). Each one appears as an extra "Before …" step in the undo history.
+A whole scene undo step stored right before an action whose own undo step would not hold everything it changes (objects added or removed, object transforms in Sculpt Mode). Each one appears as an extra "Before …" step in the undo history, which undo and redo step over.
 _Avoid_: scene undo, before step
 
 ## Actions

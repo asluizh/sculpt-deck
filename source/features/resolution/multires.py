@@ -11,6 +11,7 @@ from bpy.types import Operator
 
 from ...core.checkpoint import store_scene_checkpoint
 from ...core.constants import CANCEL, FINISHED
+from ...core.step_over import cancel_step_over
 from .settings import resolution_settings
 
 
@@ -45,6 +46,7 @@ class SCULPT_DECK_OT_increase_multires(Operator):
     bl_options = {"REGISTER", "UNDO"}
 
     def execute(self, context):
+        cancel_step_over()
         mod = multires_modifier(context)
         if mod is None:
             return CANCEL
@@ -66,6 +68,7 @@ class SCULPT_DECK_OT_decrease_multires(Operator):
     bl_options = {"REGISTER", "UNDO"}
 
     def execute(self, context):
+        cancel_step_over()
         mod = multires_modifier(context)
         if mod is None:
             return CANCEL
